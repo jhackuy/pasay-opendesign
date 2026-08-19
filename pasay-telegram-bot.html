@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pasay AI · Telegram Bot 与 AI 运营循环</title>
+<style>
+:root {
+  --bg:      oklch(99% 0.002 240);
+  --surface: oklch(100% 0 0);
+  --fg:      oklch(18% 0.012 250);
+  --muted:   oklch(54% 0.012 250);
+  --border:  oklch(92% 0.005 250);
+  --accent:  oklch(58% 0.18 255);
+  --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
+  --fg-soft: color-mix(in oklch, var(--fg) 5%, transparent);
+  --ok:   oklch(52% 0.13 152);
+  --warn: oklch(63% 0.14 78);
+  --crit: oklch(54% 0.19 27);
+  --pend: oklch(56% 0.08 255);
+  --neu:  oklch(50% 0.01 250);
+  --tg-blue: oklch(55% 0.17 240);
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-body:    -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --fs-h1: clamp(34px, 4.6vw, 56px);
+  --fs-h2: clamp(24px, 3vw, 34px);
+  --fs-body: 15px;
+  --container: 1080px; --gutter: 24px;
+  --r: 12px; --r-lg: 16px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+p { text-wrap: pretty; margin: 0; }
+h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -0.015em; }
+:focus-visible { outline: 2px solid color-mix(in oklch, var(--accent) 55%, transparent); outline-offset: 2px; }
+.container { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
+.section { padding-block: clamp(40px, 6vw, 72px); }
+.section + .section { border-top: 1px solid var(--border); }
+.topnav { position: sticky; top: 0; z-index: 20; background: color-mix(in oklch, var(--bg) 92%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.topnav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+.logo { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.logo b { color: var(--accent); }
+.topnav nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.topnav nav a { font-size: 13px; color: var(--muted); padding: 7px 12px; border-radius: 9px; font-weight: 550; }
+.topnav nav a:hover { color: var(--fg); background: var(--fg-soft); }
+.topnav nav a.on { color: var(--fg); background: var(--surface); border: 1px solid var(--border); }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+.h1 { font-family: var(--font-display); font-size: var(--fs-h1); font-weight: 700; letter-spacing: -0.025em; line-height: 1.06; }
+.h2 { font-family: var(--font-display); font-size: var(--fs-h2); font-weight: 700; line-height: 1.15; }
+.lead { font-size: 17px; color: var(--muted); max-width: 56ch; line-height: 1.6; margin-top: 14px; }
+.meta { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--r-lg); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--r-md, 16px); }
+@media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 22px; }
+.sec-h { margin-bottom: 26px; }
+.sec-h .h2 { max-width: 26ch; }
+code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft); padding: 2px 6px; border-radius: 6px; }
+.pagefoot { padding-block: 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); }
+.pagefoot .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* ─── bot 面板 ─── */
+.bot-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 24px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.bot-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--tg-blue); color: var(--surface); display: grid; place-items: center; font-weight: 700; font-size: 22px; flex-shrink: 0; }
+.menu-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 640px; }
+/* P0-2 (006A1 保留) — Mobile (≤560px) 仍保持 3×2 结构。
+   缩小 gap / padding / secondary description font 而不是改 columns。
+   不得 fallback 为 2 columns × 3 rows。 */
+@media (max-width: 560px) {
+  .menu-grid { gap: 6px; }
+  .menu-btn { padding: 9px 10px; font-size: 13.5px; }
+  .menu-btn span { font-size: 10.5px; }
+}
+.menu-btn { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); font-size: 14px; font-weight: 650; }
+.menu-btn span { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+.menu-btn:hover { border-color: var(--accent); }
+.chat { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.chat-row { display: flex; }
+.chat-row.right { justify-content: flex-end; }
+.chat-row.center { justify-content: center; }
+.bub { max-width: 88%; padding: 9px 13px; border-radius: 14px; font-size: 13.5px; line-height: 1.55; background: var(--bg); border: 1px solid var(--border); }
+.chat-row.right .bub { background: var(--tg-blue); color: var(--surface); border-color: var(--tg-blue); }
+.bub .who { font-size: 10.5px; font-weight: 700; margin-bottom: 3px; font-family: var(--font-mono); letter-spacing: 0.03em; }
+.bub .who.bot { color: var(--accent); }
+.bub .who.owner { color: var(--ok); }
+.chat-row.right .bub .who { color: color-mix(in oklch, white 80%, transparent); }
+.route-tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); background: var(--fg-soft); border-radius: 7px; padding: 3px 8px; }
+.route-tag b { color: var(--accent); font-weight: 650; }
+.bub .who.secretary { color: oklch(63% 0.14 78); }
+/* VNext Overdue Operation gallery */
+.op-gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 860px) { .op-gallery { grid-template-columns: 1fr; } }
+.op-scene { display: flex; flex-direction: column; }
+.scene-t { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); font-weight: 650; margin-bottom: 8px; }
+.h3 { font-size: 19px; font-weight: 650; letter-spacing: -0.015em; }
+
+/* ─── AI loop ─── */
+.loop { display: flex; flex-direction: column; gap: 0; }
+.loop-step { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; padding: 13px 0; border-top: 1px solid var(--border); align-items: baseline; }
+.loop-step:first-child { border-top: 0; }
+.loop-step .n { font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); }
+.loop-step .t b { font-size: 14.5px; }
+.loop-step .t p { font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.55; }
+.loop-step .tag { font-family: var(--font-mono); font-size: 11px; color: var(--muted); background: var(--fg-soft); border-radius: 7px; padding: 3px 8px; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.chip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.st-ok { background: color-mix(in oklch, var(--ok) 12%, transparent); color: var(--ok); }
+.st-warn { background: color-mix(in oklch, var(--warn) 14%, transparent); color: color-mix(in oklch, var(--warn) 82%, black); }
+.st-crit { background: color-mix(in oklch, var(--crit) 11%, transparent); color: var(--crit); }
+.st-pend { background: color-mix(in oklch, var(--pend) 11%, transparent); color: color-mix(in oklch, var(--pend) 85%, black); }
+.st-neu { background: var(--fg-soft); color: var(--muted); }
+.rule-card { border-left: 3px solid var(--accent); }
+.ds-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ds-table th, .ds-table td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.ds-table th { color: var(--muted); font-weight: 550; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+.banner { display: flex; gap: 9px; align-items: flex-start; padding: 11px 13px; border-radius: var(--r); font-size: 13px; line-height: 1.45; }
+.banner.info { background: var(--accent-soft); color: color-mix(in oklch, var(--accent) 80%, black); }
+</style>
+</head>
+<body>
+<header class="topnav" data-od-id="topnav">
+  <div class="container topnav-inner">
+    <span class="logo">Pasay <b>AI</b> · 产品母稿</span>
+    <nav>
+      <a href="index.html">00 总览</a>
+      <a href="pasay-design-system.html">01 设计系统</a>
+      <a href="pasay-mini-app.html">02-09 Mini App</a>
+      <a href="pasay-telegram-bot.html" class="on">10-11 Telegram / AI</a>
+      <a href="pasay-telegram-bot.html#overdue" style="color:var(--accent);border:1px solid color-mix(in oklch, var(--accent) 40%, var(--border))">VNEXT Overdue</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- 10 · 机器人人格 -->
+  <section class="section" data-od-id="bot-identity" id="identity">
+    <div class="container">
+      <p class="eyebrow">10 · TELEGRAM BOT — IDENTITY</p>
+      <div class="sec-h"><h2 class="h2">Bot 不是聊天玩具，<br>是一个稳定的运营同事。</h2></div>
+      <div class="bot-card" data-od-id="bot-persona">
+        <div class="bot-avatar">PA</div>
+        <div style="flex:1;min-width:240px">
+          <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:19px">Pasay AI</b><span class="tag st-pend" style="background:var(--accent-soft);color:var(--accent)">@pasay_ops_bot</span><span class="meta">AI 运营同事 · Operator</span></div>
+          <p class="lead" style="font-size:14px;margin-top:10px;line-height:1.65">固定身份、简洁、主动、有礼貌、不废话。完成任务给适量正向反馈，但不过度庆祝；任何情况下不为了拟人牺牲事实准确性。</p>
+        </div>
+        <div style="min-width:200px">
+          <table class="ds-table">
+            <tbody>
+              <tr><th>语气</th><td>陈述句 · 给出下一步</td></tr>
+              <tr><th>长度</th><td>关键业务消息 ≤ 2 行 + 双语</td></tr>
+              <tr><th>主动</th><td>发现异常先于用户开口</td></tr>
+              <tr><th>反馈</th><td>闭环后一句话确认，不重复庆祝</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · 固定菜单 -->
+  <section class="section" data-od-id="bot-menu" id="menu">
+    <div class="container">
+      <p class="eyebrow">10 · FIXED MENU — DETERMINISTIC FAST PATH · 006A2 FREEZE</p>
+      <div class="sec-h"><h2 class="h2">Owner 与 Secretary 统一 6 个固定按钮 · 3×2 网格 · IA Freeze Rule。</h2></div>
+      <div class="grid-2">
+        <div>
+          <div class="menu-grid" data-od-id="bot-fixed-menu">
+            <button class="menu-btn">🏠 Home<span>Mini App 首页 · Today 队列</span></button>
+            <button class="menu-btn">🏢 Properties<span>物业列表 · 确定性跳转</span></button>
+            <button class="menu-btn">✅ Tasks<span>统一任务引擎 · 待办优先</span></button>
+            <button class="menu-btn">💰 Rent<span>租金登记与明细</span></button>
+            <button class="menu-btn">💸 Expense<span>支出全流程</span></button>
+            <button class="menu-btn">🗂 Archive<span>Property Channel · 长期档案归档</span></button>
+          </div>
+          <div class="banner info" style="margin-top:16px"><b>6 fixed buttons · 3 columns × 2 rows · 6-menu IA</b>（群聊已冻结 6 键）。按钮路径<b>禁止 LLM 参与</b>：点击 = 直接打开对应 Mini App 页面，零延迟、零误解、零成本。自然语言理解只发生在自由输入框。<br>顺序已经定稿：第 1 行 Home / Properties / Tasks，第 2 行 Rent / Expense / Archive。本轮不重新讨论顺序、不重新优化布局。<br>⚠️ <b>历史 / superseded</b>：006A1 错误地把第 2 行写成 <code>Collections / Expenses / Finance</code>，006A2 已修正回已验收冻结的 <code>Rent / Expense / Archive</code>。</div>
+        </div>
+        <div class="card">
+          <div class="h3" style="font-size:15px">Fast Path 规则</div>
+          <table class="ds-table" style="margin-top:10px">
+            <tbody>
+              <tr><th>路径</th><td>固定按钮 → 指令 → 页面</td></tr>
+              <tr><th>延迟</th><td>确定性路由，无模型调用</td></tr>
+              <tr><th>兜底</th><td>自由输入 → AI 意图解析 → 歧义时给候选</td></tr>
+              <tr><th>双语</th><td>按钮标签恒为英文（Telegram 惯例），业务消息中英双语</td></tr>
+              <tr><th>权限</th><td>Owner 专属动作在 Mini App 内仍受审批边界约束</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · 会话目录 -->
+  <section class="section" data-od-id="bot-conversations" id="conv">
+    <div class="container">
+      <p class="eyebrow">10 · CONVERSATION CATALOG</p>
+      <div class="sec-h"><h2 class="h2">六类典型会话：查询 / 登记 / 支出 / 维修 / 跟进 / 完成。</h2></div>
+      <div class="grid-2" style="gap:18px">
+
+        <div class="chat" data-od-id="conv-query">
+          <div class="chat-row"><div class="bub"><div class="who">TENANT · PAOLO</div>1608 status?</div></div>
+          <div class="chat-row right"><div class="bub"><div class="who owner">OWNER</div>1608 状态 · 已出租 · 租金已收 ✓ · 维修 1 项进行中（等零件）<br>Unit 1608 · Occupied · Rent paid ✓ · 1 repair open (waiting parts)</div></div>
+          <div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>打开 1608 明细 →<span class="route-tag">→ Mini App · #/property/1608</span></div></div>
+        </div>
+
+        <div class="chat" data-od-id="conv-rent">
+          <div class="chat-row"><div class="bub"><div class="who">SECRETARY</div>Paolo paid 20k today</div></div>
+          <div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>收到 ✓ 已登记 ₱20,000 到 1608（待 Owner 确认）<br>Registered ₱20,000 to Unit 1608 — awaiting Owner confirmation.<span class="route-tag" style="margin-left:6px">→ 租金 Pending</span></div></div>
+          <div class="chat-row"><div class="bub"><div class="who owner">OWNER</div>确认</div></div>
+          <div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>1608 租金已入账 ✓ 任务已闭环。干得漂亮。<br>Rent posted. Task closed. Nice work.<span class="route-tag" style="margin-left:6px">→ Rent Paid</span></div></div>
+        </div>
+
+        <div class="chat" data-od-id="conv-expense">
+          <div class="chat-row"><div class="bub"><div class="who">SECRETARY</div>支出 2500 空调维修 1608</div></div>
+          <div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已创建 EXP-0012 · ₱2,500 · Repair · 1608 空调压缩机<br>Created EXP-0012 · ₱2,500 · Repair · 1608 aircon.<span class="route-tag" style="margin-left:6px">→ 待审批 Pending</span></div></div>
+          <div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>已发送审批任务给 Owner。批准后进入待付款。<br>Approval task sent to Owner. Approved → to-pay queue.</div></div>
+        </div>
+
+        <div class="chat" data-od-id="conv-repair">
+          <div class="chat-row"><div class="bub"><div class="who">TENANT · CARLO</div>1608 aircon is leaking</div></div>
+          <div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已报修 REP-0017 · 1608 空调漏水 · 指派给 Jun<br>Reported REP-0017 · 1608 aircon leak · assigned to Jun.<span class="route-tag" style="margin-left:6px">→ 维修 Assigned</span></div></div>
+        </div>
+
+        <div class="chat" data-od-id="conv-followup">
+          <div class="chat-row"><div class="bub"><div class="who">OWNER</div>remind Paolo tomorrow</div></div>
+          <div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已创建跟进任务：明天 09:00 提醒 Paolo（1608 尾款 ₱10,000）<br>Follow-up created: remind Paolo tomorrow 09:00 (₱10,000 balance).<span class="route-tag" style="margin-left:6px">→ 任务 T-113</span></div></div>
+        </div>
+
+        <div class="chat" data-od-id="conv-complete">
+          <div class="chat-row"><div class="bub"><div class="who">SECRETARY</div>已经付款</div></div>
+          <div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>EXP-0012 已通过 GCash 付款 ✓ 回执已归档。<br>EXP-0012 paid via GCash ✓ receipt archived.<span class="route-tag" style="margin-left:6px">→ Paid</span></div></div>
+          <div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>本月支出累计 ₱8,400。需要导出报告吗？</div></div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:18px">每条业务消息 = 中文 + English；路由注解说明对话如何落进 Mini App 明细（在 <a href="pasay-mini-app.html" style="color:var(--accent)">原型 · Telegram 模拟器</a> 中可实际操作 FLOW 09）。</p>
+    </div>
+  </section>
+
+  <!-- 10 · Message Catalog -->
+  <section class="section" data-od-id="message-catalog" id="catalog">
+    <div class="container">
+      <p class="eyebrow">10 · MESSAGE CATALOG — P0</p>
+      <div class="sec-h"><h2 class="h2">所有群提示语统一进 MessageTemplate，<br>不再散落在业务代码里。</h2></div>
+      <div class="grid-2" style="gap:14px">
+        <div class="card">
+          <div class="h3" style="font-size:15px">MessageTemplate · 字段</div>
+          <table class="ds-table" style="margin-top:10px">
+            <tbody>
+              <tr><th>message_id</th><td>稳定 ID，跨端引用</td></tr>
+              <tr><th>business_domain</th><td>rent / expense / repair / tenant / property / task / ai</td></tr>
+              <tr><th>trigger</th><td>触发事件（overdue / approved / paid…）</td></tr>
+              <tr><th>audience</th><td>Owner / Secretary / Tenant / All</td></tr>
+              <tr><th>zh_text / en_text</th><td>双语正文（群内恒双行）</td></tr>
+              <tr><th>buttons</th><td>确定性按钮（确认 / 付款 / 我去处理…）</td></tr>
+              <tr><th>next_action</th><td>引导的下一步</td></tr>
+              <tr><th>learning_tip</th><td>隐形学习文案（stage 0/1/2）</td></tr>
+              <tr><th>repeat_policy</th><td>默认每天最多一次</td></tr>
+              <tr><th>quiet_rule</th><td>我去处理 / Snooze / Quiet 后不再刷屏</td></tr>
+              <tr><th>severity</th><td>info / warn / crit</td></tr>
+              <tr><th>deep_link</th><td>→ Mini App 明细路由</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="h3" style="font-size:15px">隐形学习 · Guidance Stages</div>
+          <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.7">学习状态属于 <b>User</b>（不是 UI）：Telegram 学会的，Mini App 不再当新手解释，反之亦然。</div>
+          <table class="ds-table" style="margin-top:10px">
+            <tbody>
+              <tr><th>Stage 0</th><td>没学过 → 首次完整说明</td></tr>
+              <tr><th>Stage 1</th><td>见过一次 → 一句话提醒</td></tr>
+              <tr><th>Stage 2</th><td>已掌握 → 正常不提示</td></tr>
+              <tr><th>Error Recovery</th><td>操作失败 / 主动问 → 重新出现完整帮助</td></tr>
+            </tbody>
+          </table>
+          <div class="meta" style="margin-top:10px">示例（Expense Approve）：首次「批准 ≠ 完成，下一步付款」→ 之后「已批准，进入待付款」→ 熟练后仅结果。</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap:14px;margin-top:14px">
+        <div class="card"><div class="h3" style="font-size:15px">Rent · 租金</div>
+          <table class="ds-table" style="margin-top:8px"><thead><tr><th>id</th><th>触发</th><th>中文</th><th>按钮 / 下一步</th></tr></thead><tbody>
+            <tr><td class="num">rent_due_soon</td><td>到期前 3 天</td><td>租金即将到期 · rent due soon</td><td>登记付款 →</td></tr>
+            <tr><td class="num">rent_overdue</td><td>逾期</td><td>租金逾期 X 天 · overdue</td><td>我去催 / 稍后提醒</td></tr>
+            <tr><td class="num">rent_registered</td><td>Secretary 登记</td><td>已登记租金 · registered</td><td>Owner 待确认 →</td></tr>
+            <tr><td class="num">rent_await_confirm</td><td>待确认</td><td>待 Owner 确认 · awaiting confirm</td><td>确认 / 退回</td></tr>
+            <tr><td class="num">rent_confirm</td><td>确认</td><td>租金已入账 ✓ · posted</td><td>任务闭环</td></tr>
+            <tr><td class="num">rent_reject</td><td>退回</td><td>已退回未确认付款 · rejected</td><td>审计留痕</td></tr>
+            <tr><td class="num">rent_partial</td><td>部分付款</td><td>部分付款 · 未收 X · partial</td><td>收尾款 →</td></tr>
+            <tr><td class="num">rent_paid</td><td>付清</td><td>租金已收齐 ✓ · paid</td><td>一次完成反馈</td></tr>
+            <tr><td class="num">rent_add_evidence</td><td>补凭证</td><td>请补充付款凭证 · add evidence</td><td>凭证属于具体付款</td></tr>
+            <tr><td class="num">rent_reverse</td><td>逆向</td><td>逆向需原因 · reverse requires reason</td><td>Owner · 二次确认</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><div class="h3" style="font-size:15px">Expense · 支出</div>
+          <table class="ds-table" style="margin-top:8px"><thead><tr><th>id</th><th>触发</th><th>中文</th><th>按钮 / 下一步</th></tr></thead><tbody>
+            <tr><td class="num">exp_created</td><td>创建</td><td>已创建支出 · created</td><td>Owner 待审批</td></tr>
+            <tr><td class="num">exp_pending</td><td>待审批</td><td>支出待审批 · pending</td><td>批准 / 拒绝</td></tr>
+            <tr><td class="num">exp_approve</td><td>批准</td><td>已批准 ≠ 完成 · approved</td><td>进入待付款</td></tr>
+            <tr><td class="num">exp_reject</td><td>拒绝</td><td>已拒绝 + 原因 · rejected</td><td>原因入时间线</td></tr>
+            <tr><td class="num">exp_edit</td><td>修改</td><td>关键字段修改需重新审批 · edit → re-approve</td><td>重新提交</td></tr>
+            <tr><td class="num">exp_resubmit</td><td>重提</td><td>已重新提交 · resubmitted</td><td>Owner 待审批</td></tr>
+            <tr><td class="num">exp_to_pay</td><td>待付款</td><td>待付款 · approved to pay</td><td>付款 →</td></tr>
+            <tr><td class="num">exp_paid</td><td>付款</td><td>已付款 ✓ · paid</td><td>回执归档</td></tr>
+            <tr><td class="num">exp_add_receipt</td><td>补凭证</td><td>请补充回执 · add receipt</td><td>上传 →</td></tr>
+            <tr><td class="num">exp_dup_warning</td><td>疑似重复</td><td>疑似重复支出 · duplicate?</td><td>确认 / 忽略</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><div class="h3" style="font-size:15px">Repair · 维修</div>
+          <table class="ds-table" style="margin-top:8px"><thead><tr><th>id</th><th>触发</th><th>中文</th><th>按钮 / 下一步</th></tr></thead><tbody>
+            <tr><td class="num">rep_reported</td><td>报修</td><td>已报修 · reported</td><td>指派 →</td></tr>
+            <tr><td class="num">rep_assigned</td><td>指派</td><td>已指派 X · assigned</td><td>预约上门</td></tr>
+            <tr><td class="num">rep_in_progress</td><td>处理中</td><td>维修进行中 · in progress</td><td>完成后标记</td></tr>
+            <tr><td class="num">rep_waiting_parts</td><td>等零件</td><td>等待零件 · waiting parts</td><td>零件到货恢复</td></tr>
+            <tr><td class="num">rep_completed</td><td>完成</td><td>维修完成 ✓ · completed</td><td>可关联支出</td></tr>
+            <tr><td class="num">rep_expense_linked</td><td>产生支出</td><td>已关联支出 · expense linked</td><td>走审批付款</td></tr>
+            <tr><td class="num">rep_stuck</td><td>超时</td><td>维修卡住 · stuck</td><td>升级处理</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><div class="h3" style="font-size:15px">Tenant · 租客</div>
+          <table class="ds-table" style="margin-top:8px"><thead><tr><th>id</th><th>触发</th><th>中文</th><th>按钮 / 下一步</th></tr></thead><tbody>
+            <tr><td class="num">ten_added</td><td>登记</td><td>已登记租客 · tenant added</td><td>Move-in 完成</td></tr>
+            <tr><td class="num">ten_move_in</td><td>入住</td><td>租客已入住 ✓ · move-in</td><td>进入租金周期</td></tr>
+            <tr><td class="num">ten_lease_expiring</td><td>租约到期</td><td>租约 X 天后到期 · lease expiring</td><td>续租 →</td></tr>
+            <tr><td class="num">ten_renew</td><td>续租</td><td>续租任务 · renewal</td><td>准备合同</td></tr>
+            <tr><td class="num">ten_move_out</td><td>迁出通知</td><td>已通知迁出 · move-out notice</td><td>安排验房</td></tr>
+            <tr><td class="num">ten_inspection</td><td>验房</td><td>退租验房 · inspection</td><td>照片 / 损坏 / 钥匙</td></tr>
+            <tr><td class="num">ten_deposit</td><td>押金结算</td><td>押金结算待 Owner · deposit settlement</td><td>Owner 确认</td></tr>
+            <tr><td class="num">ten_moved_out</td><td>迁出</td><td>已迁出 · moved out（历史保留）</td><td>物业 Turnover</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><div class="h3" style="font-size:15px">Property / Task · 物业与任务</div>
+          <table class="ds-table" style="margin-top:8px"><thead><tr><th>id</th><th>触发</th><th>中文</th><th>按钮 / 下一步</th></tr></thead><tbody>
+            <tr><td class="num">prop_added</td><td>新增物业</td><td>已登记物业 · property added</td><td>上传照片</td></tr>
+            <tr><td class="num">prop_vacant</td><td>空置</td><td>物业空置可租 · vacant</td><td>登记租客</td></tr>
+            <tr><td class="num">prop_turnover</td><td>Turnover</td><td>Turnover 中 · cleaning / repair / photos</td><td>完成任务</td></tr>
+            <tr><td class="num">prop_ready</td><td>可出租</td><td>可出租 ✓ · ready to lease</td><td>招租</td></tr>
+            <tr><td class="num">prop_photos_missing</td><td>缺照片</td><td>物业缺照片 · photos missing</td><td>上传 →</td></tr>
+            <tr><td class="num">task_created</td><td>创建</td><td>已创建任务 · task created</td><td>查看 →</td></tr>
+            <tr><td class="num">task_reminder</td><td>提醒</td><td>提醒 · 每天最多一次</td><td>我去处理</td></tr>
+            <tr><td class="num">task_take</td><td>认领</td><td>处理中 · 提醒静默</td><td>状态 In Progress</td></tr>
+            <tr><td class="num">task_snooze</td><td>稍后</td><td>明天提醒 · snoozed（业务不变）</td><td>—</td></tr>
+            <tr><td class="num">task_waiting</td><td>等待</td><td>等待别人 · waiting</td><td>—</td></tr>
+            <tr><td class="num">task_done</td><td>完成</td><td>任务完成 ✓ · done（一次反馈）</td><td>提醒自动关闭</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><div class="h3" style="font-size:15px">AI · 系统消息</div>
+          <table class="ds-table" style="margin-top:8px"><thead><tr><th>id</th><th>触发</th><th>中文</th><th>按钮 / 下一步</th></tr></thead><tbody>
+            <tr><td class="num">ai_missing_field</td><td>缺字段</td><td>请补充 X · missing field</td><td>补填 →</td></tr>
+            <tr><td class="num">ai_ambiguous</td><td>多匹配</td><td>匹配到多个 · ambiguous</td><td>选择 →</td></tr>
+            <tr><td class="num">ai_not_understood</td><td>不理解</td><td>没听懂 · not understood</td><td>换个说法 / 提需求</td></tr>
+            <tr><td class="num">ai_no_permission</td><td>没权限</td><td>需要 Owner · permission required</td><td>转为 Owner 任务</td></tr>
+            <tr><td class="num">ai_error</td><td>出错</td><td>出错了 · error</td><td>重试</td></tr>
+            <tr><td class="num">ai_retry</td><td>重试</td><td>已重试 · retried</td><td>—</td></tr>
+            <tr><td class="num">ai_cannot_handle</td><td>无法处理</td><td>当前做不到 · cannot handle yet</td><td>记录需求 →</td></tr>
+            <tr><td class="num">ai_request</td><td>提需求</td><td>已记录为需求 · logged as REQ-xxx</td><td>迭代队列</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap:14px;margin-top:14px">
+        <div class="card">
+          <div class="h3" style="font-size:15px">Telegram 精简 · 决定树</div>
+          <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">
+            高频 · 立即处理 · 一句话可完成 → <b>进 Telegram 群</b><br>
+            配置 / 历史 / 照片管理 / 复杂表单 / 多步骤 / 低频 / 财务纠错 → <b>进 Mini App</b><br><br>
+            完整后台能力不因群精简而删除——Mini App 是 Operations Control Tower。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3" style="font-size:15px">Guarantee · 不变量</div>
+          <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">
+            <b>6 固定菜单（🏠 Home · 🏢 Properties · ✅ Tasks · 💰 Rent · 💸 Expense · 🗂 Archive）</b><b>不经 LLM</b>；<br>
+            Snooze 只改提醒、不改业务状态；业务完成 → 任务自动 Done、提醒自动关闭、一次完成反馈；<br>
+            Business Record ≠ Task：Expense APPROVED 不是 Task Done。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 · AI 运营循环 -->
+  <section class="section" data-od-id="ai-loop" id="loop">
+    <div class="container">
+      <p class="eyebrow">11 · AI OPERATIONS LOOP</p>
+      <div class="sec-h"><h2 class="h2">Observe → Understand → Action → Assign → Remind →<br>Human Action → Verify → Complete → Positive Feedback</h2></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="loop" data-od-id="ai-loop-steps">
+            <div class="loop-step"><div class="n">01</div><div class="t"><b>Observe · 观察</b><p>租客 1805 租金到期 15 天未付。</p></div><span class="tag">系统 + 银行流水</span></div>
+            <div class="loop-step"><div class="n">02</div><div class="t"><b>Understand · 理解</b><p>判定为逾期异常，非歧义消息。</p></div><span class="tag">规则 + LLM 复核</span></div>
+            <div class="loop-step"><div class="n">03</div><div class="t"><b>Create Action · 创建动作</b><p>生成跟进任务 T-104（指派 Secretary）。</p></div><span class="tag">Unified Task</span></div>
+            <div class="loop-step"><div class="n">04</div><div class="t"><b>Assign · 指派</b><p>任务进入 Secretary 的 Today 队列。</p></div><span class="tag">角色边界</span></div>
+            <div class="loop-step"><div class="n">05</div><div class="t"><b>Remind · 提醒</b><p>次日 09:00 Bot 提醒；逾期 3 天升级给 Owner。</p></div><span class="tag">调度</span></div>
+            <div class="loop-step"><div class="n">06</div><div class="t"><b>Human Action · 人工动作</b><p>Secretary 致电租客，约定还款日并记录。</p></div><span class="tag">人在环内</span></div>
+            <div class="loop-step"><div class="n">07</div><div class="t"><b>Verify · 验证</b><p>租客付款 → Secretary 登记 → Owner 确认。</p></div><span class="tag">审批边界</span></div>
+            <div class="loop-step"><div class="n">08</div><div class="t"><b>Complete · 闭环</b><p>租金 PAID，任务 DONE，时间线归档。</p></div><span class="tag">状态机</span></div>
+            <div class="loop-step"><div class="n">09</div><div class="t"><b>Positive Feedback · 正向反馈</b><p>Bot 一句确认：「1805 租金已收齐 ✓ 逾期跟进闭环。」</p></div><span class="tag">一次，不重复</span></div>
+          </div>
+        </div>
+        <div class="stack" style="display:flex;flex-direction:column;gap:14px">
+          <div class="card rule-card">
+            <div class="h3" style="font-size:15px">反馈语气 · Feedback Voice</div>
+            <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.7">✅ 简洁陈述：<code>已入账 ✓ 任务已闭环。</code><br>✅ 给出下一步：<code>批准后进入待付款。</code><br>❌ 不每条消息庆祝、不拟人化到影响事实、不堆叠 emoji、不重复致谢。</div>
+          </div>
+          <div class="card">
+            <div class="h3" style="font-size:15px">无法处理时 · Escalation</div>
+            <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.7">AI 先尝试协助；确认无法解决时，结构化记录为产品需求（场景 / 期望 / 紧急度 / 频率 / 当前人工方案），进入迭代队列。在 Mini App 中提交（FLOW 12）。</div>
+            <div class="chat" style="margin-top:14px">
+              <div class="chat-row"><div class="bub"><div class="who">SECRETARY</div>能不能自动生成英文催缴短信？</div></div>
+              <div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>当前还做不到自动生成双语催缴。已记录为需求 REQ-002（高优先级）· 我会持续学习。<br>Not yet supported — logged as REQ-002 (high priority).</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="h3" style="font-size:15px">双语规则 · Bilingual Rule</div>
+            <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.7">群内重要业务消息恒为「中文 + English」双行；Mini App UI 依用户语言单独显示；状态芯片恒双标签。机器人固定按钮为英文（Telegram 惯例），Owner 默认中文、Secretary 默认英文。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Overdue Rent Operation UX -->
+  <section class="section" data-od-id="vnext-overdue" id="overdue">
+    <div class="container">
+      <p class="eyebrow">VNEXT · TELEGRAM OVERDUE RENT OPERATION · PASAY-VNEXT-OPERATION-DESIGN-001</p>
+      <div class="sec-h">
+        <h2 class="h2">Telegram 不是任务后台，<br>只向真人推送"该他做的动作 / 决策 / 结果"。</h2>
+        <span class="tag accent">独立设计层 · 不重做 Telegram 产品</span>
+      </div>
+      <div class="banner info">Telegram 保持冻结定位：AI 员工 + 真人同事协作的办公室。<b>Low cognitive load · 少按钮 · 少打扰 · 最重要动作优先 · 高频确定性 fast path · AI 主动继续被阻塞流程。</b>VNext 只新增「Operation 推进」消息形态，不动固定菜单 / 既有模板。<b>用户可见语言只用自然业务表达</b>（"等待 Paolo 付款 · 8月31日自动检查" / "需要你联系" / "已确认收齐"）；内部枚举仅作设计标注，不暴露给 Owner / Secretary。</div>
+
+      <div class="op-gallery" style="margin-top:20px">
+        <div class="op-scene"><div class="scene-t">01 · Detect 后首次出现（outcome-driven，非"提醒已发"）</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>🔴 1608 · Paolo · 2026-08 租金逾期 15 天 · 未付 ₱35,000<br>Unit 1608 · Aug rent overdue 15 days · ₱35,000 unpaid<span class="route-tag" style="margin-left:6px">→ 查看详情</span></div></div><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>我去联系</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>好。系统等的是你<b>完成联系并把结果回报</b>——无论是否联系上，请在明天 09:00 前告诉我结果；到期若无结果，我会继续推进，不会只是发条提醒。<br>Got it. I'm waiting on your contact result — report back by 09:00 tomorrow; if none arrives I keep this moving, not just a reminder.</div></div></div></div>
+        <div class="op-scene"><div class="scene-t">02 · Secretary 待行动</div><div class="chat"><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>Paolo 说月底前付</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已记录承诺：08-31 前付。会在当天自动核对是否到账，未到账继续推进。<br>Promise noted: pay by 08-31. I'll verify that day; if not received, I keep pursuing.<span class="route-tag" style="margin-left:6px">→ 等待 Paolo 付款 · 08-31 自动核对</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">03 · 承诺日未付款 → 自动恢复</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>08-31 已到 · 未核对到 1608 到账。正在继续推进。<br>08-31 passed; no verified payment for 1608. Continuing.<span class="route-tag" style="margin-left:6px">→ 正在核对到账</span></div></div><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>Paolo 说周二到账</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已更新承诺日：下周二。届时自动核对，未到账继续推进。<br>Re-promised to next Tue — I'll re-check then.</div></div></div></div>
+        <div class="op-scene"><div class="scene-t">04 · 部分付款 · Claim 先于 Verified</div><div class="chat"><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>Paolo 付了 10k</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已记录申报付款 ₱10,000，正在核对到账。核对成功后再入账。<br>Claim logged: ₱10,000 — verifying receipt before posting.<span class="route-tag" style="margin-left:6px">→ 正在核对到账</span></div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已确认到账 ₱10,000 · 应付 ₱35,000 · 还欠 ₱25,000 —— 这笔收款继续跟进，不另开新单。<br>Verified ₱10,000 of ₱35,000; ₱25,000 remaining — same collection, not a new case.<span class="route-tag" style="margin-left:6px">→ 已收部分 · 还欠 ₱25,000</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">05 · Verification · 到账核对</div><div class="chat"><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>全部到账了</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>收到声明 · 我需比对到账/凭证后才能入账。请上传回执或确认银行流水。<br>Claimed paid — I need matching evidence to post. Upload receipt or confirm bank matching.<span class="route-tag" style="margin-left:6px">→ 正在核对到账</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">06 · Verified Result → Closed（可信证据到位即可，无需强制 Owner 复点）</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>银行流水已匹配 1608 · ₱35,000 到账。租金按证据核销入账 ✓ 收款闭环。<br>Bank match confirmed ₱35,000 for 1608. Posted from evidence ✓ collection closed.<span class="route-tag" style="margin-left:6px">→ 已确认收齐</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">07 · 需 Owner 介入（高风险 / 联系失败，非提醒计数）</div><div class="chat"><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>联系不上 Paolo 一周了</div></div><div class="chat-row right"><div class="bub"><div class="who owner">OWNER</div>我直接处理</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已升级给你：逾期 22 天 · 金额 ₱35,000 · 多手段联系未果。<br>Escalated to you: 22 days overdue, ₱35,000, contact attempts unsuccessful.<span class="route-tag" style="margin-left:6px">→ 需要你处理</span></div></div></div></div>
+      </div>
+
+      <div class="grid-2" style="margin-top:20px;gap:14px">
+        <div class="card">
+          <div class="h3" style="font-size:15px">Contacted 之后到底发生什么</div>
+          <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.7">按下「已联系 / Contacted」<b>绝不等于完成</b>：它只把一次 contact 结果写进 Operation 记录，并按结果推进——拿到承诺日则<b>等待 Paolo 付款</b>（到承诺日自动核对）；没拿到承诺则回到<b>需要你联系</b>。<b>业务态不受影响</b>：没有到账证据，仍是"未付款"，且收集目标不变、不另开新单。</div>
+        </div>
+        <div class="card">
+          <div class="h3" style="font-size:15px">Operation 闭环原则 · Telegram 侧</div>
+          <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">· 少按钮：每屏最多 2 个确定性动作<br>· 少打扰：同一 Operation 对同一真人每日主动催办最多一次，除非高风险或新实质事件<br>· 只报"需要人做的事 / 决策 / 结果"<br>· AI 主动据 expected_result + deadline + wake_at 续跑，人不需记得回来<br>· 真正收齐只发生在可信证据核销（Verified Result）后</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Expense Operation Continuity -->
+  <section class="section" data-od-id="vnext-expense-continuity" id="expense-continuity">
+    <div class="container">
+      <p class="eyebrow">VNEXT · EXPENSE OPERATION · CROSS-SURFACE CONTINUITY · PASAY-VNEXT-EXPENSE-003C</p>
+      <div class="sec-h"><h2 class="h2">支出事项：真实付款必须经<br>Claim → Evidence → Verified 才闭环</h2><span class="tag accent">与 Mini App 同一业务事实</span></div>
+      <div class="banner info">Telegram 与 Mini App 共用同一 business truth：此处展示的每一条都在 Mini App 的 OP-B1 / EXP-0007 可复现。<b>Approve / I have paid 绝不渲染为业务完成。</b>真人只会看到"当前需要谁做什么 + 关键变化 + 真正结果 + 异常/升级"，无内部枚举。</div>
+      <div class="op-gallery" style="margin-top:20px">
+        <div class="op-scene"><div class="scene-t">01 · Secretary 补齐水费材料</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>整栋 6 月水费 · 请补齐账单材料，我再交 Owner 审批。<br>June building water bill — please add the bill evidence before I route it to Owner.<span class="route-tag" style="margin-left:6px">→ 需要你补充材料</span></div></div><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>账单已上传</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>材料齐全 · AI 已准备好审批摘要，交 Owner。<br>Evidence complete — approval summary ready for Owner.</div></div></div></div>
+        <div class="op-scene"><div class="scene-t">02 · Owner 收到审批（≠完成）</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>需要你审批：整栋水费 · ₱1,800 · 账单已附。<br>Awaiting your approval: building water bill · ₱1,800 · bill attached.<span class="route-tag" style="margin-left:6px">→ 需要 Owner 审批</span></div></div><div class="chat-row"><div class="bub"><div class="who owner">OWNER</div>批准</div></div><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已批准。<b>尚未付款</b>——这笔支出仍待真实付款并验证才会结案。<br>Approved — <b>not yet paid</b>; this still needs a real payment & verification to settle.</div></div></div></div>
+        <div class="op-scene"><div class="scene-t">03 · Owner 申报已付款（仅 Claim）</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已记录付款申报 ₱1,800 · GCash · 正在核对付款结果。支出仍为"已批准"。<br>Payment claim logged ₱1,800 · GCash — verifying. Expense is still "approved".<span class="route-tag" style="margin-left:6px">→ 正在核对付款</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">04 · 渠道暂无结果 → AI 自动等待并复查</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>等待 GCash 交易确认 · 明天 09:00 自动复查，无需你处理。<br>Waiting on GCash confirmation — auto re-check tomorrow 09:00. No action needed.<span class="route-tag" style="margin-left:6px">→ 等待渠道确认</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">05 · 需要凭证时才找 Secretary</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>暂无匹配付款记录 · 需要 Secretary 补充付款凭证后我继续核对。<br>No matching payment — Secretary please provide payment evidence, then I'll resume verifying.<span class="route-tag" style="margin-left:6px">→ 需要 Secretary</span></div></div><div class="chat-row"><div class="bub"><div class="who secretary">SECRETARY</div>凭证已上传</div></div></div></div>
+        <div class="op-scene"><div class="scene-t">06 · Verified → 已确认付款，事项完成</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已确认付款 ₱1,800 ✓ · 水费支出事项完成。<br>Payment confirmed ₱1,800 ✓ · expense operation completed.<span class="route-tag" style="margin-left:6px">→ 已付款</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">07 · 异常分支（均不把 Approve/已付 当完成）</div><div class="chat"><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>资料不足 → 请 Secretary 补充后再送审。<br>Need more info — Secretary supplements & resubmits.</div></div><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>金额需修正 → 原批准失效，需重新审批。<br>Amount invalid — prior approval void, re-approval required.</div></div><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>付款金额不一致（申报 1800 vs 实际 1500）→ 需 Owner 判断。<br>Payment amount mismatch — Owner decides.</div></div><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>重复提交 / 不应支付 → 合法关闭，不产生付款。<br>Duplicate / not approved — closed without payment.</div></div></div></div>
+      </div>
+      <div class="grid-2" style="margin-top:20px;gap:14px">
+        <div class="card"><div class="h3" style="font-size:15px">AI 员工规则 · Expense 侧</div><div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">· 只报「需要人做的事 / 关键业务变化 / 真正结果 / 异常升级」<br>· 不暴露 WAITING_HUMAN / VERIFYING / WAITING_EXTERNAL / PAYMENT_VERIFIED 等内部枚举<br>· 每日对同一真人主动催办最多一次；「我去处理」后不短时刷屏，仅新实质事件 / deadline / escalation 再通知<br>· 提醒只是推进手段，不能作为 Task / Operation 完成条件</div></div>
+        <div class="card"><div class="h3" style="font-size:15px">同一业务事实（Mini App 可复现）</div><div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">每一条消息都反映 OP-B1 的当前真实状态：材料阶段 → OP-B1 为"待补材料"；Owner 审批 → "需要你审批"；Approve → Expense=approved（≠paid）；I-have-paid → Claim PENDING（Expense 仍 approved）；渠道确认 → Verified → Expense=paid / OP-B1=Closed<br>Telegram 与 Mini App 不得出现一端 Paid 另一端 Approved。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Repair Operation Continuity -->
+  <section class="section" data-od-id="vnext-repair-continuity" id="repair-continuity">
+    <div class="container">
+      <p class="eyebrow">VNEXT · REPAIR OPERATION · CROSS-SURFACE CONTINUITY · PASAY-VNEXT-FOUNDATION-004</p>
+      <div class="sec-h"><h2 class="h2">维修事项：只有真实修好并核验<br>才 Closed（报价/付款都不是完成）</h2><span class="tag accent">与 Mini App 同一业务事实</span></div>
+      <div class="banner info">Telegram 与 Mini App 共享同一 Repair business truth。Approve quote / I have paid / technician said done <b>都不代表维修完成</b>；只有完成核验（Completion Claim → Evidence → Result）后才 Closed。真人只看"现在需要做什么 + 关键进度 + 异常 + 最终结果"，无内部枚举。</div>
+      <div class="op-gallery" style="margin-top:20px">
+        <div class="op-scene"><div class="scene-t">01 · AI 识别 1608 空调不制冷</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已识别 1608 空调不制冷 · 需要 Secretary 确认维修信息。<br>Detected 1608 aircon not cooling — Secretary to confirm repair info.<span class="route-tag" style="margin-left:6px">→ 需要 Secretary</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">02 · 安排维修人员 → 等待回复</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已联系维修人员 · 等待回复 · AI 将自动跟进。<br>Contacted technician — awaiting reply, AI will follow up.<span class="route-tag" style="margin-left:6px">→ 等待维修人员</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">03 · 报价需 Owner 审批（≠维修完成）</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>维修人员报价 ₱4,500 · 需你审批。<b>批准报价 ≠ 维修完成。</b><br>Technician quoted ₱4,500 — awaiting your approval. <b>Approving the quote ≠ repair done.</b><span class="route-tag" style="margin-left:6px">→ 需要 Owner</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">04 · 报价批准，Repair 仍开放</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>维修报价已批准 · AI 正在继续安排维修。维修事项尚未完成。<br>Repair quote approved — AI keeps arranging the repair. Repair is not yet complete.<span class="route-tag" style="margin-left:6px">→ 等待维修人员上门</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">05 · 维修人员报告完成 → 需核验</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>维修人员报告完成 · 需要 Secretary 核验结果/照片后才算完成。<br>Technician reported done — Secretary to verify the result/photos before it counts as complete.<span class="route-tag" style="margin-left:6px">→ 需要核验</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">06 · 核验通过 → 维修完成</div><div class="chat"><div class="chat-row right"><div class="bub"><div class="who bot">PASAY AI</div>已核验维修结果 ✓ 1608 空调维修事项完成。<br>Repair verified ✓ — 1608 aircon repair operation complete.<span class="route-tag" style="margin-left:6px">→ 维修完成</span></div></div></div></div>
+        <div class="op-scene"><div class="scene-t">07 · 异常分支（报价拒绝/维修失败/付款）</div><div class="chat"><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>报价被拒绝 → 仅拒绝该方案 · Repair 继续（安排新报价/维修商）。<br>Quote rejected — only that proposal declined; Repair continues (new quote/vendor).</div></div><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>维修人员未回复/未到 → AI 自动跟进，到点续跑。<br>Technician unresponsive / not arrived — AI auto-follow-up.</div></div><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>修完仍坏 → Repair 不关闭 · 继续返工/新维修商/再诊断。<br>Still broken after repair — Repair stays open, arrange rework/new vendor/re-diagnose.</div></div><div class="chat-row"><div class="bub"><div class="who bot">PASAY AI</div>维修费已付款 ≠ 维修完成：Repair 继续到真实修好。<br>Repair paid ≠ repair done: Repair continues until actually fixed.</div></div></div></div>
+      </div>
+      <div class="grid-2" style="margin-top:20px;gap:14px">
+        <div class="card"><div class="h3" style="font-size:15px">AI 员工规则 · Repair 侧</div><div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">· 只报「需要人做的事 / 关键进度 / 异常 / 最终结果」<br>· 不持续广播内部工作流 / 不暴露内部枚举<br>· 每日对同一真人主动催办最多一次；「我去处理」后不短时刷屏<br>· 提醒只是推进手段，不能作为维修完成条件</div></div>
+        <div class="card"><div class="h3" style="font-size:15px">同一业务事实（Mini App 可复现）</div><div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">每一条都反映 OP-R1 真实状态：确认信息 → 安排技工 → 外部等待 → 报价审批（Repair 仍 open）→ 上门 → 完成申报 → 核验 → Repair Closed。<br>报价/付款/师傅说完成都不等于 Repair Closed；Telegram 与 Mini App 不得出现一端 Closed 另一端 Open。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 · Source of Truth Sync · 006A2 · Telegram UX Freeze (current frozen menu) -->
+  <section class="section" data-od-id="telegram-sot-006" id="telegram-sot-006" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">SOURCE OF TRUTH SYNC · 006A2 · TELEGRAM UX FREEZE &amp; BOUNDARY · 6-MENU IA · EXACT FROZEN MENU</p>
+      <div class="sec-h">
+        <h2 class="h2">Telegram 6 固定按钮 · 3×2 网格 · 已验收冻结 current truth</h2>
+        <span class="tag accent">Telegram UX 冻结 · 6-menu IA · Mini App 承载复杂业务</span>
+      </div>
+      <div class="banner info">
+        <b>本轮同步冻结 6 fixed buttons · 3 columns × 2 rows · 6-menu IA</b>（第 1 行 🏠 Home / 🏢 Properties / ✅ Tasks，第 2 行 💰 Rent / 💸 Expense / 🗂 Archive）。<br>
+        菜单交互规则：Fast Path 不经 LLM · Anti-silent-failure（点击立即响应 / 回调立即 ACK / 权限错误 / 状态过期 / 系统错误必须显式反馈，禁止 silent failure）。<br>
+        语言规则：Owner=中文默认 · Secretary=English默认 · 业务对象保留原始数据。<br>
+        Telegram ↔ Mini App 边界：Lease Renewal / Move-out 全流程、Evidence / Timeline / Settlement 全部 Mini App；Telegram 保留快速入口 / 提醒 / Operation 真人 Task 投影 / 审批 / 登记 / AI 自然语言。<br>
+        <b>本轮不做</b>：扩产品范围 · 重做视觉体系 · 新建 005C Vacancy/Listing 业务。<br>
+        ⚠️ <b>historical / superseded</b>：006A1 曾错误使用 <code>Collections / Expenses / Finance</code>（并主张 "Rent 顶层文案已经定稿为 Collections / 第 6 键已经定稿为 Finance"）。006A2 已将这些声明移除，把已验收冻结的 <code>Rent / Expense / Archive</code> 恢复为 Telegram 顶层菜单 current truth。
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">Telegram 6 固定按钮 · 3×2（已验收冻结 current truth）</div>
+          <div class="menu-grid" style="margin-top:10px;max-width:none" data-od-id="bot-fixed-menu-final">
+            <button class="menu-btn">🏠 Home<span>Mini App 首页 · Today 队列</span></button>
+            <button class="menu-btn">🏢 Properties<span>物业列表 · 确定性跳转</span></button>
+            <button class="menu-btn">✅ Tasks<span>统一任务引擎 · 待办优先</span></button>
+            <button class="menu-btn">💰 Rent<span>租金登记与明细</span></button>
+            <button class="menu-btn">💸 Expense<span>支出全流程</span></button>
+            <button class="menu-btn">🗂 Archive<span>Property Channel · 长期档案归档</span></button>
+          </div>
+          <div class="demo-d" style="margin-top:10px">
+            · <b>6 个按钮全部属于 Deterministic Fast Path</b>，点击立即响应、回调立即 ACK；<br>
+            · 不允许点按钮长时间无反应；权限错误 / 状态过期 / 系统错误必须显式反馈，禁止 silent failure；<br>
+            · 顶部不出现 Settings / AI Assistant / More / Operations / Repairs / Tenants / Reports；这些可以存在于 Mini App 内部，但不能破坏 Telegram 6 顶结构（3×2）；<br>
+            · 顺序已经定稿：第 1 行 Home / Properties / Tasks，第 2 行 Rent / Expense / Archive。不再重新讨论顺序、不再重新优化布局。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Telegram 不承载：Lease / Move-out 完整链路</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Telegram 保留</b>（Fast Path 高频）：快速入口 / 提醒 / 任务（Operation 的真人 Task 投影）/ 审批（Owner's approve in chat）/ 登记（如 Secretary 速记 rent payment claim）/ AI 自然语言（NL intent parser）。<br>
+            <b>Mini App 独占</b>（复杂 Operation + Truth + Evidence + Timeline + Settlement + History）：<br>
+            · Lease Renewal 完整阶段链（Owner Card 含 Unit / Tenant / Current/Proposed Rent / Expiry / Terms；Owner Change 真实业务字段 + termsHistory；Calendar clamp；NOT_RENEW continuity）<br>
+            · Move-out 完整阶段链（Temporal Truth · Inspection Evidence 真假翻转 · Lease-Scoped Financial Truth · Owner Approved Snapshot 不可 rollback · Partial Collection · Final VACANT 一次性落定）<br>
+            · Repair Operation 全部现场详情 + Evidence 上传 + Verified Result<br>
+            · Settlement Math（refund / balance_due / deductions / Original Deposit）<br>
+            · Settings · Reports · Archive · Full Search
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">语言规则（同步 006）</div>
+          <div class="demo-d" style="margin-top:8px">
+            · <b>Owner 默认中文</b>，Secretary 默认 English；<br>
+            · 业务对象（金额 / 房号 / 租客姓名 / 状态术语）保持原始数据（不要翻译人名房号）；<br>
+            · 群内重要业务消息恒为「中文 + English」双行；<br>
+            · Telegram 固定菜单为英文（Telegram 惯例），Mini App UI 跟随用户语言；<br>
+            · Owner Approval Card 可同时显示中文业务说明（"等待你审批续租条款 / Approved terms: lease 续约到 2027-09-30，新租金 ₱31,000"）。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Tasks · Operation → Human Task Projection</div>
+          <div class="demo-d" style="margin-top:8px">
+            · <b>Tasks 不是独立业务系统</b>；Tasks 是 <code>syncOperationTasks()</code> 对当前 Operation 状态的真人 Task 投影；<br>
+            · Task Card 信息标准：<b>Who · Unit / Property · Action · Reason · Timing / Deadline · Expected Result</b>；<br>
+            · 不得再出现无解释的孤立卡片（如只显示 "₱18,000 · Sep 30" 而不说"给谁 / 收还是付 / 为什么 / 哪房号 / 下一步"）；<br>
+            · 同一 Operation ≤ 1 个 Active Human Task（CLOSED 后旧按钮不得继续执行，Operation Detail 显示 History / Evidence / Timeline）。
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;border-left:3px solid var(--accent)">
+        <div class="h3" style="font-size:15px">Telegram Source of Truth Acceptance Check · 006A2</div>
+        <div class="demo-d" style="margin-top:8px">
+          · <b>6 个固定菜单正确</b>：第 1 行 🏠 Home / 🏢 Properties / ✅ Tasks，第 2 行 💰 Rent / 💸 Expense / 🗂 Archive（3 列 × 2 行）<br>
+          · Owner / Secretary IA 一致（6 菜单 + 自然语言对话 + AI Tasks 推送，不出现差异化按钮）<br>
+          · Group Chat 默认英文 UI（Home / Properties / Tasks / Rent / Expense / Archive）；Owner DM 中文 UI；Secretary DM 英文 UI — 同一 3×2 IA，三种 UI 语言<br>
+          · Fast Path 标注正确（6 按钮均不经 LLM，点击确定性跳转）<br>
+          · 无 Settings / AI Assistant / Operations / Repairs / Tenants / Reports 顶层键<br>
+          · 无 AI 顶层按钮（AI 仅在自然语言对话中触发）<br>
+          · Lease Renewal / Move-out 完整阶段不在 Telegram 触发，仅 Mini App 流转；Telegram 保留 Task 投影 + 提醒
+        </div>
+        <div class="demo-d" style="margin-top:8px"><b>Telegram UX Freeze Rule：</b>本次 006A2 同步完成后禁止继续因"按钮可以换位置 / 名字不漂亮 / 多个菜单"等主观理由反复修改。<b>Exact frozen current truth</b>：🏠 Home · 🏢 Properties · ✅ Tasks · 💰 Rent · 💸 Expense · 🗂 Archive（6 fixed buttons · 3 columns × 2 rows · 群聊已冻结 · 不重命名）。仅在出现明确业务事实错误 / 权限错误 / 阻塞 / 严重可用性问题 / 已验收业务逻辑变化时打破 Freeze。<br>📜 <b>historical / superseded</b>：006A1 曾错误使用 <code>Collections / Expenses / Finance</code>（"Rent 顶层文案已经定稿为 Collections" 与 "第 6 键已经定稿为 Finance"），006A2 已将这些声明移除，把已验收冻结的 <code>Rent / Expense / Archive</code> 恢复为当前现行规则。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 · Source of Truth Sync · 006 · Lease Renewal & Move-out · WHAT NOT IN TELEGRAM -->
+  <section class="section" data-od-id="telegram-no-lease-moveout" id="telegram-no-lease-moveout" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">SOURCE OF TRUTH SYNC · 006 · LEASE RENEWAL &amp; MOVE-OUT · TELEGRAM 边界</p>
+      <div class="sec-h">
+        <h2 class="h2">Lease Renewal / Move-out 完整操作<br>只在 Mini App 流转 · Telegram 只做 Task 投影 + 提醒</h2>
+      </div>
+      <div class="banner info">
+        这两条业务 Operation 已经完整 Owner-Accepted（005A2 / 005B1 / 005B2），禁止把它们的阶段链塞回 Telegram 6 按钮 3×2 菜单层级或 6-menu IA。Telegram 角色内容可以出现"等 Paolo 续租决策 / 1608 验房日已到，可上传证据"这类<b>真人当前应做动作</b>的引用，但完整表单 / 卡字段 / 选填 / 状态切换都不属于 Telegram 体验。
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">Lease Renewal · 005A2 Telegram 侧边</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Owner Telegram 侧可以出现</b>：<br>
+            · 「1608 续租决策待你处理 · Unit 1608 / Paolo / 现租金 ₱30,000 → 拟定 ₱31,000 / 2027-09-30 → 📲 Mini App」<br>
+            · 「Owner 已批准续租 · 协议待 Secretary 完成 · 续租时限 2027-09-30 / 新租金 ₱31,000」<br>
+            · 「1608 续租完成 ✓ Lease 已更新 · 2027-09-30 到期 / 新租金 ₱31,000」<br>
+            · 「1608 续租 NOT_RENEWED · 搬出事项已创建 · Secretary 处理中」<br>
+            <b>禁止 Telegram 侧出现</b>：Owner Decision Form 表单（Current vs Proposed Rent + 字段完整编辑） · Calendar picker · Term slider · Change Terms 完整对比 ·
+            Tenant Intent Form（P4 选项按钮 ≥ 仅允许一键标 Intent，详细备注留在 Mini App）。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Move-out · 005B2 Telegram 侧边</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Owner Telegram 侧可以出现</b>：<br>
+            · 「1608 押金结算待你审批 · 押金 ₱60,000 − 扣款 ₱42,000 = 退款 ₱18,000 → 📲 Mini App」<br>
+            · 「1608 已完成退款 ₱18,000 · Settlement Evidence 验证通过 · 搬出完成 ✓」<br>
+            · 「1608 仍欠 ₱5,000 · Secretary 继续收集（已收 ₱10,000 / 共 ₱15,000）」<br>
+            · 「1608 等验房日 · 9月30日 才能进入下一阶段 · 当前不可提前做任何操作」<br>
+            <b>禁止 Telegram 侧出现</b>：Inspection 证据上传 · Settlement Evidence 上传 · Findings 加扣 / 删除（Owner Change 不动 finding truth） · Final Truth 写入 lease/property/tenant。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="section" data-od-id="vnext-bootstrap-007a" id="vnext-bootstrap-007a">
+    <div class="container">
+      <p class="eyebrow">VNEXT · BOOTSTRAP 007A3 · MERCHANT / TEAM / TELEGRAM WORKSPACE（007A / 007A1 / 007A2 = historical / superseded）</p>
+      <div class="sec-h">
+        <h2 class="h2">第一次打开就是工作区。<br>不需要任何 ID 与配置。</h2>
+        <span class="tag">One Shared Bot · No Manual ID</span>
+      </div>
+      <div class="banner info" style="margin-bottom:22px">
+        Pasay 使用<b>一个平台共享 Telegram Bot</b>。新客户正常使用不要求创建 Bot、不进 BotFather、不输入 Token、不部署、不理解 webhook。系统在后台自动获取并维护 Telegram 身份 / 群 / 成员关系 — 普通用户 UI 不暴露 Telegram numeric ID、chat_id、merchant_id 等内部标识。
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card">
+          <div class="scene-t">First Start · 首次打开</div>
+          <div class="chat" style="margin-top:10px">
+            <div class="chat-row"><div class="bub"><div class="who bot">Pasay Bot</div>Welcome to Pasay 👋<br>I found your Telegram account — you are not part of any company yet.<br><b>No numeric IDs needed.</b></div></div>
+            <div class="chat-row center"><div class="route-tag"><b>Fast Path</b> · 首次设置状态（非业务菜单）</div></div>
+            <div class="chat-row"><div class="bub" style="text-align:center;width:100%">[ <b>Set up my company</b> ]</div></div>
+          </div>
+          <div class="meta" style="margin-top:10px">系统发现：Telegram User → 未属于任何 Merchant → 不显示业务菜单，进入首次设置状态。</div>
+        </div>
+        <div class="card">
+          <div class="scene-t">Create Workspace · 最少信息</div>
+          <div style="font-size:13.5px;line-height:1.8;margin-top:10px">
+            Owner 只需要完成 3 项：<br>
+            · Company / Business Name<br>
+            · Owner display name（自动取 Telegram Profile）<br>
+            · 默认语言（Owner → 中文 / Secretary → English）<br><br>
+            <b style="color:var(--ok)">✓ Your workspace is ready.</b><br>
+            <span class="meta">自动完成：创建 Merchant · 绑定 First Owner · 创建 Membership · 保存 Telegram identity · 启用 Owner 权限 — 全程不要求 Owner ID。</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="scene-t">Connect Telegram Group · 无 chat_id</div>
+          <div class="chat" style="margin-top:10px">
+            <div class="chat-row"><div class="bub"><div class="who owner">Owner</div>把 Bot 加进运营群</div></div>
+            <div class="chat-row"><div class="bub"><div class="who bot">Pasay Bot</div>Add Pasay Bot to a group ↗</div></div>
+            <div class="chat-row"><div class="bub" style="text-align:center;width:100%"><b style="color:var(--ok)">Telegram workspace connected.</b></div></div>
+          </div>
+          <div class="meta" style="margin-top:10px">绑定 = 从当前公司发起一次性 connect context → 在 Telegram 选择群完成绑定（不靠 Bot 自动推测 Merchant）。权限不足时明确告知：缺什么权限 · 为什么需要 · 如何修复 — 不显示 technical error。</div>
+        </div>
+        <div class="card">
+          <div class="scene-t">Invite Accept · 员工加入</div>
+          <div class="chat" style="margin-top:10px">
+            <div class="chat-row"><div class="bub"><div class="who owner">Owner</div>给员工发邀请链接</div></div>
+            <div class="chat-row"><div class="bub"><div class="who bot">Pasay Bot</div>Rosa · Secretary<br>Sunrise Residences invites you to join their workspace.<br>[ <b>Join</b> ]</div></div>
+            <div class="chat-row"><div class="bub"><div class="who secretary">Rosa</div>Joined ✓</div></div>
+          </div>
+          <div class="meta" style="margin-top:10px">一次性 Telegram Invite Link（Copy Link / Share in Telegram / QR）。接受后自动绑定该 Secretary 的 Telegram 身份 — 不需要对方提供 numeric ID 或 username。</div>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card" style="border-left:3px solid var(--crit)">
+          <div class="h3">Access Removed</div>
+          <div class="chat" style="margin-top:10px">
+            <div class="chat-row"><div class="bub"><div class="who secretary">Dex</div>Properties</div></div>
+            <div class="chat-row"><div class="bub"><div class="who bot">Pasay Bot</div><b>You no longer have access to this workspace.</b><br>Permissions were removed by the Owner.</div></div>
+          </div>
+          <div class="meta" style="margin-top:10px">被移除后不能查询数据、不能执行业务动作；旧消息存在 ≠ 仍有权限。若属于其他公司 → Switch workspace；否则 → Join with invite。绝不沉默。</div>
+        </div>
+        <div class="card" style="border-left:3px solid var(--pend)">
+          <div class="h3">No Workspace</div>
+          <div class="chat" style="margin-top:10px">
+            <div class="chat-row"><div class="bub"><div class="who bot">Pasay Bot</div>You are not part of any company yet.<br>[ <b>Set up my company</b> ] · [ Join with invite ]</div></div>
+          </div>
+          <div class="meta" style="margin-top:10px">新用户或已退出所有公司的用户进入此状态 — 两条路：创建新公司，或用邀请链接加入现有公司。</div>
+        </div>
+        <div class="card" style="border-left:3px solid var(--ok)">
+          <div class="h3">Switch Workspace</div>
+          <div style="font-size:13.5px;line-height:1.8;margin-top:10px">
+            同一 Telegram 用户可属于多个公司（Merchant → Memberships → 多个 Users → Role）。<br><br>
+            最小入口：<b>Switch workspace</b>（Mini App / Settings）— 列表切换当前公司，业务数据随当前工作区变化。<br>
+            <span class="meta">007A 只做最小切换入口，不做完整 Multi-company 控制台。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card rule-card">
+          <div class="h3">权限不足 · 明确反馈</div>
+          <div class="ds-table" style="margin-top:10px">
+            <table class="ds-table">
+              <tr><th>缺少</th><th>为什么需要</th><th>如何修复</th></tr>
+              <tr><td>Bot 不是群管理员</td><td>产品选择：需要群管理员身份以可靠接收所需的 group / member status（chat_member updates 由后台订阅 · 特定成员核验用 getChatMember）</td><td>群设置 → 把 Pasay Bot 设为管理员（Owner 群主可一键授予）</td></tr>
+              <tr><td>Bot 是群管理员 ✓</td><td>群绑定完成 · 后台已订阅 chat_member updates · 特定成员核验使用 getChatMember — 普通用户 UI 不展示 API 技术细节</td><td>无需逐项授权；设为管理员后即满足产品所需能力</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">从用户流程消失的技术 ID</div>
+          <div style="font-size:13.5px;line-height:1.9;margin-top:10px">
+            · Telegram User ID — 系统自动获取<br>
+            · Owner ID / Secretary ID — 不存在，只有「角色」<br>
+            · Bot Token / BotFather — 共享平台 Bot，客户不接触<br>
+            · Chat ID — 从当前公司 connect context → 选定群后由系统绑定<br>
+            · Webhook / 部署 — 平台统一维护<br>
+            · Merchant ID / Membership ID — 内部标识，UI 不暴露
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="pagefoot" data-od-id="footer">
+  <div class="container row">
+    <span>Pasay AI · 产品母稿 · 10 Telegram Bot / 11 AI Operations Loop · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No Manual ID）</span>
+    <a href="pasay-mini-app.html" style="color:var(--accent);font-weight:600">进入交互原型 →</a>
+  </div>
+</footer>
+</body>
+</html>

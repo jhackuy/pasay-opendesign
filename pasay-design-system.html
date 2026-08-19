@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pasay AI · 设计系统与边界状态</title>
+<style>
+/* ─── tokens — bound to direction: modern-minimal ─── */
+:root {
+  --bg:      oklch(99% 0.002 240);
+  --surface: oklch(100% 0 0);
+  --fg:      oklch(18% 0.012 250);
+  --muted:   oklch(54% 0.012 250);
+  --border:  oklch(92% 0.005 250);
+  --accent:  oklch(58% 0.18 255);
+  --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
+  --fg-soft: color-mix(in oklch, var(--fg) 5%, transparent);
+  --ok:   oklch(52% 0.13 152);
+  --warn: oklch(63% 0.14 78);
+  --crit: oklch(54% 0.19 27);
+  --pend: oklch(56% 0.08 255);
+  --neu:  oklch(50% 0.01 250);
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-body:    -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --fs-h1: clamp(34px, 4.6vw, 56px);
+  --fs-h2: clamp(24px, 3vw, 34px);
+  --fs-h3: 19px;
+  --fs-body: 15px;
+  --fs-meta: 12.5px;
+  --gap-sm: 8px; --gap-md: 16px; --gap-lg: 28px; --gap-xl: 48px;
+  --container: 1080px; --gutter: 24px;
+  --r: 12px; --r-lg: 16px; --r-sm: 8px;
+  --shadow: 0 1px 2px oklch(18% 0.012 250 / 0.05), 0 8px 24px oklch(18% 0.012 250 / 0.07);
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+p { text-wrap: pretty; margin: 0; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; letter-spacing: -0.015em; }
+:focus-visible { outline: 2px solid color-mix(in oklch, var(--accent) 55%, transparent); outline-offset: 2px; }
+.container { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
+.section { padding-block: clamp(40px, 6vw, 72px); }
+.section + .section { border-top: 1px solid var(--border); }
+.topnav { position: sticky; top: 0; z-index: 20; background: color-mix(in oklch, var(--bg) 92%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.topnav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+.logo { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.logo b { color: var(--accent); }
+.topnav nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.topnav nav a { font-size: 13px; color: var(--muted); padding: 7px 12px; border-radius: 9px; font-weight: 550; }
+.topnav nav a:hover { color: var(--fg); background: var(--fg-soft); }
+.topnav nav a.on { color: var(--fg); background: var(--surface); border: 1px solid var(--border); }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+.h1 { font-family: var(--font-display); font-size: var(--fs-h1); font-weight: 700; letter-spacing: -0.025em; line-height: 1.06; }
+.h2 { font-family: var(--font-display); font-size: var(--fs-h2); font-weight: 700; line-height: 1.15; }
+.h3 { font-size: var(--fs-h3); font-weight: 650; }
+.lead { font-size: 17px; color: var(--muted); max-width: 56ch; line-height: 1.6; margin-top: 14px; }
+.meta { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap-lg); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-md); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap-md); }
+@media (max-width: 900px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 22px; }
+.stack { display: flex; flex-direction: column; }
+.stack > * + * { margin-top: 14px; }
+.row { display: flex; align-items: center; gap: var(--gap-sm); flex-wrap: wrap; }
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+.sec-h .h2 { max-width: 24ch; }
+.swatch { border-radius: var(--r); padding: 14px; border: 1px solid var(--border); background: var(--surface); }
+.swatch .color { height: 64px; border-radius: var(--r-sm); border: 1px solid oklch(0 0 0 / 0.06); margin-bottom: 10px; }
+.swatch .name { font-size: 13px; font-weight: 650; }
+.swatch .val { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-all; }
+.ds-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ds-table th, .ds-table td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.ds-table th { color: var(--muted); font-weight: 550; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+.ds-table .num-col { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft); padding: 2px 6px; border-radius: 6px; }
+pre { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; margin: 0; }
+.rule { border: 0; border-top: 1px solid var(--border); margin: 0; }
+.pagefoot { padding-block: var(--gap-xl); color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); }
+.pagefoot .row { justify-content: space-between; }
+
+/* ─── 组件演示（与 Mini App 同一实现） ─── */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
+.demo-t { font-size: 13px; font-weight: 650; margin-bottom: 4px; }
+.demo-d { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; line-height: 1.55; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 44px; padding: 0 18px; border-radius: var(--r); font-size: 14.5px; font-weight: 600; border: 0; transition: background .15s, border-color .15s; }
+.btn-p { background: var(--accent); color: var(--surface); }
+.btn-p:hover { background: color-mix(in oklch, var(--accent) 88%, black); }
+.btn-s { background: var(--surface); color: var(--fg); border: 1px solid var(--border); }
+.btn-s:hover { border-color: color-mix(in oklch, var(--fg) 40%, var(--border)); }
+.btn-g { background: none; color: var(--muted); }
+.btn-g:hover { color: var(--fg); }
+.btn.danger { background: var(--surface); color: var(--crit); border: 1px solid color-mix(in oklch, var(--crit) 35%, var(--border)); }
+.btn.danger:hover { border-color: var(--crit); }
+.btn.sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 9px; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.iconb { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: var(--muted); border: 1px solid transparent; }
+.iconb:hover { background: var(--fg-soft); color: var(--fg); }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.chip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.st-ok { background: color-mix(in oklch, var(--ok) 12%, transparent); color: var(--ok); }
+.st-warn { background: color-mix(in oklch, var(--warn) 14%, transparent); color: color-mix(in oklch, var(--warn) 82%, black); }
+.st-crit { background: color-mix(in oklch, var(--crit) 11%, transparent); color: var(--crit); }
+.st-pend { background: color-mix(in oklch, var(--pend) 11%, transparent); color: color-mix(in oklch, var(--pend) 85%, black); }
+.st-neu { background: var(--fg-soft); color: var(--muted); }
+.tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 7px; background: var(--fg-soft); color: var(--muted); font-size: 11px; font-weight: 550; }
+.tag.accent { background: var(--accent-soft); color: var(--accent); }
+.money { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.money.pos { color: var(--ok); } .money.neg { color: var(--crit); }
+.row-el { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
+.row-el:hover { background: var(--fg-soft); }
+.row-main { flex: 1; min-width: 0; }
+.row-l1 { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.row-l1 b { font-size: 14.5px; font-weight: 650; }
+.row-l1 .sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-l2 { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 12.5px; color: var(--muted); }
+.unit-badge { font-family: var(--font-mono); font-size: 13px; font-weight: 700; background: var(--fg-soft); padding: 2px 7px; border-radius: 7px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; }
+.kpi .kv { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.kpi .kl { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.nav-demo { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; max-width: 420px; }
+.nav-demo .ni { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0; color: var(--muted); font-size: 10px; font-weight: 550; }
+.nav-demo .ni.on { color: var(--accent); }
+.nav-demo .ni svg { width: 20px; height: 20px; }
+.input, .select, .textarea { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--fg); font: inherit; font-size: 14px; }
+.textarea { height: auto; min-height: 72px; padding: 10px 12px; }
+.input:focus, .select:focus, .textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12.5px; font-weight: 600; }
+.sheet-demo { background: var(--surface); border: 1px solid var(--border); border-radius: 18px 18px 0 0; padding: 10px 18px 18px; max-width: 420px; }
+.sheet-grab { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 8px auto 14px; }
+.modal-demo { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; max-width: 340px; box-shadow: var(--shadow); }
+.appr-bar { display: flex; gap: 8px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); align-items: center; flex-wrap: wrap; }
+.appr-bar .ab-t { flex: 1; min-width: 150px; font-size: 12.5px; color: var(--muted); }
+.appr-bar .ab-t b { color: var(--fg); }
+.tl { position: relative; padding-left: 18px; }
+.tl::before { content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 1px; background: var(--border); }
+.tl-i { position: relative; padding: 0 0 14px; }
+.tl-i::before { content: ''; position: absolute; left: -17px; top: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+.tl-i.muted::before { border-color: var(--border); }
+.tl-t { font-size: 13px; font-weight: 600; }
+.tl-d { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.attach { display: inline-flex; align-items: center; gap: 6px; border: 1px dashed var(--border); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; color: var(--muted); }
+.empty { text-align: center; padding: 34px 20px; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--r); }
+.empty b { display: block; color: var(--fg); font-size: 14px; margin-bottom: 4px; }
+.empty p { font-size: 12.5px; }
+.banner { display: flex; gap: 9px; align-items: flex-start; padding: 11px 13px; border-radius: var(--r); font-size: 13px; line-height: 1.45; }
+.banner svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; }
+.banner.info { background: var(--accent-soft); color: color-mix(in oklch, var(--accent) 80%, black); }
+.banner.warn { background: color-mix(in oklch, var(--warn) 13%, transparent); color: color-mix(in oklch, var(--warn) 75%, black); }
+.banner.crit { background: color-mix(in oklch, var(--crit) 10%, transparent); color: var(--crit); }
+.banner.ok { background: color-mix(in oklch, var(--ok) 11%, transparent); color: color-mix(in oklch, var(--ok) 85%, black); }
+.toast-demo { display: inline-flex; background: var(--fg); color: var(--bg); border-radius: 12px; padding: 11px 16px; font-size: 13px; font-weight: 550; box-shadow: var(--shadow); }
+.switch { position: relative; width: 42px; height: 25px; border-radius: 999px; background: var(--border); display: inline-block; }
+.switch.on { background: var(--accent); }
+.switch::after { content: ''; position: absolute; top: 2.5px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px oklch(0 0 0 / 0.2); transition: transform .15s; }
+.switch.on::after { transform: translateX(16px); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; max-width: 320px; }
+.seg button { height: 40px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--surface); }
+.seg button.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.progress { height: 6px; border-radius: 3px; background: var(--fg-soft); overflow: hidden; }
+.progress > div { height: 100%; background: var(--accent); }
+.fsm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+.fsm .arr { color: var(--muted); font-family: var(--font-mono); }
+.fsm .alt { color: var(--muted); }
+.state-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap-md); }
+@media (max-width: 860px) { .state-grid { grid-template-columns: 1fr; } }
+.state-cell { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.state-cell .sc-h { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.state-cell .sc-b { padding: 16px; }
+.phone-mini { border: 1px solid var(--border); border-radius: 18px; background: var(--bg); padding: 14px; max-width: 340px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; font-family: var(--font-mono); }
+.badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.b-good { color: var(--ok); } .b-mid { color: var(--warn); } .b-low { color: var(--crit); }
+/* ─── VNext Operation System ─── */
+.exec-states { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+.ex { display: grid; grid-template-columns: 10px 150px 1fr; gap: 8px; align-items: baseline; font-size: 12.5px; }
+.ex b { font-family: var(--font-mono); font-size: 12px; font-weight: 650; color: var(--fg); }
+.ex span:last-child { color: var(--muted); font-size: 12px; }
+.ex-dot { width: 8px; height: 8px; border-radius: 50%; align-self: center; justify-self: start; }
+.op-flow { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-lg); }
+@media (max-width: 860px) { .op-flow { grid-template-columns: 1fr; } }
+.op-col { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); padding: 14px 16px; }
+.op-h { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); font-weight: 650; margin-bottom: 10px; }
+.op-node { display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; margin-bottom: 7px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 9px; background: var(--surface); }
+.op-node b { font-size: 13px; }
+.op-node span { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.op-node .tag { align-self: flex-start; margin-top: 3px; }
+.op-node.ok { border-left-color: var(--ok); }
+.op-node.w { border-left-color: var(--warn); }
+.op-card { border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; margin-bottom: 8px; background: var(--surface); }
+.opc-l1 { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 650; }
+.opc-l2 { font-size: 12.5px; margin-top: 3px; }
+.opc-l3 { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+.opc-l4 { display: flex; justify-content: space-between; font-size: 12.5px; margin-top: 5px; color: var(--accent); font-weight: 600; }
+.opc-detail { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); }
+.opd-top { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 650; margin-bottom: 8px; }
+.opd-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 12.5px; }
+.opd-row .k { width: 74px; color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.opd-actions { display: flex; gap: 8px; margin-top: 10px; }
+.opd-rel { font-size: 12.5px; margin-top: 10px; }
+.opd-rel a { margin-right: 8px; }
+.freeze-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; }
+@media (max-width: 700px) { .freeze-grid { grid-template-columns: 1fr; } }
+.fc-item { display: grid; grid-template-columns: 28px 1fr; grid-template-rows: auto auto; column-gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); }
+.fc-item:first-child, .fc-item:nth-child(2) { border-top: 0; }
+.fc-n { font-family: var(--font-mono); font-size: 11px; color: var(--accent); font-weight: 650; grid-row: span 2; margin-top: 2px; }
+.fc-item b { font-size: 13px; grid-column: 2; }
+.fc-item span:last-child { font-size: 12px; color: var(--muted); grid-column: 2; }
+</style>
+</head>
+<body>
+<header class="topnav" data-od-id="topnav">
+  <div class="container topnav-inner">
+    <span class="logo">Pasay <b>AI</b> · 产品母稿</span>
+    <nav>
+      <a href="index.html">00 总览</a>
+      <a href="pasay-design-system.html" class="on">01 设计系统</a>
+      <a href="pasay-mini-app.html">02-09 Mini App</a>
+      <a href="pasay-telegram-bot.html">10-11 Telegram / AI</a>
+      <a href="pasay-design-system.html#vnext" style="color:var(--accent);border:1px solid color-mix(in oklch, var(--accent) 40%, var(--border))">VNEXT Operation</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- 01 · 令牌 -->
+  <section class="section" data-od-id="ds-tokens" id="tokens">
+    <div class="container">
+      <p class="eyebrow">01 · DESIGN SYSTEM — TOKENS</p>
+      <div class="sec-h">
+        <h2 class="h2">一套令牌，三个入口通用。<br>Telegram、Mini App、频道共用同一视觉契约。</h2>
+        <p class="lead" style="max-width:34ch;margin-top:0">方向绑定 <code>modern-minimal</code>（Linear / Vercel 系）。所有颜色以 oklch 定义，派生色一律 <code>color-mix()</code>，禁止在业务代码中出现裸 hex。</p>
+      </div>
+      <div class="grid-4" data-od-id="color-tokens">
+        <div class="swatch"><div class="color" style="background:var(--bg)"></div><div class="name">--bg</div><div class="val">oklch(99% 0.002 240)<br>页面底色</div></div>
+        <div class="swatch"><div class="color" style="background:var(--surface)"></div><div class="name">--surface</div><div class="val">oklch(100% 0 0)<br>卡片 / 弹层</div></div>
+        <div class="swatch"><div class="color" style="background:var(--fg)"></div><div class="name">--fg</div><div class="val">oklch(18% 0.012 250)<br>主文本</div></div>
+        <div class="swatch"><div class="color" style="background:var(--muted)"></div><div class="name">--muted</div><div class="val">oklch(54% 0.012 250)<br>次级文本</div></div>
+        <div class="swatch"><div class="color" style="background:var(--border)"></div><div class="name">--border</div><div class="val">oklch(92% 0.005 250)<br>发丝线</div></div>
+        <div class="swatch"><div class="color" style="background:var(--accent)"></div><div class="name">--accent</div><div class="val">oklch(58% 0.18 255)<br>唯一强调色 · 每屏 ≤2 次</div></div>
+        <div class="swatch"><div class="color" style="background:var(--ok)"></div><div class="name">--ok</div><div class="val">oklch(52% 0.13 152)<br>状态：成功</div></div>
+        <div class="swatch"><div class="color" style="background:var(--warn)"></div><div class="name">--warn</div><div class="val">oklch(63% 0.14 78)<br>状态：警示</div></div>
+        <div class="swatch"><div class="color" style="background:var(--crit)"></div><div class="name">--crit</div><div class="val">oklch(54% 0.19 27)<br>状态：严重</div></div>
+        <div class="swatch"><div class="color" style="background:var(--pend)"></div><div class="name">--pend</div><div class="val">oklch(56% 0.08 255)<br>状态：待办</div></div>
+        <div class="swatch"><div class="color" style="background:var(--fg-soft)"></div><div class="name">--fg-soft</div><div class="val">color-mix(fg 5%)<br>悬停底 / 浅标签</div></div>
+        <div class="swatch"><div class="color" style="background:var(--accent-soft)"></div><div class="name">--accent-soft</div><div class="val">color-mix(accent 12%)<br>强调浅底</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 · 字体 -->
+  <section class="section" data-od-id="ds-type" id="type">
+    <div class="container">
+      <p class="eyebrow">01 · TYPOGRAPHY</p>
+      <div class="grid-2">
+        <div>
+          <h2 class="h2" style="font-size:clamp(34px,5vw,64px)">运营工具不做装饰性衬线</h2>
+          <p class="lead">显示与正文统一使用系统无衬线（SF / system-ui），依靠 <code>-0.025em</code> 紧字距与大字号建立层级；这是数据密集型工具界面的豁免场景。数字、金额、房号、ID 一律 <code>--font-mono</code> + <code>tabular-nums</code>，保证对账时不跳位。</p>
+        </div>
+        <div class="card stack">
+          <div><div class="meta" style="margin-bottom:2px">DISPLAY · 22-32px · 700 · -0.02em</div><div style="font-size:28px;font-weight:700;letter-spacing:-0.02em">₱30,000 · 租金明细</div></div>
+          <div><div class="meta" style="margin-bottom:2px">BODY · 15px</div><div style="font-size:15px;color:var(--fg)">替换空调压缩机后请上传回执，便于 Owner 核对。</div></div>
+          <div><div class="meta" style="margin-bottom:2px">MONO · 12-14px · tabular</div><div class="num" style="font-size:13px">1608 · EXP-0006 · ₱2,500.00 · 2026-06-14</div></div>
+          <div><div class="meta" style="margin-bottom:2px">META · 11-12px · muted</div><div style="font-size:12px;color:var(--muted)">Sunrise Residences, Pasay Blvd · Tower A</div></div>
+        </div>
+      </div>
+      <table class="ds-table" style="margin-top:32px">
+        <thead><tr><th>用途</th><th>字阶</th><th>字重 / 字距</th><th>规则</th></tr></thead>
+        <tbody>
+          <tr><td>屏幕大标题</td><td class="num">24-32px</td><td>700 · -0.02em</td><td>金额、房号等核心数字可放大至 30-32px</td></tr>
+          <tr><td>章节标题</td><td class="num">17-19px</td><td>650-700 · -0.015em</td><td>Tab、卡片标题</td></tr>
+          <tr><td>正文</td><td class="num">14-15px</td><td>400-600</td><td>列表行主信息 14px / 详情 15px</td></tr>
+          <tr><td>辅助 / 标签</td><td class="num">11-12.5px</td><td>muted</td><td>时间、创建人、说明</td></tr>
+          <tr><td>数值</td><td class="num">等宽 + tabular</td><td>600</td><td>金额 / 房号 / ID / 日期 — 永不使用非等宽</td></tr>
+          <tr><td>状态双语</td><td class="num">11px · 600</td><td>chip</td><td>恒为「中文 · English」双标签</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 01 · 间距与状态机 -->
+  <section class="section" data-od-id="ds-states" id="states">
+    <div class="container">
+      <p class="eyebrow">01 · STATUS SYSTEM</p>
+      <div class="sec-h"><h2 class="h2">状态是业务的骨架，不是装饰。</h2></div>
+      <div class="grid-2" style="gap:var(--gap-lg)">
+        <div class="demo">
+          <div class="demo-t">支出 · Expense（PENDING → APPROVED → PAID）</div>
+          <div class="demo-d">APPROVED 不是完成：批准后自动进入 Owner「待付款」队列。PENDING 可 REJECTED。财务只允许「确认 / 逆向」，无删除。</div>
+          <div class="fsm"><span class="chip st-pend">待审批 · Pending</span><span class="arr">→</span><span class="chip st-warn">待付款 · Approved</span><span class="arr">→</span><span class="chip st-ok">已付款 · Paid</span><span class="alt">│</span><span class="chip st-crit">已拒绝 · Rejected</span></div>
+        </div>
+        <div class="demo">
+          <div class="demo-t">租金 · Rent</div>
+          <div class="demo-d">部分付款实时重算未收金额，不会错误变成 PAID；登记后必须先经 Owner 确认才入账。</div>
+          <div class="fsm"><span class="chip st-ok">已收 · Paid</span><span class="chip st-warn">部分 · Partial</span><span class="chip st-pend">待确认 · Pending</span><span class="chip st-crit">逾期 · Overdue</span><span class="chip st-neu">待收 · Upcoming</span></div>
+        </div>
+        <div class="demo">
+          <div class="demo-t">维修 · Repair（运营事件）</div>
+          <div class="demo-d">Repair ≠ Expense：一次维修可以关联多笔支出，但状态独立推进。支持等待零件等中间态。</div>
+          <div class="fsm"><span class="chip st-pend">已上报 · Reported</span><span class="arr">→</span><span class="chip st-pend">已指派 · Assigned</span><span class="arr">→</span><span class="chip st-warn">进行中 · In progress</span><span class="alt">⇢</span><span class="chip st-warn">等零件 · Waiting parts</span><span class="arr">→</span><span class="chip st-ok">已完成 · Completed</span><span class="arr">→</span><span class="chip st-neu">已关闭 · Closed</span></div>
+        </div>
+        <div class="demo">
+          <div class="demo-t">任务 · Unified Task Engine</div>
+          <div class="demo-d">审批、付款、跟进、续租等所有事项统一为任务，带 类型 / 对象 / 指派 / 优先级 / 截止 / 下一步。</div>
+          <div class="fsm"><span class="chip st-pend">待办 · To do</span><span class="chip st-warn">进行中 · In progress</span><span class="chip st-neu">等待中 · Waiting</span><span class="chip st-ok">已完成 · Done</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 · 组件库 -->
+  <section class="section" data-od-id="ds-components" id="components">
+    <div class="container">
+      <p class="eyebrow">01 · COMPONENT LIBRARY</p>
+      <div class="sec-h"><h2 class="h2">组件在 Mini App 中同源实现，<br>此处为规范快照。</h2></div>
+
+      <div class="grid-2">
+        <div class="demo">
+          <div class="demo-t">按钮 · Button</div>
+          <div class="demo-d">主按钮 = 单一 accent 填充；同屏一个主 CTA。次级描边、幽灵、危险态成对定义前景/背景。</div>
+          <div class="row">
+            <button class="btn btn-p">登记租金</button>
+            <button class="btn btn-s">新增支出</button>
+            <button class="btn btn-g">取消</button>
+            <button class="btn btn-s danger">逆向记录</button>
+            <button class="btn btn-p" disabled>已提交</button>
+          </div>
+          <div class="row" style="margin-top:10px"><button class="btn btn-p sm">批准</button><button class="btn btn-s sm">拒绝</button><button class="btn btn-g sm">跳过</button></div>
+          <div class="meta" style="margin-top:12px">触达目标 ≥44px（含 padding）；仅禁用态允许降低对比度。</div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">图标按钮 · Icon Button</div>
+          <div class="demo-d">描线 SVG，非 emoji。搜索 / 通知 / 机器人入口 / 返回均为此类。</div>
+          <div class="row">
+            <button class="iconb" aria-label="搜索"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg></button>
+            <button class="iconb" aria-label="通知"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/></svg></button>
+            <button class="iconb" aria-label="机器人"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4v4"/><circle cx="9" cy="13" r="1.2"/><circle cx="15" cy="13" r="1.2"/></svg></button>
+            <button class="iconb" aria-label="返回"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+          </div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">物业行 · Property Row（高密度）</div>
+          <div class="demo-d">十几套物业不放大卡片：房号 + 租客 + 状态芯片 + 欠款，一行装下。</div>
+          <div class="row-el"><div class="row-main"><div class="row-l1"><span class="unit-badge">1805</span><b>Juan Dela Cruz</b><span class="badge b-low">58</span></div><div class="row-l2"><span>Tower A · 1BR · 40㎡</span></div></div><div class="row" style="gap:4px;flex-wrap:wrap;justify-content:flex-end"><span class="chip st-ok">已出租 · Occupied</span><span class="chip st-crit">逾期 · Overdue</span></div></div>
+          <div class="row-el" style="margin-top:8px"><div class="row-main"><div class="row-l1"><span class="unit-badge">1708</span><b>空置 · 待租</b><span class="badge b-mid">70</span></div><div class="row-l2"><span>2BR · 60㎡ · 挂牌 ₱32,000</span></div></div><div class="row"><span class="chip st-neu">空置 · Vacant</span></div></div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">任务行 / 支出行 · Task & Expense Row</div>
+          <div class="demo-d">主体 = 干什么；右端 = 优先级 + 状态 + 金额（等宽）。</div>
+          <div class="row-el"><div class="row-main"><div class="row-l1"><b>Approve EXP-0007</b></div><div class="row-l2">Owner · 截止 6月20日 · <span style="color:var(--accent)">EXP-0007 →</span></div></div><div class="row"><span class="chip st-crit">高 · High</span><span class="chip st-pend">待办 · To do</span></div></div>
+          <div class="row-el" style="margin-top:8px"><div class="row-main"><div class="row-l1"><b style="font-family:var(--font-mono)">EXP-0006</b><span class="sub">Replace broken aircon compressor</span></div><div class="row-l2"><span class="tag accent">Repair</span><span>1608 · 6月14日</span></div></div><div class="row"><span class="chip st-warn">待付款 · Approved</span><span class="money">₱2,500</span></div></div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">金额 · Financial Amount</div>
+          <div class="demo-d">等宽 + 颜色语义：收入绿、欠款红、中性黑。负数永不依赖颜色单独传达。</div>
+          <div class="row" style="gap:16px"><span class="money" style="font-size:26px">₱138,000</span><span class="money neg" style="font-size:26px">₱63,000</span><span class="money" style="font-size:16px">₱30,000 <span class="meta" style="font-family:var(--font-mono)">/月</span></span></div>
+          <div class="kpi" style="margin-top:14px;max-width:220px"><div class="kv num">8<span style="font-size:13px;color:var(--muted)">/14</span></div><div class="kl">已出租 · Occupied</div></div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">输入 · Input / Select / Segmented</div>
+          <div class="demo-d">聚焦态 = accent 描边 + 浅色光环；点击目标 ≥44px。</div>
+          <div class="field"><label>用途（真实业务描述）</label><input class="input" placeholder="Replace broken aircon compressor" /></div>
+          <div class="field" style="margin-top:10px"><label>类别（用于统计）</label><select class="select"><option>Repair</option><option>Utilities</option><option>Cleaning</option></select></div>
+          <div class="seg" style="margin-top:10px"><button>高 · High</button><button class="on">中 · Medium</button><button>低 · Low</button></div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">底部导航 · Bottom Navigation（5 格固定）</div>
+          <div class="demo-d">首页 / 物业 / 任务 / 租金 / 支出。与 Telegram 固定菜单同构：高频功能永不深藏。</div>
+          <div class="nav-demo">
+            <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>首页</div>
+            <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 21h16"/><path d="M6 21V5l6-2v18"/></svg>物业</div>
+            <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8.5 8.5h7M8.5 12.5h7"/></svg>任务</div>
+            <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/></svg>租金</div>
+            <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/></svg>支出</div>
+          </div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">底部 Sheet / 弹窗 Modal</div>
+          <div class="demo-d">表单用底部 Sheet（390-430 手机栏内），确认与审批用居中 Modal；遮罩统一 <code>fg 42%</code>。</div>
+          <div class="sheet-demo"><div class="sheet-grab"></div><div class="row" style="justify-content:space-between;margin-bottom:10px"><b style="font-size:15px">登记租金</b><span class="meta">Secretary 登记 → Owner 确认</span></div><div class="field"><label>物业</label><select class="select"><option>1901 · Carlo Bautista · ₱35,000</option></select></div><button class="btn btn-p" style="width:100%;margin-top:10px">提交 · 进入 Owner 审批</button></div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">审批条 · Approval Bar</div>
+          <div class="demo-d">Owner 的审批动作就地呈现：确认 / 批准 / 付款 直接出现在单据头部，不需要跳页。</div>
+          <div class="appr-bar"><div class="ab-t"><b>待你确认</b><br><span>₱28,000 · 由 Secretary 登记</span></div><button class="btn btn-p sm">确认 · Confirm</button><button class="btn btn-s sm">退回 · Reject</button></div>
+          <div class="appr-bar" style="margin-top:8px"><div class="ab-t"><b>已批准 · 待付款</b><br><span>选择支付方式后完成付款</span></div><select class="select" style="width:130px;height:36px;font-size:12.5px"><option>GCash</option><option>Bank Transfer</option></select><button class="btn btn-p sm">付款 · Pay</button></div>
+        </div>
+
+        <div class="demo">
+          <div class="demo-t">时间线 / 附件 / 空状态 / Toast / Banner</div>
+          <div class="demo-d">时间线记录审计痕迹；附件为虚线框；空状态给「下一步」；Toast 只报结果；Banner 承载权限与规则提示。</div>
+          <div class="tl" style="margin-top:6px"><div class="tl-i"><div class="tl-t">Owner 批准 EXP-0006</div><div class="tl-d">2026-06-15 09:10 · APPROVED</div></div><div class="tl-i muted"><div class="tl-t">Secretary 创建支出</div><div class="tl-d">2026-06-14 15:20 · PENDING</div></div></div>
+          <div class="row" style="margin-top:12px"><span class="attach">凭证 P-1.jpg</span><span class="attach">Lease-1608.pdf</span></div>
+          <div class="empty" style="margin-top:12px"><b>暂无付款记录</b><p>登记第一笔付款后，Owner 确认即入账。</p></div>
+          <div class="toast-demo" style="margin-top:12px">已确认 · 入账 ₱28,000 ✓</div>
+          <div class="banner warn" style="margin-top:12px">已批准 — APPROVED 不是完成。支出已进入 Owner 待付款队列。</div>
+          <div class="banner info" style="margin-top:8px">已提交 Owner 审批。你无法绕过 Owner 审批边界。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 · 边界状态 -->
+  <section class="section" data-od-id="edge-states" id="edge">
+    <div class="container">
+      <p class="eyebrow">12 · EDGE CASES & SYSTEM STATES</p>
+      <div class="sec-h"><h2 class="h2">所有核心页面都设计了「数据不完美」的呈现。<br>不允许永远有完美数据。</h2></div>
+      <div class="state-grid">
+        <div class="state-cell" data-od-id="edge-loading"><div class="sc-h"><b style="font-size:13.5px">Loading · 加载</b><span class="tag">骨架屏</span></div><div class="sc-b"><div class="progress" style="margin-bottom:12px"><div style="width:40%"></div></div><div style="height:12px;border-radius:6px;background:var(--fg-soft);width:70%;margin-bottom:8px"></div><div style="height:12px;border-radius:6px;background:var(--fg-soft);width:92%"></div></div></div>
+        <div class="state-cell" data-od-id="edge-empty"><div class="sc-h"><b style="font-size:13.5px">Empty · 空</b><span class="tag">+ 下一步动作</span></div><div class="sc-b"><div class="empty"><b>没有符合条件的租金记录</b><p>登记第一笔租金后，Owner 确认即入账。</p></div></div></div>
+        <div class="state-cell" data-od-id="edge-success"><div class="sc-h"><b style="font-size:13.5px">Success · 成功</b><span class="tag">结果反馈</span></div><div class="sc-b"><div class="banner ok">确认成功 · 已入账 ₱30,000 ✓ 任务已闭环。</div><div class="toast-demo" style="margin-top:10px">已导出 Pasay-Full-Operating-Report.csv ✓</div></div></div>
+        <div class="state-cell" data-od-id="edge-error"><div class="sc-h"><b style="font-size:13.5px">Error · 失败</b><span class="tag">可重试</span></div><div class="sc-b"><div class="banner crit">同步失败：凭证上传中断，请检查网络后重试。草稿已保存。</div><div class="row" style="margin-top:10px"><button class="btn btn-s sm">重试</button></div></div></div>
+        <div class="state-cell" data-od-id="edge-offline"><div class="sc-h"><b style="font-size:13.5px">Offline · 离线</b><span class="tag">降级策略</span></div><div class="sc-b"><div class="banner warn">离线模式：Telegram 消息已排队，恢复网络后自动同步。你可以继续登记，不会丢单。</div></div></div>
+        <div class="state-cell" data-od-id="edge-permission"><div class="sc-h"><b style="font-size:13.5px">Permission denied · 权限不足</b><span class="tag">Owner 边界</span></div><div class="sc-b"><div class="banner info">已提交 Owner 审批。你无法绕过 Owner 审批边界 — 操作已作为任务发送给 Owner。</div></div></div>
+        <div class="state-cell" data-od-id="edge-rejected"><div class="sc-h"><b style="font-size:13.5px">Rejected · 已拒绝</b><span class="tag">保留原因</span></div><div class="sc-b"><div class="banner crit"><b>已拒绝</b> · 预算外支出，待新租约确定后再评估。</div><div class="meta" style="margin-top:8px">EXP-0011 · 拒绝原因入时间线，可追溯。</div></div></div>
+        <div class="state-cell" data-od-id="edge-archived"><div class="sc-h"><b style="font-size:13.5px">Archived · 已归档</b><span class="tag">频道展示层</span></div><div class="sc-b"><div class="banner info">维修已关闭。历史照片、支出与时间线归档于 Property Archive Channel，长期可查。</div></div></div>
+        <div class="state-cell" data-od-id="edge-noresult"><div class="sc-h"><b style="font-size:13.5px">No results · 无结果</b><span class="tag">搜索</span></div><div class="sc-b"><div class="empty"><b>未找到匹配结果</b><p>试试「1608」「Paolo」「unpaid」「aircon」。</p></div></div></div>
+        <div class="state-cell" data-od-id="edge-ambiguous"><div class="sc-h"><b style="font-size:13.5px">Ambiguous match · 歧义</b><span class="tag">AI 确认</span></div><div class="sc-b"><div class="banner warn">「Paolo」匹配到 2 个结果 — 租客 Paolo Reyes（1608）与跟进任务。请选择：</div><div class="row" style="margin-top:10px"><span class="chip st-pend">租客 · PT-1</span><span class="chip st-pend">任务 · T-104</span></div></div></div>
+        <div class="state-cell" data-od-id="edge-partial"><div class="sc-h"><b style="font-size:13.5px">Partial payment · 部分付款</b><span class="tag">实时数学</span></div><div class="sc-b"><div class="row" style="justify-content:space-between"><span class="meta">租金 ₱30,000</span><span class="chip st-warn">部分 · Partial</span></div><div class="row" style="justify-content:space-between;margin-top:8px"><span>P1 ₱10,000 已确认</span><span class="num">✓</span></div><div class="row" style="justify-content:space-between"><span>P2 ₱10,000 已确认</span><span class="num">✓</span></div><div class="row" style="justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><b>未收</b><span class="money neg">₱10,000</span></div></div></div>
+        <div class="state-cell" data-od-id="edge-reverse"><div class="sc-h"><b style="font-size:13.5px">Reverse · 逆向（无删除）</b><span class="tag">审计留痕</span></div><div class="sc-b"><div class="banner warn">财务记录只支持「确认 / 逆向」，不提供删除。逆向会留下审计痕迹并写入时间线。</div><div class="meta" style="margin-top:8px">Owner 逆向 EXP-0012 · PAID → APPROVED</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 业务规则 -->
+  <section class="section" data-od-id="ds-rules" id="rules">
+    <div class="container">
+      <p class="eyebrow">KEY BUSINESS RULES</p>
+      <div class="sec-h"><h2 class="h2">设计系统同时锁定业务不变量。</h2></div>
+      <div class="grid-2">
+        <div class="card"><div class="h3">1 · 部分付款 ≠ PAID</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">付款逐笔登记，状态由「已确认金额 vs 应付」实时计算：<code>paid &lt; due</code> → Partial；<code>paid = due</code> → Paid。部分付款永远不错误变成 PAID。</p></div>
+        <div class="card"><div class="h3">2 · 财务记录 Confirm / Reverse</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">租金与支出提供「确认 / 逆向」，不提供删除。逆向保留审计痕迹并写入时间线，Owner 专属。</p></div>
+        <div class="card"><div class="h3">3 · APPROVED ≠ 完成</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">支出 APPROVED 后自动创建 Owner「付款」任务。没有付款的 APPROVED 永远是待办，首页与任务中心持续可见。</p></div>
+        <div class="card"><div class="h3">4 · Repair ≠ Expense</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">维修是运营事件，支出是财务事件。一次维修可关联多笔支出（Repair → Contractor → Expense → Approval → Payment），但状态独立。</p></div>
+        <div class="card"><div class="h3">5 · Owner 审批边界不可绕过</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">Secretary 可登记全部日常操作；确认租金、审批/付款/逆向支出仅 Owner。越权操作会被拦截并自动转为 Owner 任务。</p></div>
+        <div class="card"><div class="h3">6 · 用途与类别分离</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">Purpose 是真实业务描述（「Replace broken aircon compressor」），Category 用于统计（Repair / Utilities…）。不把 Purpose 强塞进 Category。</p></div>
+        <div class="card"><div class="h3">7 · 双语不变式</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">Telegram 群内重要业务消息恒为「中文 + English」；Mini App UI 依用户语言显示；状态芯片恒双标签。</p></div>
+        <div class="card"><div class="h3">8 · ID 是标识符，不是假链接</div><p class="lead" style="font-size:14px;margin-top:8px;line-height:1.65">支出显示 <code>EXP-0006</code>、任务 <code>T-101</code>、维修 <code>REP-0012</code>，作为稳定标识与跳转锚点，不使用 Telegram hashtag 假链接样式。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Operation System -->
+  <section class="section" data-od-id="vnext" id="vnext">
+    <div class="container">
+      <p class="eyebrow">VNEXT · OPERATION SYSTEM · PASAY-VNEXT-OPERATION-DESIGN-001</p>
+      <div class="sec-h">
+        <h2 class="h2">VNext Operation：一条 AI 必须推进到<br>真实业务结果的链路</h2>
+        <span class="tag accent">独立设计层 · 叠加于冻结基线</span>
+      </div>
+      <div class="banner info">VNext 不重做已冻结的组件、字体、颜色、卡片与导航。<b>Operation 是一层新的语义容器</b>，天然复用下方全部成熟组件：card / row / chip / timeline / banner / sheet。业务对象（Property / Tenant / Rent / Expense / Repair）不改动。</div>
+    </div>
+  </section>
+
+  <!-- VNEXT · 双状态模型 -->
+  <section class="section" data-od-id="vnext-dualstate" id="vnext-dualstate" style="padding-top:0">
+    <div class="container">
+      <div class="grid-2" style="gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">A · Business State · 业务状态</div>
+          <p class="demo-d" style="margin-top:8px">反映现实业务本身，只被<b>真实业务事件</b>驱动（登记付款并确认 / 逆向）。可被 Owner / Secretary 操作，但绝不因"提醒已发"或"AI 已工作"而改变。</p>
+          <div class="fsm" style="margin-bottom:6px"><span class="chip st-crit">逾期 · Overdue</span><span class="chip st-warn">部分 · Partial</span><span class="chip st-ok">已收 · Paid</span></div>
+          <div class="demo-d" style="margin-top:8px">Rent 示例最小集：<code>UNPAID</code> / <code>PARTIAL</code> / <code>PAID</code>。真实世界多数逾期先停在 <code>UNPAID</code> 直到有到账证据。</div>
+        </div>
+        <div class="card">
+          <div class="h3">B · Execution State · 执行状态（严格互斥）</div>
+          <p class="demo-d" style="margin-top:8px">反映 <b>AI 当前推进状态</b>，互斥、覆盖完整、由 AI 自动推进与维护。与 Business State 正交。<b>Needs you / AI working / Escalated 等一律作为 UI 派生表达</b>，不进入核心数据库状态。</p>
+          <div class="exec-states">
+            <div class="ex"><span class="ex-dot" style="background:var(--accent)"></span><b>ACTIVE</b><span>AI/系统当前可继续推进，不依赖新的真人或外部结果</span></div>
+            <div class="ex"><span class="ex-dot" style="background:var(--pend)"></span><b>WAITING_HUMAN</b><span>下一步必须等待指定真人业务结果 → 必有 next_actor + expected_result</span></div>
+            <div class="ex"><span class="ex-dot" style="background:oklch(63% 0.14 78)"></span><b>WAITING_EXTERNAL</b><span>必须等待租客/银行/供应商/约定日期等外部结果 → 有 expected_result，通常有 wake_at</span></div>
+            <div class="ex"><span class="ex-dot" style="background:oklch(63% 0.14 78)"></span><b>VERIFYING</b><span>已有候选业务结果/Evidence，正在判断是否足够可信</span></div>
+            <div class="ex"><span class="ex-dot" style="background:var(--warn)"></span><b>BLOCKED</b><span>当前无法形成合法可执行的下一步（缺前置条件/数据冲突/权限/系统问题）</span></div>
+            <div class="ex"><span class="ex-dot" style="background:var(--ok)"></span><b>CLOSED</b><span>Operation 生命周期终止，必须记录合法 close_outcome</span></div>
+          </div>
+          <div style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
+            <div class="demo-d" style="margin-bottom:4px"><b>边界原则：</b></div>
+            <div class="demo-d">· <code>ACTIVE</code> 不含"需人动作"——一旦需要真人产生业务结果即转 <code>WAITING_HUMAN</code>。</div>
+            <div class="demo-d">· 已明确"需要 Owner 做什么"<b>不是</b> BLOCKED，而是 <code>WAITING_HUMAN</code> + next_actor=Owner。</div>
+            <div class="demo-d">· <b>State 表达"当前为什么不能/可以继续推进"；next_actor / next_action / expected_result 表达"具体下一步是什么"。</b></div>
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="demo-d" style="margin-bottom:4px">从 State 拆出的<b>推进属性</b>（不重复造状态）：</div>
+            <div class="fsm" style="flex-wrap:wrap"><span class="tag">next_actor</span><span class="tag">next_action</span><span class="tag">expected_result</span><span class="tag">wake_at / due_at</span><span class="tag">escalation_level</span><span class="tag">priority</span><span class="tag">blocked_reason</span></div>
+          </div>
+          <p class="meta" style="margin-top:10px">压力测试：该互斥集能覆盖 Rent / Expense / Repair。Escalation 是 <code>escalation_level</code> 属性的临界值，不新增独占状态。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · 完整状态机 -->
+  <section class="section" data-od-id="vnext-fsm" id="overdue-fsm" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · OVERDUE RENT OPERATION · COMPLETE FLOW</p>
+      <div class="sec-h"><h2 class="h2">第一条标准 Operation：收回 Paolo · 1608 欠租 ₱35,000</h2></div>
+
+      <div class="op-flow">
+        <div class="op-col">
+          <div class="op-h">业务态 · 1608 / Paolo / ₱35,000（2026-08）· 执行态互斥</div>
+          <div class="op-node"><b>Detect</b><span>逾期日到时 15 天未付 → 业务态 UNPAID</span><span class="tag">ACTIVE · 无人工待办</span></div>
+          <div class="op-node"><b>Decide</b><span>AI 判定下一步=催缴（expected_result 定义：Secretary 完成联系并返回承诺/结果）</span><span class="tag">ACTIVE · AI 自续</span></div>
+          <div class="op-node"><b>Prepare + Execute</b><span>AI 生成双语话术 → 交 Secretary → 设置 wake_at 回报时限</span><span class="tag">WAITING_HUMAN · Secretary</span></div>
+          <div class="op-node"><b>Wait</b><span>Secretary 返回承诺日 → 进入停驻等待 → wake_at = 承诺日</span><span class="tag">WAITING_EXTERNAL</span></div>
+          <div class="op-node"><b>Promised-day check</b><span>wake_at 到点 AI 自动核对到账 / 证据</span><span class="tag">VERIFYING</span></div>
+          <div class="op-node ok"><b>Verified Result 达成</b><span>到账 / 凭证形成结构化证据 → 业务态 PAID → 落 close_outcome=COLLECTED</span><span class="tag">▶ CLOSED</span></div>
+        </div>
+        <div class="op-col">
+          <div class="op-h">异常分支 · 由 expected_result + SLA + wake_at 驱动（非提醒计数）</div>
+          <div class="op-node w"><b>Secretary 未在 deadline 内回报</b><span>到期无结果 → 重新判断下一步；escalation_level 随 business age / risk 递增</span></div>
+          <div class="op-node w"><b>租客联系不上</b><span>contact failures 累计 → escalation_level 升 → 交 Owner（仍是 WAITING_HUMAN/ACTIVE）</span></div>
+          <div class="op-node w"><b>租客改变付款日期</b><span>AI 更新 wake_at → 回 WAITING_EXTERNAL（不算完成）</span></div>
+          <div class="op-node w"><b>部分付款</b><span>Secretary 申报 ₱10,000 → <b>Payment Claim 记录（≠到账）</b> → VERIFYING → 可信证据匹配 → 业务态 PARTIAL（received ₱10,000 / remaining ₱25,000）→ <b>同一 Operation 继续</b>，不新建尾款 Operation</span></div>
+          <div class="op-node w"><b>Secretary 误点"已联系"</b><span>仅落 Contact 记录，业务态不动；无到账证据仍不推进到 Verified</span></div>
+          <div class="op-node w"><b>用户说"已付款"但无证据</b><span>Claim 记录 → VERIFYING → <b>Evidence insufficient</b>。<b>A</b> 要真人补证据 → WAITING_HUMAN（next_actor + next_action + expected_result + due_at）；<b>B</b> 要银行/外部系统出证据 → WAITING_EXTERNAL（expected_result = bank transaction/evidence available + wake_at）。在明确等谁、等什么的情况下<b>不进入 BLOCKED</b>。</span></div>
+          <div class="op-node w"><b>银行到账但系统未匹配</b><span>trusted bank match 形成 Verified Result → 登记 → 业务态 PAID，不强制 Owner 复点</span></div>
+          <div class="op-node w"><b>BLOCKED 的真实用法</b><span>仅用于当前无法形成合法可执行下一步（关键数据冲突、系统能力/权限问题、无法识别业务对象）→ <b>BLOCKED → AI diagnosis → 一旦识别出明确 Owner action → 立即离开 BLOCKED</b> → WAITING_HUMAN + next_actor=Owner。禁止"BLOCKED 但同时明确等待 Owner 做事"。</span></div>
+          <div class="op-node w"><b>需 Owner 介入</b><span>escalation_level 高 → Owner 决策 → 回推进或记录 Close Outcome</span></div>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
+        <div class="demo-d" style="margin-bottom:4px"><b>三层不可混淆 · Claim → Evidence → Verified Result</b></div>
+        <div class="fsm" style="margin-bottom:6px"><span class="chip st-pend">Claim · 申报</span><span class="arr">→</span><span class="chip st-pend">Evidence · 证据</span><span class="arr">→</span><span class="chip st-ok">Verified Result · 已验证</span></div>
+        <div class="demo-d" style="margin-bottom:4px">· <b>Claim</b>：Secretary / Owner / 租客口头或按钮声称"付了 ₱10,000" —— 只记录为申报，不改变业务态。</div>
+        <div class="demo-d" style="margin-bottom:4px">· <b>Evidence</b>：上传回执 / 银行流水 / 授权凭证等候选结构化证据。</div>
+        <div class="demo-d" style="margin-bottom:4px">· <b>Verified Result</b>：证据经可信来源核对通过 → 才允许把需要验证的业务真相（UNPAID→PARTIAL/PAID）改掉。</div>
+        <div class="demo-d" style="margin-bottom:0">不得因一句话"付了"直接改变 UNPAID / PARTIAL / PAID。</div>
+      </div>
+      <p class="meta" style="margin-top:16px">Closure 基础 = <b>Verified Result / 合法 Close Outcome</b>。Verification 可来自 trusted bank match、已有的会计确认、Owner 人工确认、授权人证、未来可信集成 —— 系统取得足够可信结构化证据即可自动形成 Verified Result，不强制 Owner 再点一次。Owner 只处理需人工权限 / 异常 / 现金 / 冲突 / 不确定证据的情形。业务 Closure 不依赖"时间线完整"；时间线/审计必须记录，但审计异常属 Data Integrity，不得让真实已完成的业务继续显示为未完成。任何"已联系 / 承诺 / 口头已付 / 提醒已发"都不构成 Closed。</p>
+    </div>
+  </section>
+
+  <!-- VNEXT · Verified Result + Close Outcome -->
+  <section class="section" data-od-id="vnext-close" id="vnext-close" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · VERIFIED RESULT &amp; CLOSE OUTCOME</p>
+      <div class="sec-h"><h2 class="h2">Verification 是 Closure 基础，<br>Owner 确认不是固定必选条件。</h2></div>
+      <div class="grid-2" style="gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">Verified Result · 可来自多种可信来源</div>
+          <table class="ds-table" style="margin-top:10px">
+            <thead><tr><th>来源</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="num">trusted bank match</td><td>银行/收款流水自动匹配 → 自动 Verified，不强求 Owner 复点</td></tr>
+              <tr><td class="num">existing accounting confirm</td><td>已有会计确认凭证足以入账</td></tr>
+              <tr><td class="num">Owner manual confirm</td><td>现金 / 异常 / 人工授权场景</td></tr>
+              <tr><td class="num">authorized human evidence</td><td>授权人证（如 Secretary 凭证 + 权限链）</td></tr>
+              <tr><td class="num">future trusted integration</td><td>后续支付/银行集成自动核验</td></tr>
+            </tbody>
+          </table>
+          <p class="meta" style="margin-top:10px">口径：只要取得足够可信的结构化证据，系统应允许自动形成 Verified Result；禁止为形式强制 Owner 再点一次。Owner 只处理需人工权限 / 异常 / 现金 / 冲突 / 不确定证据。</p>
+        </div>
+        <div class="card">
+          <div class="h3">Close Outcome + Close Reason</div>
+          <p class="demo-d" style="margin-top:8px">Execution State=CLOSED 只表示 Operation 生命周期结束；进一步区分<b>为什么关闭</b>。CLOSED 不改变真实财务状态，非收集情况必须有授权依据。</p>
+          <table class="ds-table" style="margin-top:10px">
+            <thead><tr><th>close_outcome</th><th>所需授权 / 依据</th></tr></thead>
+            <tbody>
+              <tr><td class="num">COLLECTED</td><td>Verified Result = 全款到账（部分付款累计到齐）</td></tr>
+              <tr><td class="num">WAIVED</td><td>Owner/授权决定豁免 → 需记录原因 + 授权人</td></tr>
+              <tr><td class="num">WRITTEN_OFF</td><td>坏账核销 → 需 Owner 授权 + 金额依据</td></tr>
+              <tr><td class="num">ADJUSTED</td><td>账务调整 → 需核对 + 授权记录</td></tr>
+              <tr><td class="num">CANCELLED_DUPLICATE</td><td>重复对象合并 → 需去重依据</td></tr>
+            </tbody>
+          </table>
+          <p class="meta" style="margin-top:10px">红线：Owner 不能通过单纯点击"关闭"改变真实财务状态 —— 关闭只记录 lifecycle 结束；真实账务只由业务事件（登记 + 确认 / 逆向）驱动。</p>
+        </div>
+      </div>
+      <div style="margin-top:20px;padding:14px 16px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;background:var(--surface)">
+        <div class="demo-d" style="margin-bottom:6px;font-weight:650">Operation Close vs Domain Truth · 冻结原则</div>
+        <div class="demo-d" style="margin-bottom:6px"><b>Operation close_outcome 只描述"为什么这个 Operation 生命周期结束"。</b>若 Outcome 会改变真实债权、金额、合同义务或其他业务事实，<b>必须产生合法的 Domain Business Event</b>，由 Domain 对象自身更新真实业务状态。</div>
+        <table class="ds-table" style="margin-top:6px">
+          <thead><tr><th>close_outcome</th><th>→ 所需 Domain Business Event</th><th>→ Domain 真实业务更新</th></tr></thead>
+          <tbody>
+            <tr><td class="num">COLLECTED</td><td>verified payment event</td><td>Rent truth 更新</td></tr>
+            <tr><td class="num">WAIVED</td><td>authorized waiver / adjustment event</td><td>Rent obligation 更新</td></tr>
+            <tr><td class="num">WRITTEN_OFF</td><td>authorized write-off event</td><td>Domain accounting / business truth 更新</td></tr>
+            <tr><td class="num">ADJUSTED</td><td>authorized adjustment event</td><td>obligation amount / state 更新</td></tr>
+            <tr><td class="num">CANCELLED_DUPLICATE</td><td>仅结束重复 Operation</td><td><b>不得改变原始 Rent truth</b></td></tr>
+          </tbody>
+        </table>
+        <div class="demo-d" style="margin-top:8px;margin-bottom:0"><b>冻结红线：</b>Operation CLOSED ≠ 自动修改业务对象事实。Operation 的 close_outcome <b>不能替代</b> Rent / Expense / Repair 自己的 Domain State / Business Event。不得出现："Operation 已合法 WAIVED，但真实业务对象仍错误显示为普通 UNPAID 且没有对应处置记录"。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Mini App Operations Overview + Detail -->
+  <section class="section" data-od-id="vnext-miniapp" id="vnext-miniapp" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · MINI APP · OPERATIONS CONTROL CENTER</p>
+      <div class="sec-h"><h2 class="h2">Mini App 作为 Operations Control Center</h2></div>
+      <div class="grid-2" style="gap:var(--gap-lg)">
+        <div class="demo">
+          <div class="demo-t">Operations Overview · 按执行态分组</div>
+          <div class="demo-d">Owner / Secretary 首屏一列一屏，把"什么样的操作需要我"放最前；不看内部状态机也能行动。</div>
+          <div class="op-card">
+            <div class="opc-l1"><b>🔴 Paolo · 1608</b><span class="chip st-crit">Needs you</span></div>
+            <div class="opc-l2">2026-08 rent unpaid · ₱35,000</div>
+            <div class="opc-l3">Tenant promised payment today. No payment verified yet.</div>
+            <div class="opc-l4"><b>Next: Contact Paolo &amp; confirm</b><span>→ detail</span></div>
+          </div>
+          <div class="op-card">
+            <div class="opc-l1"><b>Ana · 1503</b><span class="chip st-warn">Waiting external</span></div>
+            <div class="opc-l2">Partial balance ₱10,000 · promised 06-22</div>
+            <div class="opc-l3">Will auto-check on 06-22.</div>
+          </div>
+          <div class="op-card">
+            <div class="opc-l1"><b>Bank match</b><span class="chip st-pend">Verifying</span></div>
+            <div class="opc-l2">₱30,000 deposit · matching rent R-…</div>
+          </div>
+          <div class="op-card">
+            <div class="opc-l1"><b>Grace · 1501</b><span class="chip st-neu">Closed ✓</span></div>
+            <div class="opc-l2">Renewal completed · verified</div>
+          </div>
+          <div class="meta" style="margin-top:12px">分组头：Needs you / AI working / Waiting external / Verifying / Blocked / Closed。纯展示，不为状态堆仪表盘。</div>
+        </div>
+        <div class="demo">
+          <div class="demo-t">Operation Detail · Paolo 1608</div>
+          <div class="opc-detail">
+            <div class="opd-top"><b>Paolo · 1608 · 2026-08 rent</b><span class="chip st-crit">Needs you</span></div>
+            <div class="opd-row"><span class="k">业务态</span><span class="chip st-crit">逾期 · Unpaid</span></div>
+            <div class="opd-row"><span class="k">进度</span><span>需要你联系 Paolo（明天 09:00 前回报联系结果）</span></div>
+            <div class="opd-row"><span class="k">下一步</span><span>Contact Paolo &amp; confirm payment status</span></div>
+            <div class="opd-row"><span class="k">谁做</span><span>Secretary（Owner 无动作）</span></div>
+            <div class="opd-actions"><button class="btn btn-p sm">Contacted</button><button class="btn btn-s sm">Send follow-up</button></div>
+            <div class="opd-rel"><b>Related</b><div><a style="color:var(--accent)">1608 →</a> <a style="color:var(--accent)">Paolo →</a> <a style="color:var(--accent)">R-2026-08-1608 →</a></div></div>
+            <div class="tl" style="margin-top:10px">
+              <div class="tl-i"><div class="tl-t">发现逾期</div><div class="tl-d">2026-08-16 09:00 · 未付款 · AI</div></div>
+              <div class="tl-i muted"><div class="tl-t">Secretary 已联系 · Paolo 承诺 08-20 付款</div><div class="tl-d">2026-08-17 10:15 · 记录：联系结果</div></div>
+              <div class="tl-i muted"><div class="tl-t">等待 Paolo 付款 · 08-20 自动检查</div><div class="tl-d">2026-08-20 09:00 · wake_at</div></div>
+            </div>
+          </div>
+          <div class="meta" style="margin-top:12px">Timeline 双向可见 AI 自动进展与人工事件；Evidence 承载「承诺 / 到账凭证 / 确认」；CLOSED 时记录 close_outcome（如 COLLECTED）+ close_reason。用户界面只用自然业务语言，内部枚举仅作设计标注。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Source of Truth Sync · 006 · Lease Renewal + Move-out Accepted Workflows -->
+  <section class="section" data-od-id="sot-sync-006" id="sot-sync-006" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · SOURCE OF TRUTH SYNC · 006A2 · LEASE RENEWAL (005A2) + MOVE-OUT (005B2) · EXACT FROZEN MENU</p>
+      <div class="sec-h">
+        <h2 class="h2">006 同步：五条业务 Operation 全部纳入<br>Generic Foundation · 一套内核驱动 Repair / Expense / Rent / Lease Renewal / Move-out</h2>
+        <span class="tag accent">已验收同步 · Source of Truth</span>
+      </div>
+      <div class="banner info">
+        本轮 <b>同步</b> 已经 Owner-Accepted 的产品事实（004G → 005A2 → 005B2）回 OpenDesign 语义层：<br>
+        · Lease Renewal Operation 的完整阶段链（Tenant Intent Claim · Owner Decision · Agreement Evidence · Verify）<br>
+        · Move-out Operation 的完整阶段链（Temporal Truth · Inspection Evidence · Lease-Scoped Settlement · Approved Snapshot · Partial Collection · Final VACANT）<br>
+        · Move-out 内部 Repair/Expense child Operation 复用现有 Generic Kernel，不复制第二套 engine<br>
+        · Telegram 与 Mini App 边界进一步清晰化。<br>
+        <b>本轮禁止</b>：扩展产品范围、重做视觉体系、新建 005C Vacancy/Listing 设计。修复 005B2 Owner Acceptance 通过后的所有接受事实。
+      </div>
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">Lease Renewal · 005A2 已接受 Phase</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>1 · DETECT_EXPIRY</b><span class="tag">WAITING_HUMAN · secretary · contact_tenant</span><br>
+            <b>2 · TENANT_RESPONSE</b> · 4 类 Intent：renew / negotiate / not_renew / unreachable · 一律为 <b>Intent Claim</b>，不动 Lease truth<br>
+            <b>3 · OWNER_DECISION</b><span class="tag">WAITING_HUMAN · owner · approve_renewal</span> · Card 必含 Unit / Tenant / Current Rent / Current Expiry / Proposed Start · End · Term · Proposed Rent / Notes<br>
+            <b>4 · EXECUTE</b><span class="tag">WAITING_HUMAN · secretary · complete_agreement</span> · 必须附带 Agreement Evidence<br>
+            <b>5 · VERIFY</b><span class="tag">VERIFYING</span> · <b>只有 Verified Result 才更新</b> Lease（new_start / new_end / new_rent / renewal_status）；一次性写完；Operation CLOSED / RENEWED<br>
+            <b>关卡：</b> Owner Change 必须修改真实业务字段（非只改 Note），写到 <code>op.termsHistory[]</code> 含 terms_before / terms_after / changed_by / changed_at<br>
+            <b>Calendar 续租</b>：<code>new_start = expiry + 1 day</code>，<code>new_end = new_start + term 月 - 1 day</code>（month-end clamp，例如 2026-01-31 + 1mo → 2026-02-28，<b>不得</b> 2026-03-03）
+          </div>
+          <div class="demo-d" style="margin-top:8px"><b>NOT_RENEW Continuity：</b><code>tenantIntent = not_renew</code> 时 Lease Renewal op → <code>close_outcome = NOT_RENEWED</code>，并通过 <code>ensureMoveOutOperationSeed('LEASE-OP-1')</code> 续接 Move-out；丢失 follow_up_of 时 backfill；异 source 调用拒绝静默覆盖</div>
+        </div>
+        <div class="card">
+          <div class="h3">Move-out · 005B2 已接受 Phase</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>1 · CONFIRM_DATE</b><span class="tag">WAITING_HUMAN · secretary · confirm_moveout_date</span> · 写入 moveout_date<br>
+            <b>2 · ARRANGE_INSPECTION</b><span class="tag">WAITING_EXTERNAL · inspection-external · wait_inspection_date</span> · wake_at = inspection_date<br>
+            <b>3 · WAITING_FOR_DATE</b> · <b>Temporal Truth：</b><code>opSimDate &lt; moveout_date</code> 时 <b>不得</b> 给 Secretary 提交证据按钮 / 不得打开 verify → 必须等真实搬出日；mo-inspection-due 是确定性唤醒动作<br>
+            <b>4 · SUBMIT_INSPECTION_EVIDENCE</b><span class="tag">VERIFYING</span> · 检查 inspection_date &amp; moveout_date 已到；Inspection Evidence 可 reject（rejected 不可复活，re-submit 必须新建 evidence + 重新绑定 finding → evidence 关系）<br>
+            <b>5 · FINDING</b> · <b>只有 Verified Evidence 支撑的 chargeable finding 才能进入押金扣款</b>（normal_wear chargeable=false / tenant_damage chargeable=true · verified-backed）<br>
+            <b>6 · CALCULATE_SETTLEMENT</b> · 真实 Rent truth + verified findings + Lease-Scoped utilities（<b>cross-lease 历史账单不得归当前租客</b>）<br>
+            <b>7 · OWNER_REVIEW</b><span class="tag">WAITING_HUMAN · owner · review_settlement</span> · Owner Change 仅添加 owner_adjustments[] entry，不动 finding truth；approving 写入 <b>approved_snapshot</b>（不可变）<br>
+            <b>8 · EXECUTE</b><span class="tag">execute_refund 或 execute_collection</span><br>
+            <b>9 · SUBMIT_SETTLEMENT_EVIDENCE</b><span class="tag">VERIFYING</span><br>
+            <b>10 · VERIFY_SETTLEMENT</b> · 检查 effectiveDate ≥ moveout_date；partial collection → revert secretary 继续收集；只有 verified_collection_amount ≥ approved_balance_due 时才 CLOSED → Lease CLOSED + Unit VACANT + Deposit SETTLED + Tenant MOVED_OUT
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Repair / Expense / Rent Accepted Truth 同步</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Repair</b>：Detected → ArrangeTech → WAITING_EXTERNAL → Quote → Owner Review → Expense child → Execute → Completion Claim → Evidence → Verify → Repair CLOSED。<b>Quote approved ≠ Repair complete · Expense paid ≠ Repair complete · Technician said done ≠ Repair complete · Failed → reopen（保留 recurrence continuity）</b><br>
+            <b>Expense</b>：Created → Pending Approval → Owner Approve → Awaiting Payment → Payment Claim → Payment Evidence → Verified Result → PAID。<b>Reject → EDIT → RESUBMIT</b>；paid 后只可 Reverse，不可删除历史 truth<br>
+            <b>Rent</b>：Due → Contact/Follow-up → Payment Claim → Evidence → Verified Payment → Partial 或 Paid。<b>amount_due / paid / remaining</b> 三元组，部分付款保留在同一 Operation 内继续（不另开新单）
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Telegram ↔ Mini App 边界同步</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Telegram 顶层 = 6 固定按钮 · 3 columns × 2 rows</b>：第 1 行 🏠 Home · 🏢 Properties · ✅ Tasks，第 2 行 💰 Rent · 💸 Expense · 🗂 Archive。<br>
+            <b>Role 角色内容语言</b>：Group Chat = 英文（Home / Properties / Tasks / Rent / Expense / Archive）；Owner DM = 中文 UI · Secretary DM = 英文 UI。三者共享同一 3×2 IA 与功能边界，只在 UI 语言上有差异。<br>
+            ⚠️ <b>historical / superseded</b>：006A1 错误地把第 2 行写成 <code>Collections / Expenses / Finance</code>（并主张 "Rent 顶层文案已经定稿为 Collections / 第 6 键已经定稿为 Finance"），006A2 已将这些声明移除，把已验收冻结的 <code>Rent / Expense / Archive</code> 恢复为当前现行规则。<br>
+            <b>Telegram 角色内容语言</b>：Owner = 默认中文；Secretary = 默认 English；金额/房号/租客名保持原始数据<br>
+            <b>Fast Path 不经 LLM</b>：菜单点击立即响应，回调立即 ACK；慢操作先显示 Processing；权限/状态过期/系统错误必须显式反馈，禁止 silent failure<br>
+            <b>Mini App ONLY 业务</b>：Lease Renewal Operation（完整）· Move-out Operation（完整）· Evidence/Timeline/Settlement/History/Domain truth · Repair 凭证与现场详情 · Settings · Reports · 归档 · 全文 Search<br>
+            <b>Telegram 保留</b>：快速入口 / 提醒 / 任务（Operation 的真人 Task 投影）/ 审批 / 登记 / AI 自然语言
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Lease Renewal Accepted Flow Diagram (sync 006) -->
+  <section class="section" data-od-id="vnext-lease-flow" id="vnext-lease-flow" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · LEASE RENEWAL ACCEPTED FLOW · 005A2 · SOURCE OF TRUTH SYNC 006</p>
+      <div class="sec-h"><h2 class="h2">Lease Renewal：Tenant Intent 是 Claim<br>Verified Result 才更新 Lease truth</h2></div>
+      <div class="op-flow">
+        <div class="op-col">
+          <div class="op-h">业务态 · Lease Renewal Operation（lease_renewal kind）</div>
+          <div class="op-node"><b>DETECT_EXPIRY</b><span>Lease approaching expiry → Operator 创建 LEASE-OP-1</span><span class="tag">WAITING_HUMAN · secretary · contact_tenant</span></div>
+          <div class="op-node"><b>TENANT_RESPONSE</b><span>Secretary 标记 tenantIntent（renew / negotiate / not_renew / unreachable）。Intent = Claim，只入 op.tenantIntent。</span><span class="tag">WAITING_HUMAN · owner · approve_renewal</span></div>
+          <div class="op-node"><b>OWNER_DECISION</b><span>Card：Unit / Tenant / Current Rent / Expiry / Proposed Start / Proposed End / Term / Proposed Rent / Notes。Approve / Change Terms / Reject。</span><span class="tag">WAITING_HUMAN · owner / secretary</span></div>
+          <div class="op-node"><b>Change Terms</b><span>改真实字段 → 写 op.termsHistory 含 terms_before / terms_after / changed_by / changed_at；不得只改 Note</span><span class="tag">WAITING_HUMAN · owner · approve_renewal</span></div>
+          <div class="op-node"><b>EXECUTE</b><span>Secretary 完成 Agreement 并收集 Evidence (AE-N)</span><span class="tag">WAITING_HUMAN · secretary · complete_agreement</span></div>
+          <div class="op-node"><b>VERIFY</b><span>只验证 status=available 的 evidence。reject 后 evidence 永久 rejected，重新提交新 ID。</span><span class="tag">VERIFYING</span></div>
+          <div class="op-node ok"><b>Verify → Lease truth 更新</b><span>lease.new_start / new_end / new_rent / renewal_status + op CLOSED / RENEWED</span><span class="tag">▶ CLOSED</span></div>
+        </div>
+        <div class="op-col">
+          <div class="op-h">Calendar Truth &amp; NOT_RENEW Continuity</div>
+          <div class="op-node w"><b>Calendar clamp</b><span><code>addCalendarMonths('2026-09-30', 12) === '2027-09-30'</code> · <code>addCalendarMonths('2026-01-31', 1) === '2026-02-28'</code> · month-end clamp，<b>不得</b> +365/+366 天，<b>不得</b> V8 月末溢流 2026-03-03</span></div>
+          <div class="op-node w"><b>Owner Change 真实业务字段</b><span>改真实字段 → 写 <code>op.termsHistory</code> 含 terms_before / terms_after / changed_by / changed_at；不得只改 Note。Lease Renewal 只动 proposal / proposal.proposed_rent / proposal.proposed_start / proposal.proposed_end / proposal.term_months 这些 Lease Renewal 自己的字段；<b>不得在 Lease Renewal 内部重新定义 Move-out Settlement 概念</b>。</span></div>
+          <div class="op-node w"><b>Agreement Evidence 不复活</b><span>AE-1 rejected → re-submit 必生成新 ID（AE-2）。<code>verificationResults</code> 的 evidence_ids 不含 AE-1。Lease Renewal 只承载 Agreement Evidence（AE-N），<b>不得在 Lease Renewal 内部出现 Inspection Finding 字段</b>。</span></div>
+          <div class="op-node w"><b>source / follow_up 续接</b><span>已有 LEASE-OP-1.close_outcome = NOT_RENEWED → ensureMoveOutOperationSeed('LEASE-OP-1') 必须在 demo state 下 backfill MOVEOUT-OP-1.follow_up_of；异 source 调用拒绝静默覆盖。</span></div>
+          <div class="op-node w"><b>Rejected Intent 不改 Lease</b><span>4 类 tenantIntent：renew / negotiate / not_renew / unreachable 一律仅 Claim。not_renew 触发 Move-out 续接，但 Lease 状态不变直到 Move-out verify。</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Move-out Accepted Flow Diagram (sync 006) -->
+  <section class="section" data-od-id="vnext-moveout-flow" id="vnext-moveout-flow" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · MOVE-OUT ACCEPTED FLOW · 005B2 · SOURCE OF TRUTH SYNC 006</p>
+      <div class="sec-h"><h2 class="h2">Move-out：Temporal Truth 优先于 Buttons；<br>Verified Result 才是唯一 VACANT 触发点</h2></div>
+      <div class="op-flow">
+        <div class="op-col">
+          <div class="op-h">业务态 · Move-out Operation（move_out kind）</div>
+          <div class="op-node"><b>SOURCE</b><span>Lease Renewal NOT_RENEWED 或 lease ending 检测</span><span class="tag">discovery</span></div>
+          <div class="op-node"><b>CONFIRM_DATE</b><span>Secretary 确认 moveout_date / handover_time / tenant_note</span><span class="tag">WAITING_HUMAN · secretary · confirm_moveout_date</span></div>
+          <div class="op-node"><b>ARRANGE_INSPECTION</b><span>写入 inspection_date，进入 WAITING_EXTERNAL 等验房日</span><span class="tag">WAITING_EXTERNAL · wait_inspection_date</span></div>
+          <div class="op-node"><b>WAIT_FOR_DATE</b><span>Today's &lt; moveout_date 时按钮被压制，到点由 <code>mo-inspection-due</code> 推进；不得 early submit / verify</span><span class="tag">WAITING_EXTERNAL · wait_inspection_date</span></div>
+          <div class="op-node"><b>SUBMIT_INSPECTION</b><span>写入 INSP-N（available）+ findings（1 normal_wear + 1 tenant_damage=8000 demo）。re-submit 时强制 rebuild finding.evidence_ids 关系</span><span class="tag">VERIFYING</span></div>
+          <div class="op-node"><b>VERIFY_INSPECTION</b><span>approved insight：verified-backed findings 计入 recalculate settlement</span><span class="tag">WAITING_HUMAN · owner · review_settlement</span></div>
+          <div class="op-node"><b>OWNER_REVIEW</b><span>Owner 看到完整 deduction 列表；Change 仅追加 owner_adjustments[] entry（不动 finding）</span><span class="tag">WAITING_HUMAN · owner · review_settlement</span></div>
+          <div class="op-node"><b>APPROVE → Approved Snapshot</b><span><code>op.approved_snapshot</code> 固化 final 数值 + approved_at + approved_by</span><span class="tag">WAITING_HUMAN · secretary</span></div>
+          <div class="op-node"><b>EXECUTE</b><span>refund path → execute_refund Task · collection path → execute_collection Task</span><span class="tag">execute_refund / execute_collection</span></div>
+          <div class="op-node"><b>SUBMIT_SETTLEMENT_EVIDENCE</b><span>SE-N（available）。collection 路径 amount = min(claim.amount, remaining)；claim amount 超 remaining 自动截断</span><span class="tag">VERIFYING</span></div>
+          <div class="op-node"><b>VERIFY_SETTLEMENT</b><span>effectiveDate ≥ moveout_date · total_verified ≥ approved_balance_due → Close</span><span class="tag">▶ CLOSED</span></div>
+        </div>
+        <div class="op-col">
+          <div class="op-h">Final Truth 与 Partial Collection</div>
+          <div class="op-node w"><b>Lease-scoped Financial Truth</b><span><code>opMoveOutOutstandingUtilities</code> 严格要求 <code>expense.lease_id === lease.lease_id</code>。同 unit 历史租客账单（lease_id=null 或异 lease）<b>不得</b> 静默归当前租客</span></div>
+          <div class="op-node w"><b>Verified-backed Damage</b><span>chargeable finding 必须有 ALL-verified evidence 支撑。rejected evidence 永远不参与财务扣款。</span></div>
+          <div class="op-node w"><b>approved_snapshot 不可 rollback</b><span>后续 execute / evidence / verify 一律读 snapshot，绝不 recalc；mo-owner-approve 重复调用不会改变 snapshot。</span></div>
+          <div class="op-node w"><b>Partial collection</b><span>verified_collection_amount &lt; approved_balance_due → op 回到 WAITING_HUMAN / secretary / submit_settlement_evidence 继续；Lease 不 closed · Unit 不 vacant。close_reason 不含 "still owes"。</span></div>
+          <div class="op-node w"><b>Truth 日期 = moveout_date</b><span><code>lease.closed_at / settled_at = mo.moveout_date</code> · <code>property.move_out_at = mo.moveout_date</code> · <code>tenant.moved_out_at = mo.moveout_date</code>。最终 4 项 truth <b>同时</b> 落定 + op CLOSED/MOVED_OUT。允许写 <code>mo.verify_action_at = opSimDate()</code> 仅作审计</span></div>
+          <div class="op-node w"><b>Repair / Expense Child Continuity</b><span>Move-out 内 Repair/Expense 必须使用现有 Generic Kernel 创建 child operation（真实 <code>state.repairs[]</code> + <code>state.expenses[]</code> + parent_operation_id），绝不在 Move-out 内复制 Repair/Expense engine</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VNEXT · Freeze Contract -->
+  <section class="section" data-od-id="vnext-freeze" id="vnext-freeze" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · OPERATION FOUNDATION v1 · FROZEN · PASAY-VNEXT-OPERATION-DESIGN-001B → 006 SYNC</p>
+      <div class="sec-h"><h2 class="h2">OPERATION FOUNDATION v1 · FROZEN · 已含 004G → 005B2 全部接受事实</h2><span class="tag accent">语义唯一真相 · VNext 最高优先级</span></div>
+      <div class="card">
+        <div class="freeze-grid">
+          <div class="fc-item"><span class="fc-n">01</span><b>Business Object ≠ Operation</b><span>业务对象是现实资产/事实；Operation 是 AI 推进到结果的容器，互不取代。</span></div>
+          <div class="fc-item"><span class="fc-n">02</span><b>Operation ≠ Task</b><span>Operation 是多态全生命周期；Task 只是其中一步 Action。</span></div>
+          <div class="fc-item"><span class="fc-n">03</span><b>Task / Reminder / Notification / Message = Action / 推进手段</b><span>不是完成，不改变业务真相。</span></div>
+          <div class="fc-item"><span class="fc-n">04</span><b>Business State 与 Execution State 正交</b><span>两个维度独立，任一都不能单独证明"完成"。</span></div>
+          <div class="fc-item"><span class="fc-n">05</span><b>6 个互斥 Execution State</b><span>ACTIVE / WAITING_HUMAN / WAITING_EXTERNAL / VERIFYING / BLOCKED / CLOSED。</span></div>
+          <div class="fc-item"><span class="fc-n">06</span><b>next_actor / next_action / expected_result / wake_at</b><span>是推进属性，从 State 拆出，表达"具体下一步"。</span></div>
+          <div class="fc-item"><span class="fc-n">07</span><b>escalation_level 独立属性</b><span>非 State；临界值对应"需 Owner"UI 态。</span></div>
+          <div class="fc-item"><span class="fc-n">08</span><b>Evidence ≠ Claim</b><span>真人声称/按钮只是 Claim，须经 Evidence 核对。</span></div>
+          <div class="fc-item"><span class="fc-n">09</span><b>Verified Result 才能改变需要验证的业务真相</b><span>UNPAID/PARTIAL/PAID 只由可信证据驱动。</span></div>
+          <div class="fc-item"><span class="fc-n">10</span><b>Partial Payment 保持同一 Operation</b><span>不新建尾款 Operation，原 Operation 继续到最终结果。</span></div>
+          <div class="fc-item"><span class="fc-n">11</span><b>Closure 必须有 close_outcome</b><span>COLLECTED / WAIVED / WRITTEN_OFF / ADJUSTED / CANCELLED_DUPLICATE + close_reason。</span></div>
+          <div class="fc-item"><span class="fc-n">12</span><b>Reminder sent ≠ Progress completed</b><span>提醒只是动作，不等于业务推进。</span></div>
+          <div class="fc-item"><span class="fc-n">13</span><b>AI 到期自动重新判断并续跑</b><span>由 expected_result + deadline + wake_at 驱动，非提醒计数。</span></div>
+          <div class="fc-item"><span class="fc-n">14</span><b>BLOCKED 与 WAITING_HUMAN 严格区分</b><span>已知要 Owner/真人做什么 → WAITING_HUMAN；不知如何合法推进 → BLOCKED。</span></div>
+          <div class="fc-item"><span class="fc-n">15</span><b>VNext 语义优先于冲突的 Legacy 语义</b><span>旧 Task/Reminder 冲突语义被覆盖，视觉与成熟交互继承保留。</span></div>
+          <div class="fc-item"><span class="fc-n">16</span><b>Known next actor/result ≠ BLOCKED</b><span>一旦形成合法 human/external next step，必须转 WAITING_HUMAN / WAITING_EXTERNAL，不得停在 BLOCKED。</span></div>
+          <div class="fc-item"><span class="fc-n">17</span><b>Operation Closure ≠ Domain Truth Mutation</b><span>任何改变现实业务事实的 Close Outcome 必须通过合法 Domain Business Event 更新业务对象。</span></div>
+          <div class="fc-item"><span class="fc-n">18</span><b>≤1 Active Human Task per Operation</b><span>Operation 当前状态只投影 1 个当前真正需要完成的真人 Task；CLOSED 之后不得再投影可执行 task。Child Operation 可拥有自己专属的 active task。</span></div>
+          <div class="fc-item"><span class="fc-n">19</span><b>Rejected Evidence 不可复活</b><span>Evidence status = rejected 之后永远不进入下一次 Verify 的 evidence_ids。重新提交必须新建 evidence（SE-2），Verified Result.evidence_ids 不得含 SE-1。Repair / Lease / Move-out 全部遵守。</span></div>
+          <div class="fc-item"><span class="fc-n">20</span><b>Operation Transition Matrix / Stale Replay Guard</b><span>每条 action 显式声明允许的 source state (esc · next_actor · next_action_code)。CLOSED 后重放任何旧 action 全 no-op。旧 callback / stale UI button 不得二次执行已完成业务。</span></div>
+          <div class="fc-item"><span class="fc-n">21</span><b>Tenant Intent 是 Claim（Lease Renewal）</b><span>4 类 Intent：renew / negotiate / not_renew / unreachable 一律仅 Claim；不得直接修改 Lease truth。not_renew 触发 ensureMoveOutOperationSeed 续接（不破坏 continuity）。</span></div>
+          <div class="fc-item"><span class="fc-n">22</span><b>Owner Change 不动 Finding Truth（Move-out）</b><span>Owner Settlement Adjustment 必须分开存储：<code>op.owner_adjustments[]</code> 数组，绝不修改 Inspection finding 的 estimated_cost。approved_snapshot 固化为不可变财务基准。Verify Settlement 只能读 snapshot，不再 recalc。</span></div>
+          <div class="fc-item"><span class="fc-n">23</span><b>Final Move-out Truth 同时落定</b><span>只有 mo-verify-settlement 一次性写入 Lease CLOSED + Unit VACANT + Deposit SETTLED + Tenant MOVED_OUT + op CLOSED/MOVED_OUT；中间任何阶段不得提前写；日期必须用 <code>mo.moveout_date</code> 而非 opSimDate；evidence-driven collection 路径允许 partial。</span></div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:14px">Signoff：本契约冻结 Generic Operation Kernel 的语义层 + 五条业务 Operation（Repair / Expense / Rent / Lease Renewal / Move-out）的最终 Foundation 接受事项。<b>同步状态</b>：Item 1-17 = 001B-E · Item 18-23 = 006 sync · 006A 增补 Menu Truth + Cross-Domain Cleanup（Lease-flow 移除 Move-out Settlement 概念：<code>op.owner_adjustments[]</code> / <code>approved_snapshot</code> / <code>finding.evidence_ids</code> 仅属 Move-out；Item 22 / Item 23 已显式标注 (Move-out) 范围）。冻结区之外的 IA / 视觉体系 / 既有资产保持不变。</p>
+    </div>
+  </section>
+  <section class="section" data-od-id="vnext-identity-007a" id="vnext-identity-007a">
+    <div class="container">
+      <p class="eyebrow">VNEXT · BOOTSTRAP 007A · MERCHANT IDENTITY / TEAM / NO MANUAL ID</p>
+      <div class="sec-h">
+        <h2 class="h2">用户只认识「公司、员工、角色、群」<br>所有技术 ID 由系统自动获取与维护。</h2>
+        <span class="tag accent">Identity Layer · 独立于 Operation Foundation</span>
+      </div>
+      <div class="banner info" style="margin-bottom:20px">
+        普通用户界面（Telegram + Mini App）禁止暴露 Telegram numeric ID、chat_id、merchant_id、membership_id、bot token。员工加入 / 群连接 / 权限变更全部通过点击与邀请完成 — 一个完全不懂 Telegram Bot 的物业老板也能独立完成首次设置。
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">Identity &amp; Membership 模型</div>
+          <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">
+            <code>Merchant</code>（公司）→ <code>Memberships</code>（成员关系）→ 多个 <code>Users</code>（真人 Telegram 账户）→ <code>Role</code>（Owner / Secretary）。<br><br>
+            Secretary 不是单一字段 <code>secretary_id</code>：公司 = <b>1..N Owners + 0..N Secretaries</b>，每个成员是独立的 Membership。业务任务以后分配到具体 Membership / User，而不是假设「公司只有一个秘书」。<br><br>
+            同一 Telegram User 可属于多个 Merchant（<b>Switch workspace</b>），各公司角色独立（A 公司 Owner / B 公司 Secretary）。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Shared Platform Bot</div>
+          <div class="lead" style="font-size:13.5px;margin-top:8px;line-height:1.8">
+            Pasay 默认使用<b>一个平台共享 Telegram Bot</b>。<br><br>
+            · 新客户不要求创建 Bot / 进入 BotFather / 输入 Token / 部署 / 理解 webhook<br>
+            · 「自定义 Bot / BYO Bot」最多作为未来 Advanced Integration，不进普通用户主流程<br>
+            · 群绑定 = 从当前 Merchant 发起一次性 connect context → Telegram selected chat 完成绑定（不靠 Bot 自动推测 Merchant）<br>
+            · 权限不足时明确反馈：缺什么权限 · 为什么需要 · 如何修复
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="freeze-grid">
+          <div class="fc-item"><span class="fc-n">01</span><b>Merchant = 租户边界</b><span>公司是数据与权限的边界；用户通过 Membership 进入公司。技术标识（merchant_id 等）只在系统内部存在。</span></div>
+          <div class="fc-item"><span class="fc-n">02</span><b>First Owner 自动绑定</b><span>首次创建公司时，当前 Telegram User 自动绑定为 First Owner（Merchant + Membership + Telegram identity + Owner 权限一次性完成），不要求 Owner ID。</span></div>
+          <div class="fc-item"><span class="fc-n">03</span><b>多 Secretary 原生支持</b><span>1..N Owners + 0..N Secretaries；每个成员是独立 Membership（姓名 / 头像 / 角色 / 状态），不设单一 secretary_id 字段。</span></div>
+          <div class="fc-item"><span class="fc-n">04</span><b>Invite = 一次性邀请链接</b><span>Owner 选择角色 → 系统生成 Telegram Invite Link（Copy / Share / QR）。接受后自动绑定 Telegram 身份 — 不要求 numeric ID / username / 配置文件。</span></div>
+          <div class="fc-item"><span class="fc-n">05</span><b>Remove = 立即失去权限</b><span>Owner 移除后：不能查询数据、不能执行业务动作；状态进入 Removed；历史操作与审计记录永久保留（非删除）。旧 Telegram 消息存在 ≠ 仍有权限。</span></div>
+          <div class="fc-item"><span class="fc-n">06</span><b>Last Owner 保护</b><span>Merchant 永远至少保留一位 Active Owner：最后一个 Owner 不可 Remove、不可 Leave；只能先 Add another Owner。</span></div>
+          <div class="fc-item"><span class="fc-n">07</span><b>Leave ≠ 退出群</b><span>员工「退出工作区」≠ 退出 Telegram 群。Membership 真相属于 Pasay 系统；退群不影响离职判定，离职也不要求退群。</span></div>
+          <div class="fc-item"><span class="fc-n">08</span><b>被移除后的 Telegram UX</b><span>明确状态「You no longer have access to this workspace.」；属于其他公司 → Switch workspace；否则 → Join with invite。不得沉默、不得继续返回数据。</span></div>
+          <div class="fc-item"><span class="fc-n">09</span><b>No Manual ID</b><span>Telegram User ID / Owner ID / Secretary ID / Bot Token / Chat ID / Webhook / Merchant ID / Membership ID 全部从用户流程消失；系统自动获取与维护。</span></div>
+          <div class="fc-item"><span class="fc-n">10</span><b>角色语言</b><span>Owner 默认中文 · Secretary 默认 English；首次邀请与 Onboarding 按当前用户角色显示正确语言，不出现中英混排的状态文案。</span></div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:14px">007A 契约（historical / superseded → 007A3 收口）独立于 Operation Foundation v1（004G → 005B2 / 006 冻结）：Identity / Team / Workspace 是新的身份层，不改动业务 Operation 语义；Telegram 6 固定按钮 3×2 冻结菜单不因 Onboarding 变化，Team / Setup 等管理功能进入 Mini App / Settings。</p>
+      <div class="card" style="margin-top:16px;border-left:3px solid var(--accent)">
+        <div class="freeze-grid">
+          <div class="fc-item"><span class="fc-n">11</span><b>模型统一：Merchant → Memberships → Users</b><span>Active Owners = 1..N · Secretaries = 0..N · 永远 Active Owner ≥ 1。Secretary 不是单一字段，是多个独立 Membership（007A1 收紧：<code>secretary_id</code> 单字段模型彻底废除）。</span></div>
+          <div class="fc-item"><span class="fc-n">12</span><b>NO_WORKSPACE 是真实状态</b><span>新用户没有 ready seed 假象：<code>status = none</code>（无公司、0 members）→ Create Workspace → ACTIVE_OWNER。First Owner 创建公司时自动绑定，不要求 Owner ID。</span></div>
+          <div class="fc-item"><span class="fc-n">13</span><b>Team 管理 Owner-only（双层 guard）</b><span>Invite / Remove / Change Role / Manage Group 仅 Owner 可用：UI 层隐藏按钮 + action 层 <code>wsTry*</code> 拒绝（Secretary 只读 Team、可 Leave 自己、可 Switch）。</span></div>
+          <div class="fc-item"><span class="fc-n">14</span><b>Last Owner 不变量集中实现</b><span><code>wsLastOwnerGuard()</code> 单一守卫；Remove / Leave / Role change / deactivate 全部复用；confirm 时必须再次检查（防止 stale 确认按钮绕过）。</span></div>
+          <div class="fc-item"><span class="fc-n">15</span><b>Invite 生命周期：PENDING / ACCEPTED / EXPIRED / REVOKED</b><span>一次性邀请：接受后 <code>invite.status = ACCEPTED</code>，链接不可再使用；Revoke → REVOKED；过期 → EXPIRED。Resend 生成全新邀请。</span></div>
+          <div class="fc-item"><span class="fc-n">16</span><b>Group Binding 从当前 Merchant context 发起</b><span>一次性 <code>connectContext</code>（含 workspaceId）→ Telegram selected chat → 绑定只对当前 workspace 生效；禁止靠 Telegram user 推测 Merchant；跨 Merchant 的 context 一律拒绝。用户永远不输入 chat_id。</span></div>
+          <div class="fc-item"><span class="fc-n">17</span><b>Telegram capability truth：Bot administrator 是产品选择</b><span>Pasay 产品<b>选择</b>要求 Bot 为群管理员，用于可靠接收所需的 group / member status（而非「member list 自动获得」或「发消息必然要求管理员」）。工程事实：<code>chat_member</code> updates 必须由后台订阅；特定成员核验使用 <code>getChatMember</code>。普通用户 UI 不展示任何 API 技术细节；「读取群成员」不是 Telegram 独立权限，禁止作为伪权限展示。</span></div>
+          <div class="fc-item"><span class="fc-n">18</span><b>Switch workspace 真实切换 current context</b><span>Header / Team / Workspace 信息随切换改变；原 workspace 保留在列表可切回。同一 Telegram User 可属于多个 Merchant。</span></div>
+          <div class="fc-item"><span class="fc-n">19</span><b>单语言规则 + 冻结品牌词</b><span>Owner 中文 / Secretary English 保持真正单语言；仅少量品牌/CTA/状态枚举冻结英文（Pasay · Set up my company · Your workspace is ready. · Telegram workspace connected. · Add Pasay Bot to Group · Join · Copy link · Share in Telegram · QR · Active / Invited / Removed / PENDING / ACCEPTED / EXPIRED / REVOKED）。禁止随机中英混排。</span></div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:14px">007A1 / 007A2 增补（<b>historical / superseded → 007A3</b>）：Item 11-19 为 007A1/007A2 冻结；Mini App 的 <code>ws*</code> 纯函数与 Bootstrap Gate 为同一语义的唯一实现。007A3 收口新增 Item 20-23：</p>
+      <div class="card" style="margin-top:16px;border-left:3px solid var(--accent)">
+        <div class="freeze-grid">
+          <div class="fc-item"><span class="fc-n">20</span><b>Invite 在 Accept 时绑定用户</b><span>普通邀请：Membership.userId = null · Invite.forUserId = null · status = PENDING。用户点击 Join 时由系统自动取得 currentTelegramUser，原子执行：<code>membership.userId = user.id · status = active · invite.status = ACCEPTED · invite.acceptedBy = user.id</code>。普通用户永不输入 Telegram ID；特殊邀请（forUserId 非 null）接受者必须匹配 forUserId。</span></div>
+          <div class="fc-item"><span class="fc-n">21</span><b>Invite Transition Matrix</b><span>PENDING → ACCEPTED / REVOKED / EXPIRED（三者均为 terminal）。Regenerate 仅允许 REVOKED / EXPIRED（及 Owner 主动替换 PENDING）生成 NEW attempt（NEW token + NEW link + NEW attempt id）；ACCEPTED / active membership 调 Regenerate → reject + zero mutation，不得把 Active member 改回 invited。</span></div>
+          <div class="fc-item"><span class="fc-n">22</span><b>Real Expiry</b><span>Invite 必须有 expiresAt；Accept / render / Regenerate 前统一 refresh expiry truth（now ≥ expiresAt 且 PENDING → EXPIRED + expiredAt 记录）。EXPIRED Accept 必须拒绝；Regenerate EXPIRED 创建全新 PENDING attempt；旧 EXPIRED 永久保留。</span></div>
+          <div class="fc-item"><span class="fc-n">23</span><b>Mutation Authority Boundary</b><span>页面 render guard 不是最终安全边界。所有 Merchant business mutation 写 state 前统一检查：current workspace + current User + ACTIVE Membership + action-specific role/capability —— 由 <code>wsRequireAccess()</code> + <code>WS_ACCESS_ACTIONS</code> dispatcher guard 集中实现（覆盖 payment method / property-tenant / rent / expense / repair / task / media-evidence / Team / Group binding）。Removed / Left / inactive membership 的 stale DOM / forged action / old callback 一律 zero mutation。Bootstrap Gate 80 条断言（007A 28 + 007A2 32 + 007A3 20）为唯一验收口径。</span></div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:14px">Settings 已移除 merchant_id 展示与预留文案；普通用户界面不再出现任何技术标识（Telegram numeric ID / chat_id / merchant_id / membership_id / bot token）。</p>
+    </div>
+  </section>
+</main>
+
+<footer class="pagefoot" data-od-id="footer">
+  <div class="container row">
+    <span>Pasay AI · 产品母稿 · 01 设计系统 / 已含 004G → 005B2 全部接受 + 006A Source of Truth Sync · Telegram 6-menu IA Freeze + 007A3 Identity/Invite/Action-Authority（Item 11-23 冻结 · 007A/007A1/007A2 = historical）</span>
+    <a href="pasay-mini-app.html" style="color:var(--accent);font-weight:600">进入交互原型 →</a>
+  </div>
+</footer>
+</body>
+</html>

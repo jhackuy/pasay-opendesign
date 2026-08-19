@@ -1,0 +1,16 @@
+﻿# OpenDesign runtime / internal metadata
+*.artifact.json
+.file-versions/
+.od-skills/
+.sync-*-staging/
+
+# Generated delivery packages
+pasay-product-*.zip
+
+# Generated preview
+pasay-mini-app-preview.png
+
+# OS noise
+Thumbs.db
+Desktop.ini
+.DS_Store
