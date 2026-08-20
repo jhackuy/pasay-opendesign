@@ -1132,6 +1132,26 @@ try {
   }
 }
 
+/* ─────────────── Run Expense Operation P0 Gate (PASAY-TASK-010) ─────────────── */
+{
+  const gateExpense = ctx.window.__OD_GATE_EXPENSE_OPERATION_P0;
+  if (typeof gateExpense === 'function') {
+    try {
+      const r = gateExpense();
+      console.log('\n═══════ Expense Operation P0 Gate (PASAY-TASK-010 · report → review → payment → paid → closed) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('EXPENSE_OPERATION_P0', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('EXPENSE_OPERATION_P0 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('EXPENSE_OPERATION_P0 gate not exposed on window (__OD_GATE_EXPENSE_OPERATION_P0 = ' + typeof gateExpense + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
