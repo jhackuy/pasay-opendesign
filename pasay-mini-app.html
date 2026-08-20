@@ -11716,6 +11716,66 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     const actF9 = wsActivateLease(f9b.lease.lease_id);
     __odAssert(actF9.ok === false && f9b.lease.status === 'draft', '[PTLB-F1-9c] Secretary 不能激活（reject · draft 保持）');
     __odAssert(state.leases.filter(l => l.property_id === prop('2202').id && l.status === 'active').length === 1, '[PTLB-F1-9d] Secretary 流程全程 Active Lease <= 1');
+
+    /* ═══ PASAY-TASK-007-FIX2 · 攻击 Gate A–E（真实 mutation / relation helper） ═══ */
+    /* A · Same-unit 终极攻击：PRP-A / PRP-B 同 unit 2201，各自拥有 1 个 Active Lease */
+    envOwner();
+    const FA = wsAddProperty({ unit: '2201', tower: 'Tower A', addr: 'A', type: '1BR' });
+    const FB = wsAddProperty({ unit: '2201', tower: 'Tower B', addr: 'B', type: '1BR' });
+    const fA1 = wsCreateTenantWithDraft({ name: 'F2 A1', unit: '2201', rent: 30000, ls: '2026-09-01', le: '2027-08-31', propertyId: FA.prop.id });
+    const fB1 = wsCreateTenantWithDraft({ name: 'F2 B1', unit: '2201', rent: 31000, ls: '2026-09-01', le: '2027-08-31', propertyId: FB.prop.id });
+    __odAssert(wsActivateLease(fA1.lease.lease_id).ok === true, '[PTLB-F2-A1] Create Lease A → Activate A = SUCCESS');
+    __odAssert(wsActivateLease(fB1.lease.lease_id).ok === true, '[PTLB-F2-A2] Create Lease B → Activate B = SUCCESS（overlap 按 property_id · 同 unit 不误判）');
+    wsReconcileOccupancy();
+    const pFA = propById(FA.prop.id), pFB = propById(FB.prop.id);
+    __odAssert(state.leases.filter(l => l.property_id === FA.prop.id && l.status === 'active').length === 1 && state.leases.filter(l => l.property_id === FB.prop.id && l.status === 'active').length === 1, '[PTLB-F2-A3] A Active Lease = 1 · B Active Lease = 1（各自独立）');
+    __odAssert(propCurrentTenant(pFA).id === fA1.tenant.id && propCurrentTenant(pFB).id === fB1.tenant.id, '[PTLB-F2-A4] A/B Current Tenant 各自正确');
+    __odAssert(propOccupancy(pFA) === 'occupied' && propOccupancy(pFB) === 'occupied', '[PTLB-F2-A5] A/B Occupancy 各自正确');
+    const rA2 = state.rents.find(r => r.lease_id === fA1.lease.lease_id);
+    const rB2 = state.rents.find(r => r.lease_id === fB1.lease.lease_id);
+    __odAssert(!!rA2 && !!rB2 && rA2.amount === 30000 && rB2.amount === 31000, '[PTLB-F2-A6] A/B 各自产生 Rent（金额各自正确）');
+    __odAssert(rA2.id !== rB2.id && rA2.property_id === FA.prop.id && rB2.property_id === FB.prop.id && rA2.lease_id !== rB2.lease_id, '[PTLB-F2-A7] 两笔 Rent：id 不同 · property_id 不同 · lease_id 不同（同 unit 同月不碰撞）');
+    const fA2 = wsCreateTenantWithDraft({ name: 'F2 A2', unit: '2201', rent: 32000, ls: '2027-01-01', le: '2027-12-31', propertyId: FA.prop.id });
+    const actA2 = wsActivateLease(fA2.lease.lease_id);
+    __odAssert(actA2.ok === false && fA2.lease.status === 'draft', '[PTLB-F2-A8] A 第二 Draft Activate = REJECT（zero mutation · draft 保持）');
+    __odAssert(state.leases.filter(l => l.property_id === FB.prop.id && l.status === 'active').length === 1 && propOccupancy(pFB) === 'occupied', '[PTLB-F2-A9] B 完全不受影响（Active=1 · Occupied）');
+
+    /* B · Wrong propertyId attack：不存在 PRP + 真实 unit → REJECT · 不 fallback · zero mutation */
+    envOwner();
+    const snapB = JSON.stringify({ t: state.tenants.length, l: state.leases.length, p: state.props.length, r: state.rents.length });
+    const b1 = wsCreateTenantWithDraft({ name: 'F2 Bad', unit: '1608', rent: 10000, ls: '2026-09-01', le: '2027-08-31', propertyId: 'PRP-9999' });
+    __odAssert(b1.ok === false, '[PTLB-F2-B1] propertyId=PRP-9999（不存在）+ unit=1608（真实）→ REJECT（不 fallback 到 unit）');
+    __odAssert(JSON.stringify({ t: state.tenants.length, l: state.leases.length, p: state.props.length, r: state.rents.length }) === snapB, '[PTLB-F2-B2] Wrong propertyId → ZERO MUTATION（tenant/lease/prop/rent 数量不变）');
+
+    /* C · stale tenant.unit attack：污染 tenant.unit 不影响 Current / Renewal / Move-out / Rent relation */
+    envOwner();
+    const FC = wsAddProperty({ unit: '2301', tower: 'Tower C', addr: 'C', type: '1BR' });
+    const fC1 = wsCreateTenantWithDraft({ name: 'F2 C1', unit: '2301', rent: 15000, ls: '2026-09-01', le: '2027-08-31' });
+    wsActivateLease(fC1.lease.lease_id);
+    wsReconcileOccupancy();
+    const fCT = fC1.tenant;
+    fCT.unit = '9999';   /* 污染 stale tenant.unit */
+    __odAssert(tenantCurrentProperty(fCT) && tenantCurrentProperty(fCT).id === FC.prop.id, '[PTLB-F2-C1] stale tenant.unit → Current Property 仍由 Active Lease 决定');
+    const fCRent = state.rents.find(r => r.lease_id === fC1.lease.lease_id);
+    __odAssert(!!fCRent && fCRent.property_id === FC.prop.id, '[PTLB-F2-C2] Rent relation 仍由 lease.property_id 决定（不受 tenant.unit 污染）');
+    __odAssert(!!tenantCurrentLease(fCT) && tenantCurrentLease(fCT).lease_id === fC1.lease.lease_id, '[PTLB-F2-C3] Move-out / Renewal 的 current lease 仍由 Active Lease 决定');
+    __odAssert(propCurrentTenant(propById(FC.prop.id)) && propCurrentTenant(propById(FC.prop.id)).id === fCT.id, '[PTLB-F2-C4] Current Tenant 仍正确（stale unit 不影响）');
+
+    /* D · create-tenant rollback attack：Draft 失败 → tenant/lease/rent 零变更 */
+    envOwner();
+    const snapD = JSON.stringify({ t: state.tenants.length, l: state.leases.length, p: state.props.length, r: state.rents.length });
+    const d1 = wsCreateTenantWithDraft({ name: 'F2 Rollback', unit: '1608', rent: 10000, ls: '2026-09-01', le: '2027-08-31', propertyId: 'PRP-8888' });
+    __odAssert(d1.ok === false, '[PTLB-F2-D1] Lease Draft 因 invalid propertyId 创建失败');
+    __odAssert(JSON.stringify({ t: state.tenants.length, l: state.leases.length, p: state.props.length, r: state.rents.length }) === snapD, '[PTLB-F2-D2] 失败后 tenant/lease/rent 数量不变（孤儿 Tenant 已 rollback）· occupancy 不变');
+
+    /* E · Draft list isolation：同 unit 双 Property 的 draft 列表严格隔离 */
+    envOwner();
+    const FE1 = wsAddProperty({ unit: '2401', tower: 'Tower E1', addr: 'E1', type: '1BR' });
+    const FE2 = wsAddProperty({ unit: '2401', tower: 'Tower E2', addr: 'E2', type: '1BR' });
+    const fE1a = wsCreateTenantWithDraft({ name: 'F2 E1', unit: '2401', rent: 10000, ls: '2026-09-01', le: '2027-08-31', propertyId: FE1.prop.id });
+    const fE2a = wsCreateTenantWithDraft({ name: 'F2 E2', unit: '2401', rent: 11000, ls: '2026-09-01', le: '2027-08-31', propertyId: FE2.prop.id });
+    const dE1 = propLeaseDrafts(propById(FE1.prop.id)), dE2 = propLeaseDrafts(propById(FE2.prop.id));
+    __odAssert(dE1.length === 1 && dE1[0].lease_id === fE1a.lease.lease_id && dE2.length === 1 && dE2[0].lease_id === fE2a.lease.lease_id, '[PTLB-F2-E1] propLeaseDrafts(PRP-E1) 只见 E1 draft · propLeaseDrafts(PRP-E2) 只见 E2 draft（无跨房 fallback）');
   } catch (e) {
     results.push({ pass: false, msg: 'PROPERTY_TENANT_LEASE_BOOTSTRAP_P0 gate threw: ' + (e && e.message ? e.message : e) });
   }
