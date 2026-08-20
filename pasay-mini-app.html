@@ -10904,6 +10904,192 @@ function runGateMiniApp009AData() {
   return { gate: 'MiniApp-009A-Data', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_MINAPP_009A_DATA = runGateMiniApp009AData;
+/* ═══════════════════════════════════════════════════════════════════════════
+   PASAY-TASK-006 · MEMBERSHIP_ROLE_TRUTH_P0
+   唯一 Role authority = currentUserId + currentWorkspace + ACTIVE Membership；
+   state.meta.role 退出业务权限（伪造不提升）；Role Switch 非生产能力；
+   Setup Progress 由 Domain Truth reconcile；No Membership / Pending / Removed 无业务数据；
+   Renew lease undefined = 0；核心页 DOM undefined = 0。
+   全部断言切换真实 fixture（owner / secretary / no membership / pending / removed / workspace switch）
+   并验证 render + mutation 两层。
+   ═══════════════════════════════════════════════════════════════════════════ */
+function runGateMembershipRoleTruthP0() {
+  const results = [];
+  const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
+  try {
+    const fresh = () => { state = seed(); state.leases = []; __isFreshSeed = true;
+      if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
+      if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
+      if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
+      if (typeof syncOperationTasks === 'function') syncOperationTasks();
+      wsResetFresh(); };
+    const mkClick = (a, extra) => { const el = { dataset: Object.assign({ a: a }, extra || {}), closest: () => el }; return { target: el }; };
+    const asOwner = () => { const o = ws().members.find(m => m.role === 'owner' && m.status === 'active'); if (o) state.currentUserId = o.userId; };
+    const asSec = () => { const s = ws().members.find(m => m.role === 'secretary' && m.status === 'active'); if (s) state.currentUserId = s.userId; };
+    /* 真实环境：Owner + Active Secretary（wsCreateWorkspace → Invite → Accept） */
+    const envReady = () => { fresh(); wsCreateWorkspace('Truth Co', 'T-owner'); const inv = wsGenerateInvite('secretary', 'Sec T'); wsAcceptInvite(inv.id, 'u-sec-t'); };
+
+    /* 1 · HOME_ROLE_FROM_MEMBERSHIP */
+    envReady(); state.lang = 'en';
+    asSec(); const h1 = viewHome();
+    __odAssert(h1.indexOf('Secretary view') !== -1, '[RT-1] Home 视角 label 来自 Membership（Secretary）');
+    asOwner(); const h2 = viewHome();
+    __odAssert(h2.indexOf('Owner view') !== -1, '[RT-1b] Home 视角 label 来自 Membership（Owner）');
+
+    /* 2 · AVATAR_ROLE_FROM_MEMBERSHIP */
+    asSec(); const av = navBar('t', '', { root: true });
+    __odAssert(av.indexOf('SC') !== -1 && av.indexOf('open-role') === -1, '[RT-2] Avatar 徽章来自 Membership（SC）· 无 open-role 切换入口');
+    asOwner(); const av2 = navBar('t', '', { root: true });
+    __odAssert(av2.indexOf('OW') !== -1, '[RT-2b] Avatar 徽章来自 Membership（OW）');
+
+    /* 3 · OWNER_ACTION_FROM_MEMBERSHIP（viewRent confirm 条 owner-only） */
+    envReady(); state.lang = 'zh';
+    asOwner(); const vrO = viewRent('R-2026-06-1602');
+    __odAssert(vrO.indexOf('rent-approval') !== -1 && vrO.indexOf('confirm-rent') !== -1, '[RT-3] Owner 看到租金确认条（confirm-rent）');
+    asSec(); const vrS = viewRent('R-2026-06-1602');
+    __odAssert(vrS.indexOf('rent-approval') === -1 && vrS.indexOf('confirm-rent') === -1, '[RT-3b] Secretary 看不到确认按钮');
+
+    /* 4 · META_ROLE_CANNOT_ELEVATE_PERMISSION */
+    envReady();
+    asSec(); state.meta.role = 'owner';   /* 伪造 meta.role */
+    __odAssert(wsCanManage() === false, '[RT-4] 伪造 meta.role=owner（Membership=Secretary）→ wsCanManage()===false');
+    __odAssert(roleIs('owner') === false && currentRole() === 'secretary', '[RT-4b] roleIs / currentRole 仍为 Membership 事实');
+    const snap4 = JSON.stringify(state.rents);
+    __odClickHandler(mkClick('confirm-rent', { id: 'R-2026-06-1602' }));   /* forged owner mutation */
+    __odAssert(JSON.stringify(state.rents) === snap4, '[RT-4c] forged confirm-rent（Secretary+meta.role=owner）→ zero mutation');
+
+    /* 5/6 · SECRETARY_NEVER_SEES_CREATE_COMPANY / OWNER_SETUP */
+    envReady(); state.lang = 'zh';
+    asSec(); const h56 = viewHome();
+    __odAssert(h56.indexOf('创建公司') === -1, '[RT-5] Secretary Home 无 Create company');
+    __odAssert(h56.indexOf('home-setup-progress') === -1 && setupBannerHtml() === '', '[RT-6] Secretary Home 无 Owner Setup Banner');
+
+    /* 7 · ACTIVE_WORKSPACE_NEVER_SHOWS_CREATE_COMPANY（workspace step reconcile done） */
+    envReady(); state.lang = 'zh';
+    wsReconcileSetupSteps();
+    asOwner(); const h7 = viewHome();
+    __odAssert(h7.indexOf('创建公司') === -1 && ws().setupSteps.find(s => s.id === 'workspace').done === true, '[RT-7] 已有 Workspace + Active Owner → Create company 不出现');
+    /* 7b/7c · Owner + incomplete setup → banner 显示真实未完成步骤；reconcile 后 domain truth 生效 */
+    fresh(); wsCreateWorkspace('Inc Co', 'Inc-owner');   /* 只有 workspace done；group 未完成；seed 已有 property */
+    state.lang = 'zh';
+    wsReconcileSetupSteps();
+    asOwner(); const h7b = viewHome();
+    __odAssert(h7b.indexOf('home-setup-progress') !== -1, '[RT-7b] Owner + incomplete setup → Setup Banner 显示');
+    __odAssert(ws().setupSteps.find(s => s.id === 'property').done === true && ws().setupSteps.find(s => s.id === 'group').done === false, '[RT-7c] reconcile：已有 Property → property done；未连群 → group 未完成');
+
+    /* 8/9 · NO_MEMBERSHIP_NO_BUSINESS_DATA + NO OWNER/SECRETARY LABEL */
+    fresh();   /* NO_WORKSPACE · currentUserId=null */
+    __odAssert(wsAccessState() === 'none', '[RT-8] NO_WORKSPACE → access state = none');
+    state.lang = 'zh'; location.hash = '#/home';
+    render();
+    const app8 = $('#app').innerHTML;
+    __odAssert(app8.indexOf('1608') === -1 && app8.indexOf('Set up my company') !== -1 && app8.indexOf('Join with invite') !== -1, '[RT-8b] NO_WORKSPACE render → onboarding（无 business data）');
+    __odAssert(app8.indexOf('Owner view') === -1 && app8.indexOf('Secretary view') === -1 && app8.indexOf('视角') === -1, '[RT-9] NO_WORKSPACE 无 Owner/Secretary view label');
+
+    /* 10 · PENDING_INVITE_NO_BUSINESS_DATA */
+    fresh(); wsCreateWorkspace('PI Co', 'PI-owner');
+    const pinv = wsGenerateInvite('secretary', 'Pending User', 'u-pending');   /* forUserId 特殊邀请 → userId 已绑定 */
+    state.currentUserId = 'u-pending';
+    __odAssert(wsAccessState() === 'pending-invite', '[RT-10] invited + PENDING → access state = pending-invite');
+    state.lang = 'zh'; location.hash = '#/home'; render();
+    const app10 = $('#app').innerHTML;
+    __odAssert(app10.indexOf('1608') === -1 && app10.indexOf('待接受') !== -1 && pinv.status === 'invited', '[RT-10b] Pending invite render → invite flow（无 business data）');
+
+    /* 11 · REMOVED_MEMBERSHIP_NO_BUSINESS_DATA */
+    fresh(); wsCreateWorkspace('RM Co', 'RM-owner');
+    const rmv = wsGenerateInvite('secretary', 'RM Sec', 'u-rm'); wsAcceptInvite(rmv.id, 'u-rm');
+    wsRemoveMember(rmv.id);
+    state.currentUserId = 'u-rm';
+    __odAssert(wsAccessState() === 'blocked', '[RT-11] removed → access state = blocked');
+    state.lang = 'zh'; location.hash = '#/home'; render();
+    const app11 = $('#app').innerHTML;
+    __odAssert(app11.indexOf('无访问权限') !== -1 && app11.indexOf('1608') === -1, '[RT-11b] Removed render → Access Removed（无 business data）');
+
+    /* 12 · WORKSPACE_SWITCH_RECOMPUTES_ROLE */
+    fresh(); wsCreateWorkspace('A Co', 'A-owner');   /* current：u-lin = Owner */
+    ws().otherWorkspaces = [JSON.parse(JSON.stringify(wsSeed().otherWorkspaces[0]))];   /* ws-2：u-lin = Secretary */
+    state.currentUserId = 'u-lin';
+    __odAssert(currentRole() === 'owner', '[RT-12] Workspace A（u-lin = Owner）');
+    wsSwitchTo('ws-2');
+    __odAssert(ws().id === 'ws-2' && currentRole() === 'secretary', '[RT-12b] Switch → Workspace B（u-lin = Secretary）role 自动重算');
+    wsSwitchTo('ws-current');
+    __odAssert(currentRole() === 'owner', '[RT-12c] Switch 回 Workspace A → role 恢复 Owner');
+
+    /* 13 · PROPERTY_EXISTS_MEANS_PROPERTY_SETUP_DONE（stale cache 纠正） */
+    fresh(); wsCreateWorkspace('P5 Co', 'P5-owner');
+    const sp13 = ws().setupSteps.find(s => s.id === 'property'); sp13.done = false;
+    const wp13 = ws().setupSteps.find(s => s.id === 'workspace'); wp13.done = false;
+    wsReconcileSetupSteps();
+    __odAssert(sp13.done === true && wp13.done === true, '[RT-13] Property 存在 → property setup done；Workspace+Owner → workspace done（stale false 被纠正）');
+
+    /* 14 · GROUP_BOUND_MEANS_GROUP_SETUP_DONE */
+    fresh(); wsCreateWorkspace('G5 Co', 'G5-owner');
+    const sg14 = ws().setupSteps.find(s => s.id === 'group'); sg14.done = false;
+    const cc14 = wsStartConnect();
+    wsBindGroup(cc14.context.id, 'Ops Group');
+    wsReconcileSetupSteps();
+    __odAssert(sg14.done === true && ws().groupConnected === true, '[RT-14] Group 已绑定 → group setup done');
+
+    /* 15 · WORKSPACE_WITH_ACTIVE_OWNER_MEANS_WORKSPACE_SETUP_DONE（RT-13 已覆盖 workspace 断言） */
+    fresh(); wsCreateWorkspace('W15 Co', 'W15-owner');
+    const w15 = ws().setupSteps.find(s => s.id === 'workspace'); w15.done = false;
+    wsReconcileSetupSteps();
+    __odAssert(w15.done === true && wsActiveOwners().length >= 1, '[RT-15] Workspace + Active Owner → workspace setup done');
+
+    /* 16 · SETUP_STEPS_RECONCILE_AFTER_RELOAD（render 前自动 reconcile） */
+    fresh(); wsCreateWorkspace('R16 Co', 'R16-owner');
+    const sp16 = ws().setupSteps.find(s => s.id === 'property'); sp16.done = false;
+    state.lang = 'zh'; location.hash = '#/home'; render();
+    __odAssert(sp16.done === true, '[RT-16] reload/render 后 setupSteps 自动 reconcile（property done）');
+
+    /* 17 · SECRETARY_FORGED_SETUP_ACTION_BLOCKED */
+    envReady(); state.lang = 'zh';
+    asSec();
+    __odAssert(setupStepAction({ id: 'property' }).indexOf('add-prop') === -1, '[RT-17] Secretary setup action → 无 Do it（只读 Owner only）');
+    __odAssert(__odClickHandler.toString().indexOf("'add-prop'") !== -1 && __odClickHandler.toString().indexOf('wsCanManage') !== -1, '[RT-17b] dispatcher 对 add-prop 有 Owner-only guard（forged click 拦截）');
+    const snap17 = JSON.stringify(state.props);
+    __odClickHandler(mkClick('submit-property'));
+    __odAssert(JSON.stringify(state.props) === snap17, '[RT-17c] forged submit-property（Secretary）→ zero mutation');
+
+    /* 18 · SECRETARY_FORGED_OWNER_ACTION_BLOCKED */
+    envReady();
+    asSec(); state.meta.role = 'owner';
+    const snap18 = JSON.stringify(state.rents);
+    __odClickHandler(mkClick('confirm-rent', { id: 'R-2026-06-1602' }));
+    __odAssert(JSON.stringify(state.rents) === snap18, '[RT-18] forged confirm-rent（Secretary+meta.role=owner）→ zero mutation');
+
+    /* 19 · ROLE_SWITCH_NOT_USER_FACING_AUTHORITY */
+    __odAssert(navBar.toString().indexOf('open-role') === -1 && viewSettings.toString().indexOf('open-role') === -1 && viewMore.toString().indexOf('open-role') === -1, '[RT-19] 生产 UI（navBar/Settings/More）无 role 切换入口');
+    __odAssert(sheetRole.toString().indexOf('test-only') !== -1, '[RT-19b] sheetRole 标记 test-only demo（非生产能力）');
+    __odAssert(roleIs.toString().indexOf('state.meta.role') === -1, '[RT-19c] roleIs 不再依赖 state.meta.role');
+
+    /* 20 · RENEW_LEASE_UNDEFINED = 0 */
+    envReady(); state.lang = 'en';
+    asSec();
+    const t108 = state.tasks.find(t => t.id === 'T-108');
+    __odAssert(!!t108 && taskTitle(t108) === 'Renew lease 1501', '[RT-20] Renew lease title 有效（"Renew lease 1501"）');
+    const h20 = viewHome();
+    __odAssert(h20.indexOf('undefined') === -1 && h20.indexOf('Renew lease 1501') !== -1, '[RT-20b] Secretary Home en DOM 无 undefined（Renew lease 1501 正确渲染）');
+    asOwner(); state.lang = 'zh'; const h20z = viewHome();
+    __odAssert(h20z.indexOf('undefined') === -1, '[RT-20c] Owner Home zh DOM 无 undefined');
+
+    /* 21–24 · 核心页 DOM undefined = 0（Home/Queue/Finance/Properties/More/Setup × zh/en × owner/secretary） */
+    const pages = [['home', function(){ return viewHome(); }], ['ops', function(){ return viewOps(new URLSearchParams()); }],
+      ['finance', function(){ return viewFinance(new URLSearchParams()); }], ['props', function(){ return viewProps(new URLSearchParams()); }],
+      ['more', function(){ return viewMore(); }], ['setup', function(){ return viewSetup(); }]];
+    let leakCnt = 0; const leakInfo = [];
+    [asOwner, asSec].forEach(function(rf) { ['zh', 'en'].forEach(function(lg) { pages.forEach(function(pg) {
+      envReady(); state.lang = lg; rf();
+      const out = pg[1]();
+      if (out.indexOf('undefined') !== -1) { leakCnt++; leakInfo.push(pg[0] + '/' + lg + '/' + (rf === asOwner ? 'owner' : 'sec')); }
+    }); }); });
+    __odAssert(leakCnt === 0, '[RT-21..24] Home/Queue/Finance/Properties/More/Setup DOM undefined=0（×2 语言 ×2 角色）' + (leakInfo.length ? ' · leaks: ' + leakInfo.join(',') : ''));
+  } catch (e) {
+    results.push({ pass: false, msg: 'MEMBERSHIP_ROLE_TRUTH_P0 gate threw: ' + (e && e.message ? e.message : e) });
+  }
+  return { gate: 'MEMBERSHIP_ROLE_TRUTH_P0', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_MEMBERSHIP_ROLE_TRUTH_P0 = runGateMembershipRoleTruthP0;
 /* PASAY-TASK-005 · 009A · Browser Visual Gate（真实 DOM QA：render 到 #app · scrollWidth / rect / leak · 390/430）
    在 OpenDesign Preview / 真实浏览器执行（Node 无布局引擎，不在此运行；由 Node runner 校验暴露）。 */
 window.__OD_RUN_BROWSER_QA = function() {

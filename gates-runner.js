@@ -1052,6 +1052,26 @@ try {
   }
 }
 
+/* ─────────────── Run Membership Role Truth P0 Gate (PASAY-TASK-006) ─────────────── */
+{
+  const gateRole = ctx.window.__OD_GATE_MEMBERSHIP_ROLE_TRUTH_P0;
+  if (typeof gateRole === 'function') {
+    try {
+      const r = gateRole();
+      console.log('\n═══════ Membership Role Truth P0 Gate (PASAY-TASK-006 · unique authority / meta.role / setup reconcile / no-membership / undefined) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('MEMBERSHIP_ROLE_TRUTH_P0', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('MEMBERSHIP_ROLE_TRUTH_P0 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('MEMBERSHIP_ROLE_TRUTH_P0 gate not exposed on window (__OD_GATE_MEMBERSHIP_ROLE_TRUTH_P0 = ' + typeof gateRole + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
