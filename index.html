@@ -536,7 +536,7 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
       </div>
 
       <div class="readiness" style="margin-top:26px">
-        <div class="st">VNEXT STATUS · OPERATION FOUNDATION v1 → FROZEN · 已含 004G / 005A2 / 005B1 / 005B2 / 006 / 006A / 006A2 SYNC + 007A3 BOOTSTRAP（INVITE IDENTITY · ACTION AUTHORITY · NO-MANUAL-ID）</div>
+        <div class="st">VNEXT STATUS · OPERATION FOUNDATION v1 → FROZEN · 已含 004G / 005A2 / 005B1 / 005B2 / 006 / 006A / 006A2 SYNC + 007A3 BOOTSTRAP（INVITE IDENTITY · ACTION AUTHORITY · NO-MANUAL-ID）+ 007C 一房一档（PROPERTY TRUTH · CHANNEL ARCHIVE）</div>
         <div style="font-size:22px;font-weight:700;margin-top:8px;letter-spacing:-0.02em">OPERATION_FOUNDATION_V1_FROZEN · PLUS_LEASE_MOVE_OUT_ACCEPTED · PLUS_EXACT_FROZEN_TELEGRAM_MENU · PLUS_BOOTSTRAP_007A3</div>
         <p class="lead" style="font-size:13px;margin-top:8px;line-height:1.6">
           001B-E Errata：① BLOCKED 残留矛盾修复——"Evidence insufficient"分别转 WAITING_HUMAN（真人补凭证）或 WAITING_EXTERNAL（外部出证据）；BLOCKED 严格限定为无法形成合法下一步，识别出明确 Owner action 即离开 BLOCKED 转 WAITING_HUMAN+next_actor=Owner。② 新增 Operation Close vs Domain Truth 规则——close_outcome 只描述 Operation 生命周期结束，改变现实业务事实必须经合法 Domain Business Event 更新业务对象，Operation CLOSED ≠ 自动修改业务对象事实。③ Freeze 契约追加 Rule 16/17。正式冻结契约见 <a href="pasay-design-system.html#vnext-freeze" style="color:var(--accent)">设计系统 · VNext Freeze Contract</a>。<br><br>
@@ -646,11 +646,74 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
       </div>
     </div>
   </section>
+
+  <section class="section" data-od-id="vnext-property-007c" id="vnext-property-007c">
+    <p class="eyebrow">VNEXT · 007C · PROPERTY + TELEGRAM ARCHIVE CHANNEL · 一房一档</p>
+    <h2 class="h2">Property 是长期业务对象<br>一房一档 · Channel 是档案，Mini App 是事实</h2>
+    <p class="lead">任何 Owner / Secretary 打开 1608，几秒内知道：现在发生什么 · 谁下一步做什么 · 资料在哪里。Property Detail = 聚合入口（Rent / Repair / Expense / Operations / Documents），Telegram Channel = 人类可读资料层（一房一档），Mini App = 最新事实入口。全程零技术 ID。</p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="eyebrow">PROPERTY HEALTH</p>
+        <p class="p">🟢 正常 / 🟡 需要关注 / 🔴 需要立即处理 —— 由 rent / repair / lease / expense / operation 多事实汇总，单一 chip 不互相覆盖。正常压缩（🟢 1608 · OK），异常说人话（🔴 1680 · Rent overdue 12 days）。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">PROPERTY DETAIL</p>
+        <p class="p">基本资料（房号 / 楼栋 / 地址 / 健康状态）· Tenant（姓名 / 电话 / 证件 / 照片 / 入住日 / 合同起止 / 租金 / 押金 / Due date）· Rent 摘要 · Active Operations（逐行业务语言 + next_actor）· Documents · Building Contact（折叠次级）。缺资料给 Missing-data prompt + 解决入口。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">ACTIVE OPERATIONS</p>
+        <p class="p">同一房源多事件并存逐行展示（Rent overdue · waiting Secretary / Aircon repair · waiting quotation / Building dues · verification required），各自 next_action + due_at / wake_at。UI 显示「Waiting for Secretary to call tenant」，不暴露 WAITING_HUMAN 状态机字段。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">CHANNEL 一房一档</p>
+        <p class="p">一个 Property = 一个长期 Telegram Channel 档案入口。频道不删除旧消息 / 不覆盖 history；主档案长期置顶 + 重要状态变化重发 Summary + 必要时新 Snapshot。Telegram = Archive，Mini App / backend = Source of Truth。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">NATURAL LANGUAGE ARCHIVE</p>
+        <p class="p">秘书说 <code>1608 rent receipt</code> / <code>1608 tenant ID</code> / <code>1608 contract</code> / <code>1608 repair photo</code> → 自动归档到对应房源频道分组。不要求理解 property_id / telegram_id / chat_id / status code。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">EDIT PROPERTY</p>
+        <p class="p">按业务模块编辑（Property / Tenant / Rent / Contract / Contacts / Notes），不做几十字段大表单；不暴露数据库字段名。Building Contact（楼管 / 物业 / 紧急联系人）为可选次级信息。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" data-od-id="acceptance-007c" id="acceptance-007c">
+    <p class="eyebrow">VNEXT · 007C · ACCEPTANCE CHECK · 一房一档</p>
+    <h2 class="h2">007C · Property + Archive Channel 验收</h2>
+    <div class="grid-2">
+      <div class="card">
+        <p class="eyebrow">SCENARIO A · 1608 正常</p>
+        <p class="p">🟢 OK · Tenant 完整（Paolo · 电话 · 证件）· Rent paid · 无维修 / 待办 · Active Operations 空 · Channel 主档案置顶 · 正常信息压缩。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">SCENARIO B · 1680 欠租</p>
+        <p class="p">🔴 Rent overdue 12 days · Missing tenant phone prompt（Add phone 入口）· Active Operation：Waiting for Secretary to call tenant · 下一步明确（谁 · 做什么 · 为什么）。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">SCENARIO C · 2103 维修中</p>
+        <p class="p">🟡 Repair waiting quotation · Secretary 已上传照片（Channel 已归档）· Repair Operation 推进中 · Channel 有维修照片分组 · 状态不与 Rent / Expense 互相覆盖。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">SCENARIO D · 多事件并存</p>
+        <p class="p">同房 Rent overdue + Repair active + Building dues pending 三行独立展示，健康 chip 单一（🔴 最严重优先），Operations 各自 next_actor / next_action，不互相覆盖。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">NO-ID RULE</p>
+        <p class="p">UI 全程不出现 property_id / tenant_id / telegram_id / chat_id / internal status code；用户只懂 1608 · Paolo · 30,000 · 电话。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">BOUNDARY</p>
+        <p class="p">Telegram 群 = 快速办公 / 上传资料 / 自然语言更新 / AI 推进；Mini App = Property Truth / Tenant / Rent / Operations / History / Documents / Configuration。Telegram 6 按钮 3×2 冻结菜单 0 改动。</p>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="pagefoot" data-od-id="footer">
   <div class="container row">
-    <span>Pasay AI · Product Master · OpenDesign Source of Truth · v1.0 · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No-Manual-ID）· 006B Mini App IA 返修（Home 三段 / Operations Center / Archive 恢复 / Health Score 直白状态 / FAB 收口）</span>
+    <span>Pasay AI · Product Master · OpenDesign Source of Truth · v1.0 · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No-Manual-ID）· 006B Mini App IA 返修（Home 三段 / Operations Center / Archive 恢复 / Health Score 直白状态 / FAB 收口）· 007C 一房一档（Property Truth · Telegram Archive Channel）</span>
     <span class="meta">owner review · 建议从「进入交互原型」开始</span>
   </div>
 </footer>
