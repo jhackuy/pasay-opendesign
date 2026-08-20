@@ -4256,6 +4256,69 @@ function viewExps(q) {
   `);
 }
 
+/* ═══ 008B · Finance Workspace（财务 = 数据工作台，不是 Telegram Rent/Expense 按钮复制）═══ */
+function viewFinance(q) {
+  const zh = state.lang === 'zh';
+  const period = q.get('p') || '2026-06';
+  const periods = ['2026-08', '2026-06', '2026-05'].filter(p => p === period || state.rents.some(r => (r.period || '') === p));
+  if (periods.indexOf(period) === -1) periods.unshift(period);
+  /* 聚合：全局 rents + collect_rent Operations 的 domain 快照（008A 1680 隔离 fixture 纳入应收） */
+  const allRents = state.rents.slice();
+  state.operations.filter(o => o.kind === 'collect_rent').forEach(o => { const r = opUnitRent(o); if (r && !allRents.some(x => x.id === r.id)) allRents.push(r); });
+  const rents = allRents.filter(r => (r.period || '').indexOf(period) === 0);
+  const dueAmt = rents.reduce((a, r) => a + r.amount, 0);
+  const paidAmtSum = rents.reduce((a, r) => a + paidAmt(r), 0);
+  const overdue = rents.filter(r => r.status === 'overdue' || (r.status === 'partial' && r.due && daysSince(r.due) > 0));
+  const overdueAmt = overdue.reduce((a, r) => a + Math.max(r.amount - paidAmt(r), 0), 0);
+  const expPaid = state.expenses.filter(e => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
+  const expPending = state.expenses.filter(e => e.status === 'pending' || e.status === 'approved').reduce((a, e) => a + e.amount, 0);
+  const card = (label, val, sub, href) => '<div class="row" data-a="nav" data-href="' + href + '" style="padding:12px 14px;border:1px solid var(--border);border-radius:12px;flex-direction:column;align-items:flex-start;gap:4px"><div class="meta" style="font-size:11px">' + label + '</div><div style="font-size:17px;font-weight:700;font-family:var(--font-mono);letter-spacing:-0.01em">' + val + '</div>' + (sub ? '<div class="meta" style="font-size:10.5px">' + sub + '</div>' : '') + '</div>';
+  const grid = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:12px 16px 0">' +
+    card(zh ? '本月应收' : 'Due this month', money(dueAmt), zh ? '共 ' + rents.length + ' 期' : rents.length + ' periods', '#/rents') +
+    card(zh ? '已收' : 'Received', money(paidAmtSum), zh ? '含已确认付款' : 'confirmed payments', '#/rents?f=paid') +
+    card(zh ? '逾期未收' : 'Overdue', money(overdueAmt), overdue.length + (zh ? ' 期逾期' : ' overdue'), '#/rents?f=overdue') +
+    card(zh ? '本月支出' : 'Spending', money(expPaid), (zh ? '待付 ' : 'to pay ') + money(expPending), '#/exps') +
+    '</div>';
+  const overdueRows = overdue.map(r => {
+    const t = tenantForRent(r);
+    return '<div class="row" data-a="nav" data-href="#/rent/' + r.id + '" data-od-id="fin-overdue-' + r.id + '" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + r.unit + ' · ' + (t ? t.name : (zh ? '未知租客' : 'Unknown')) + '</b></div><div class="row-l2">' + (zh ? '逾期 ' : 'overdue ') + (r.due ? daysSince(r.due) : 0) + (zh ? ' 天' : 'd') + ' · ' + (zh ? '还欠 ' : 'remaining ') + money(Math.max(r.amount - paidAmt(r), 0)) + '</div></div><div class="row-r">' + rentChip(r) + ic('chev', 15) + '</div></div>';
+  }).join('');
+  return shell('wallet', tr('nav_fin'), zh ? '钱现在什么情况 · 哪里需要处理' : 'Where the money stands', `
+    <div class="filters" style="padding-top:14px">${periods.map(p => '<button class="fchip' + (p === period ? ' on' : '') + '" data-a="filter" data-k="p" data-f="' + p + '" data-base="#/finance">' + p + '</button>').join('')}</div>
+    ${grid}
+    ${sec(zh ? '逾期未收' : 'OVERDUE')}
+    <div class="list" style="margin-top:6px">${overdueRows || '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('check', 16) + '<div class="row-l1" style="font-size:13px">' + (zh ? '本期没有逾期' : 'Nothing overdue this period') + '</div></div></div>'}</div>
+    ${sec(zh ? '凭证与记录' : 'EVIDENCE & RECORDS')}
+    <div class="list" style="margin-top:6px">
+      <div class="row" data-a="nav" data-href="#/payments" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '付款凭证' : 'Payment evidence') + '</b></div><div class="row-l2">' + (zh ? '已确认付款与凭证' : 'confirmed payments & receipts') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>
+      <div class="row" data-a="nav" data-href="#/rents" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '全部租金' : 'All rents') + '</b></div><div class="row-l2">' + (zh ? '按状态筛选与钻取' : 'filter & drill-down by status') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>
+      <div class="row" data-a="nav" data-href="#/exps" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '全部支出' : 'All expenses') + '</b></div><div class="row-l2">' + (zh ? '审批 / 付款 / 凭证' : 'approval / payment / evidence') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>
+    </div>
+  `, { root: true });
+}
+
+/* ═══ 008B · More（低频管理入口，按真实使用价值分组）═══ */
+function viewMore() {
+  const zh = state.lang === 'zh';
+  const group = (t, rows) => sec(t) + '<div class="list" style="margin-top:6px">' + rows.join('') + '</div>';
+  const entry = (icon, title, sub, href, od) => '<div class="row" data-a="nav" data-href="' + href + '" data-od-id="' + od + '" style="padding:11px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(icon, 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + title + '</b></div><div class="row-l2">' + sub + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>';
+  return shell('more', tr('nav_more'), zh ? '低频管理 · 档案 / 团队 / 权限 / 设置' : 'low-frequency management', `
+    ${group(zh ? '经营档案' : 'ARCHIVE', [
+      entry('archive', zh ? '档案' : 'Archive', zh ? '维修记录 · 付款凭证 · 合同 · 照片 · 历史' : 'repairs · receipts · contracts · photos · history', '#/archive', 'more-archive'),
+      entry('download', zh ? '导出中心' : 'Exports', zh ? '经营报告 CSV（只读导出）' : 'operating reports (read-only)', '#/docs', 'more-docs')
+    ])}
+    ${group(zh ? '团队与工作区' : 'TEAM & WORKSPACE', [
+      entry('users', zh ? '团队' : 'Team', zh ? '成员 · 邀请 · 角色' : 'members · invites · roles', '#/team', 'more-team'),
+      entry('swap', zh ? '工作区 / 权限' : 'Workspace / access', zh ? '切换工作区 · 我的权限' : 'switch workspace · my access', '#/switch', 'more-switch'),
+      entry('bot', zh ? 'Telegram 办公' : 'Telegram office', zh ? '打开 Pasay 群 · 自然语言办公' : 'open Pasay group · natural-language work', '#/telegram', 'more-telegram')
+    ])}
+    ${group(zh ? '系统' : 'SYSTEM', [
+      entry('gear', zh ? '设置' : 'Settings', zh ? '语言 · 收付款方式 · 重置演示' : 'language · payment methods · reset demo', '#/settings', 'more-settings'),
+      entry('star', zh ? '学习旅程' : 'Learning journey', zh ? '完成真实操作获得徽章' : 'badges from real work', '#/learning', 'more-learning')
+    ])}
+  `, { root: true });
+}
+
 function viewExp(id) {
   const e = exp(id); if (!e) return viewExps(new URLSearchParams());
   const ownerOnly = roleIs('owner');
@@ -4675,9 +4738,10 @@ function opDoneToday(o) {
   return typeof d === 'string' && d.indexOf(TODAY) === 0;
 }
 function viewOps() {
+  const zh = state.lang === 'zh';
   const ops = state.operations.slice();
   const me = wsEffectiveRole() || 'secretary';
-  /* 008A · Operations Work Queue：Act Now / AI Working / Waiting（明确等谁）/ Needs Attention / Done Today */
+  /* 008A/008B · Action Queue：需要你处理 / 等待外部·等待他人 / 自动推进中 / 需要关注 / 今天完成 */
   const actNow = ops.filter(opNextIsMine);
   const aiWorking = ops.filter(o => (o.esc === 'ACTIVE' || o.esc === 'VERIFYING') && !opNextIsMine(o));
   const waiting = ops.filter(o => o.esc === 'WAITING_EXTERNAL' || (o.esc === 'WAITING_HUMAN' && o.next_actor !== me));
@@ -4689,14 +4753,66 @@ function viewOps() {
   const secWrap = (t, g, extra) => (g.length ? sec(t, extra) + block(g) : '');
   const waitingHtml = Object.keys(waitingGroups).map(k => secWrap(k, waitingGroups[k], '<span class="meta">' + waitingGroups[k].length + '</span>')).join('');
   const live = actNow.length + aiWorking.length + waiting.length + attention.length;
-  return shell('ops', tr('nav_ops'), live + (state.lang==='zh'?' 个进行中事项 · Work Queue':' live operations · work queue'), `
-    <div class="count-line" style="padding-top:14px">${state.lang==='zh'?'Operation 是推进真实业务结果的主记录 · Task 只是需要真人执行时的投影':'Operations drive real business results — Tasks are only projections when a human is needed'}</div>
-    ${secWrap(state.lang==='zh'?'现在必须处理 · Act Now':'ACT NOW', actNow, '<span class="meta">' + actNow.length + '</span>')}
-    ${secWrap(state.lang==='zh'?'AI 推进中 · In Progress':'AI WORKING', aiWorking, '<span class="meta">' + aiWorking.length + '</span>')}
+  /* 008B · 连续处理 next-item workflow 入口（Demo E：待确认付款队列） */
+  const confirmEntry = '<div class="row" data-a="nav" data-href="#/confirm-flow" data-od-id="confirm-flow-entry" style="padding:12px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 12%, transparent);color:var(--accent);border-radius:10px">' + ic('check', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '待确认付款 · 连续处理' : 'Confirm payments · next-item flow') + '</b></div><div class="row-l2">' + (zh ? '5 条待处理 · 完成后自动进入下一条' : '5 pending · auto-advance to next') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>';
+  return shell('ops', tr('nav_ops'), live + (zh ? ' 个进行中事项' : ' live operations'), `
+    <div class="count-line" style="padding-top:14px">${zh ? '需要人处理的在这里 · AI 自动推进的不打扰你' : 'What needs a human is here — AI-driven work stays quiet'}</div>
+    ${confirmEntry}
+    ${secWrap(zh ? '需要你处理' : 'NEEDS YOU', actNow, '<span class="meta">' + actNow.length + '</span>')}
+    ${secWrap(zh ? '自动推进中' : 'AUTO-PILOT', aiWorking, '<span class="meta">' + aiWorking.length + '</span>')}
     ${waitingHtml || ''}
-    ${secWrap(state.lang==='zh'?'需要关注 · Needs Attention':'NEEDS ATTENTION', attention, '<span class="meta">' + attention.length + '</span>')}
-    ${secWrap(state.lang==='zh'?'今日完成 · Done Today':'DONE TODAY', doneToday, '<span class="meta">' + doneToday.length + '</span>')}
-    ${ops.length ? '' : emptyState('tasks', state.lang==='zh'?'暂无进行中的事项':'No live operations', state.lang==='zh'?'AI 会在出现异常时自动创建并推进事项。':'AI creates & drives an operation when an anomaly appears.')}
+    ${secWrap(zh ? '需要关注' : 'NEEDS ATTENTION', attention, '<span class="meta">' + attention.length + '</span>')}
+    ${secWrap(zh ? '今天完成' : 'DONE TODAY', doneToday, '<span class="meta">' + doneToday.length + '</span>')}
+    ${ops.length ? '' : emptyState('tasks', zh ? '暂无进行中的事项' : 'No live operations', zh ? 'AI 会在出现异常时自动创建并推进事项。' : 'AI creates & drives an operation when an anomaly appears.')}
+  `, { root: true });
+}
+
+/* 008B · 连续处理 next-item workflow（Demo E）：同类待确认付款记录逐条处理，完成后自动下一条 */
+function viewConfirmFlow() {
+  const zh = state.lang === 'zh';
+  if (!state.confirmFlow || !state.confirmFlow.items.length) {
+    state.confirmFlow = {
+      items: [
+        { id: 'CF-1', unit: '1602', tenant: 'Liza Mendoza', amount: 28000, method: 'GCash', period: '2026-06' },
+        { id: 'CF-2', unit: '1503', tenant: 'Ana Lim', amount: 10000, method: 'Bank Transfer', period: '2026-06' },
+        { id: 'CF-3', unit: '1805', tenant: 'Juan Dela Cruz', amount: 28000, method: 'GCash', period: '2026-06' },
+        { id: 'CF-4', unit: '1901', tenant: 'Carlo Bautista', amount: 35000, method: 'Bank Transfer', period: '2026-06' },
+        { id: 'CF-5', unit: '1680', tenant: 'Diego Cruz', amount: 18000, method: 'GCash', period: '2026-08' }
+      ],
+      idx: 0, done: 0, rejected: 0
+    };
+  }
+  const fl = state.confirmFlow;
+  const total = fl.items.length;
+  const cur = fl.items[fl.idx];
+  const progress = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px 0"><div style="flex:1;height:6px;border-radius:3px;background:var(--fg-soft);overflow:hidden"><div style="width:' + Math.round((fl.idx / total) * 100) + '%;height:100%;background:var(--accent)"></div></div><span class="num" style="font-size:12.5px;font-family:var(--font-mono)">' + (zh ? '已完成 ' : 'done ') + fl.idx + ' / ' + total + '</span></div>';
+  if (fl.idx >= total) {
+    return shell('ops', tr('nav_ops'), zh ? '连续处理完成' : 'Flow complete', `
+      ${progress}
+      <div class="card" style="margin:16px 16px 0;padding:22px 16px;text-align:center" data-od-id="confirm-flow-done">
+        <div style="display:flex;justify-content:center">${ic('check', 30)}</div>
+        <div style="font-family:var(--font-display);font-size:17px;font-weight:700;margin-top:8px">${zh ? '全部处理完成' : 'All done'}</div>
+        <p style="font-size:13px;color:var(--muted);margin-top:6px">${zh ? '已确认 ' + fl.done + ' 条 · 驳回 ' + fl.rejected + ' 条' : fl.done + ' confirmed · ' + fl.rejected + ' rejected'}</p>
+        <div style="display:flex;gap:8px;margin-top:14px;justify-content:center"><button class="btn btn-p sm" data-a="nav" data-href="#/ops">${zh ? '返回事项' : 'Back to Queue'}</button></div>
+      </div>
+    `);
+  }
+  return shell('ops', tr('nav_ops'), zh ? '待确认付款 · ' + (fl.idx + 1) + ' / ' + total : 'Confirm payments · ' + (fl.idx + 1) + ' / ' + total, `
+    ${progress}
+    <div class="card" style="margin:14px 16px 0" data-od-id="confirm-flow-item">
+      <div class="row-l1" style="align-items:center;gap:8px"><span class="unit-badge">${cur.unit}</span><b style="font-size:16px">${cur.tenant}</b></div>
+      <div class="dl" style="margin:10px 0 0">
+        <div class="dl-row"><span class="k">${zh ? '金额' : 'Amount'}</span><span class="v money">${money(cur.amount)}</span></div>
+        <div class="dl-row"><span class="k">${zh ? '期次' : 'Period'}</span><span class="v">${cur.period}</span></div>
+        <div class="dl-row"><span class="k">${zh ? '方式' : 'Method'}</span><span class="v">${cur.method}</span></div>
+        <div class="dl-row"><span class="k">${zh ? '状态' : 'Status'}</span><span class="v">${zh ? '待确认' : 'unconfirmed'}</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin:14px 16px 0">
+      <button class="btn btn-p" style="flex:1" data-a="cf-confirm" data-od-id="cf-confirm-btn">${zh ? '确认到账' : 'Confirm received'}</button>
+      <button class="btn btn-s" style="flex:1" data-a="cf-reject">${zh ? '驳回 / 需核对' : 'Reject / verify'}</button>
+    </div>
+    <div class="meta" style="padding:10px 16px 0;font-size:12px">${zh ? '确认后自动进入下一条 · 已处理 ' + fl.idx + ' / ' + total : 'Auto-advances to next after confirm · ' + fl.idx + ' / ' + total + ' processed'}</div>
   `);
 }
 
@@ -6040,6 +6156,7 @@ function render() {
   else if (root === 'tasks') html = viewTasks(q);
   else if (root === 'task') html = viewTask(path[1]);
   else if (root === 'ops') html = viewOps(q);
+  else if (root === 'confirm-flow') html = viewConfirmFlow();
   else if (root === 'op') html = viewOp(path[1]);
   else if (root === 'finance') html = viewFinance(q);
   else if (root === 'more') html = viewMore();
@@ -6092,6 +6209,17 @@ const __odClickHandler = function(e) {
     openSheet(sheetHead(zh ? '筛选物业 · 异常' : 'Filter properties · issues', zh ? '按真实业务异常筛选' : 'filter by real business issues') +
       opts.map(o => '<div class="row" data-a="filter" data-k="x" data-f="' + o[0] + '" data-base="#/props" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + o[1] + '</b></div><div class="row-r">' + ic('chev', 14) + '</div></div>').join('') +
       '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+    return;
+  }
+  /* 008B · 连续处理 next-item workflow：cf-confirm / cf-reject */
+  if (a === 'cf-confirm' || a === 'cf-reject') {
+    const fl = state.confirmFlow;
+    if (fl && fl.items && fl.idx < fl.items.length) {
+      if (a === 'cf-confirm') fl.done++; else fl.rejected++;
+      fl.idx++;
+      save(); render();
+      toast(a === 'cf-confirm' ? (state.lang==='zh' ? '已确认 · 进入下一条' : 'Confirmed — next item') : (state.lang==='zh' ? '已驳回 · 进入下一条' : 'Rejected — next item'));
+    }
     return;
   }
   if (a === 'close-sheet') { closeSheet(); return; }
