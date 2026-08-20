@@ -623,6 +623,73 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
       </div>
     </div>
   </section>
+
+  <!-- 14 · OpenDesign Source of Truth · 007C · Per-Property Archive Channel · 一房一档 -->
+  <section class="section" data-od-id="telegram-channel-007c" id="telegram-channel-007c" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · 007C · PER-PROPERTY ARCHIVE CHANNEL · 一房一档</p>
+      <div class="sec-h">
+        <h2 class="h2">每套房对应一个长期 Telegram Channel 档案入口<br>Mini App 永远是最新事实入口</h2>
+      </div>
+      <div class="banner info">
+        一个 Property = 一个长期存在的频道档案入口。频道是<b>人类可读资料层</b>，不是数据库；Mini App / backend 是最新业务事实入口。Owner / Secretary <b>不必</b>懂 Telegram chat_id / property_id / internal status code — 一房一档解决"上传资料去哪 / 怎么找"的问题。
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">频道档案文章（长期置顶）</div>
+          <div class="demo-d" style="margin-top:8px">
+            🏠 <b>Solemare 1608</b><br><br>
+            房源 · Sunrise Residences · Tower A · 1BR · 40㎡<br>
+            租客 · Paolo · 入住 2025-10-01<br>
+            月租 ₱30,000 · 押金 ₱60,000<br>
+            租约 2025-10-01 → 2026-09-30<br>
+            状态 · 🟢 正常 · Mini App 入口 / 频道更新于 2026-08-20<br><br>
+            <b>频道不做的事</b>：删除旧消息 / 覆盖 history / 自动修复 Mini App 业务状态。<br>
+            <b>频道做的事</b>：每套房一份长期存在的事实摘要 + 重要状态变化自动重发摘要。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">图片 / 文件归档 · 自然语言</div>
+          <div class="demo-d" style="margin-top:8px">
+            在业务过程中上传（由用户说"这是什么"决定归档位置，<b>不要求用户理解 DB 字段名</b>）：<br><br>
+            · <code>1608 rent receipt</code> → 自动归档到 Solemare 1608 频道的「收据」分组<br>
+            · <code>1608 tenant ID</code> → 自动归档到「租客身份证」分组<br>
+            · <code>1608 contract</code> → 自动归档到「租约 / 合同」分组<br>
+            · <code>1608 repair photo</code> → 自动归档到「维修照片」分组<br>
+            · <code>1608 inspection photo</code> → 自动归档到「验房照片」分组<br>
+            · <code>1608 building notice</code> → 自动归档到「楼宇公告」分组<br><br>
+            <b>禁止</b>要求用户记忆：property_id · Telegram numeric ID · chat_id · 内部 status code。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">频道内容老化 · 解决方式</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Telegram Channel 旧文章会被新消息淹没</b>。解决方式（按优先级）：<br><br>
+            ① 房源主档案长期置顶，不被新消息刷掉<br>
+            ② 重要状态变化后系统<b>重新生成 Summary</b>，置顶发布<br>
+            ③ 必要时新增 Snapshot（Latest Snapshot + 历史可见）<br>
+            ④ Mini App 永远是最新的事实入口 — 频道只承担人类可读资料层<br><br>
+            <b>不</b>为"永远只保留一条 Telegram 消息"设计复杂同步机制。Telegram Channel = Archive，Mini App / backend = Source of Truth。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Telegram 群 vs Mini App · 职责边界</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Telegram 群负责</b>：<br>
+            · 快速办公 · 上传资料 · 自然语言更新业务<br>
+            · 快速状态动作 · AI 推进业务<br><br>
+            <b>Mini App 负责</b>：<br>
+            · 完整 Property Truth · Tenant · Rent · Operations · History · Documents · Configuration<br><br>
+            <b>Owner / Secretary 永不需要懂</b>：<br>
+            · property_id · tenant_id · telegram_id · internal status code · bot token · chat_id · API endpoint<br>
+            · 他们只需要懂：<code>1608 · Paolo · 30,000 · 0917 555 0000</code>。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="section" data-od-id="vnext-bootstrap-007a" id="vnext-bootstrap-007a">
     <div class="container">
       <p class="eyebrow">VNEXT · BOOTSTRAP 007A3 · MERCHANT / TEAM / TELEGRAM WORKSPACE（007A / 007A1 / 007A2 = historical / superseded）</p>
