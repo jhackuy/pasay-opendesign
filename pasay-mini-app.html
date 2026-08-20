@@ -4837,7 +4837,7 @@ function finSnapshot(q) {
   /* Cash Received = valid confirmed Rent Payments in natural month（含历史欠租本月实收）；
      property 过滤按 rent payment 的 property_id 关联当前 unit（unit 是 display，内部经 prop 解析）；无 unit filter 则全局 */
   const cashReceivedRent = (function() {
-    let pts = state.paymentRecords.filter(p => p.status === 'confirmed' && _paidMonth(p.paid_at) === period);
+    let pts = (state.paymentRecords || []).filter(p => p.status === 'confirmed' && _paidMonth(p.paid_at) === period);
     if (unit) {
       const up = prop(unit);
       const pid = up ? up.id : null;
@@ -4913,6 +4913,7 @@ function viewFinance(q) {
   return shell('wallet', tr('nav_fin'), zh ? '钱现在什么情况 · 哪里需要处理' : 'Where the money stands', `
     ${filtersRow}
     ${grid}
+    ${cashBlock}
     ${emptyBlock}
     ${sec(zh ? '逾期未收' : 'OVERDUE')}
     <div class="list" style="margin-top:6px">${overdueRows || '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('check', 16) + '<div class="row-l1" style="font-size:13px">' + (zh ? '当前筛选下没有逾期' : 'Nothing overdue under current filters') + '</div></div></div>'}</div>
