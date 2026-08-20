@@ -1825,7 +1825,7 @@ function opNextCopy(op) {
   if (isExpOp(op)) return expOpNext(op);
   if (isRepairOp(op)) return repairOpNext(op);
   const zh = state.lang === 'zh';
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   const r = opUnitRent(op);
   const nm = op.domain && op.domain.tenant_id ? (ten(op.domain.tenant_id) || {}).name : (r ? (tenantForRent(r) || {}).name : '');
   const unit = op.domain ? op.domain.unit : (r ? r.unit : '');
@@ -1927,10 +1927,13 @@ function leaseEndFromStart(startIso, termMonths) {
 }
 function isoGt(a, b) { return String(a || '').slice(0, 10) > String(b || '').slice(0, 10); }
 function nextFutureDate(iso, days) { return addDaysISO(iso || TODAY, days || 1); }
-/* 当前角色是否为该 Operation 的 human next step（用于 Human Action 隔离与 Overview 分组） */
+/* 当前角色是否为该 Operation 的 human next step（用于 Human Action 隔离与 Overview 分组）。
+   PASAY-TASK-003-FIX1 · Authority 必须来自当前 Membership（wsEffectiveRole），state.meta.role 伪造无效 */
 function opNextIsMine(o) {
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
-  return o.esc === 'WAITING_HUMAN' && o.next_actor === me;
+  if (!o || o.esc !== 'WAITING_HUMAN') return false;
+  const me = wsEffectiveRole();
+  if (!me) return false;
+  return o.next_actor === me;
 }
 
 /* ═══════════════ VNext Expense Operation（kind === 'settle_expense'） ═══════════════ */
@@ -1989,7 +1992,7 @@ function expOpCard(o) {
   const zh = state.lang === 'zh';
   const e = opExpense(o);
   const amt = money(opExpAmount(o));
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   let badge;
   if (o.esc === 'CLOSED') badge = '<span class="chip st-ok">' + (zh?'最近完成':'Recently closed') + '</span>';
   else if (o.esc === 'BLOCKED') badge = '<span class="chip st-crit">' + (zh?'需关注':'Needs review') + '</span>';
@@ -2103,7 +2106,7 @@ function expenseApprovalObserved(childOp, approved) {
 function expManagedProjection(e, op) {
   const zh = state.lang === 'zh';
   const amt = money(e ? e.amount : opExpAmount(op));
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   if (op.esc === 'CLOSED') return zh ? (op.close_outcome === 'PAID' || op.close_outcome === 'SETTLED' ? ('已通过事项确认付款 · ' + amt) : ('事项已结案 · ' + (op.close_reason||''))) : (op.close_outcome === 'PAID' || op.close_outcome === 'SETTLED' ? ('Paid via operation · ' + amt) : ('Operation settled · ' + (op.close_reason||'')));
   if (op.esc === 'VERIFYING') return zh ? '已在事项中核对付款结果' : 'Verifying payment result in the operation';
   if (op.esc === 'BLOCKED') return zh ? (op.blocked_reason || '事项需排查') : (op.blocked_reason || 'operation needs review');
@@ -2188,7 +2191,7 @@ function repairOpNext(o) {
 /* Repair Operation 卡片（Overview） */
 function repairOpCard(o) {
   const zh = state.lang === 'zh'; const u = opRepairUnit(o); const ttl = opRepairTitle(o);
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   let badge;
   if (o.esc === 'CLOSED') badge = '<span class="chip st-ok">' + (zh?'维修完成':'Repair complete') + '</span>';
   else if (o.esc === 'BLOCKED') badge = '<span class="chip st-crit">' + (zh?'需关注':'Needs review') + '</span>';
@@ -2861,7 +2864,7 @@ function leaseOpNext(o) {
 function leaseOpCard(o) {
   const zh = state.lang === 'zh';
   const u = leaseOpUnit(o); const t = leaseOpTenant(o); const nm = t ? t.name : (zh ? '租客' : 'tenant');
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   let badge;
   if (o.esc === 'CLOSED') badge = '<span class="chip st-ok">' + (zh ? '最近完成' : 'Recently closed') + '</span>';
   else if (o.esc === 'BLOCKED') badge = '<span class="chip st-crit">' + (zh ? '需关注' : 'Needs review') + '</span>';
@@ -3574,7 +3577,7 @@ function applyMoveOutAction(a, mo, ui) {
 /* ── Lease Renewal Human Action（Gate D：Who / Unit / Action / Reason / Deadline / Expected result） ── */
 function leaseActionHtml(o) {
   const zh = state.lang === 'zh';
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   if (o.esc !== 'WAITING_HUMAN') return '';
   const unit = leaseOpUnit(o); const t = leaseOpTenant(o); const nm = t ? t.name : (zh ? '租客' : 'tenant');
   const lease = opLease(o);
@@ -4386,7 +4389,7 @@ function moveOutOpNext(o) {
 }
 function moveOutOpCard(o) {
   const zh = state.lang === 'zh';
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   const t = opMoveOutTenant(o); const nm = t ? t.name : (zh ? '租客' : 'tenant');
   const unit = opMoveOutUnit(o);
   const ls = opMoveOutLease(o);
@@ -4414,7 +4417,7 @@ function moveOutOpCard(o) {
 function moveOutActionHtml(o) {
   /* 与 Lease Renewal 的 leaseActionHtml 同构：Who/Unit/Action/Reason/Deadline/Expected result */
   const zh = state.lang === 'zh';
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   if (o.esc !== 'WAITING_HUMAN') return '';
   const unit = opMoveOutUnit(o); const t = opMoveOutTenant(o); const nm = t ? t.name : (zh ? '租客' : 'tenant');
   const ls = opMoveOutLease(o);
@@ -4584,7 +4587,7 @@ function opCard(o) {
   const unit = o.domain ? o.domain.unit : (r ? r.unit : '');
   const left = money(opRemaining(o));
   let badge;
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   if (o.esc === 'CLOSED') badge = '<span class="chip st-ok">' + (state.lang==='zh'?'最近完成':'Recently closed') + '</span>';
   else if (o.esc === 'BLOCKED') badge = '<span class="chip st-crit">' + (state.lang==='zh'?'需关注':'Needs review') + '</span>';
   else if (o.esc === 'VERIFYING') badge = '<span class="chip st-pend">' + (state.lang==='zh'?'正在核对':'Verifying') + '</span>';
@@ -4646,7 +4649,7 @@ function opDoneToday(o) {
 }
 function viewOps() {
   const ops = state.operations.slice();
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   /* 008A · Operations Work Queue：Act Now / AI Working / Waiting（明确等谁）/ Needs Attention / Done Today */
   const actNow = ops.filter(opNextIsMine);
   const aiWorking = ops.filter(o => (o.esc === 'ACTIVE' || o.esc === 'VERIFYING') && !opNextIsMine(o));
@@ -4714,7 +4717,7 @@ function viewOp(id) {
       '<div class="card" style="margin:0 16px"><div class="row" style="padding:0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/tasks"><div class="row-main"><div class="row-l1"><b style="font-size:13px">' + (relatedTask.subject || relatedTask.type) + '</b><span class="chip ' + (relatedTask.status === 'done' ? 'st-ok' : 'st-warn') + '">' + (relatedTask.status === 'done' ? (zh?'已完成':'done') : (zh?'待处理':'open')) + '</span></div><div class="row-l2">' + (zh ? '任务完成不代表 Operation 结束 · 业务结果由 Operation 决定' : 'Task done ≠ Operation closed · result is decided by the operation') + '</div></div></div></div>'
     : '';
   /* 008A · Waiting 明确：等谁 / 等什么（禁止只显示 Waiting） */
-  const waitingBlock = (o.esc === 'WAITING_EXTERNAL' || (o.esc === 'WAITING_HUMAN' && o.next_actor !== (state.meta && state.meta.role ? state.meta.role : 'secretary')))
+  const waitingBlock = (o.esc === 'WAITING_EXTERNAL' || (o.esc === 'WAITING_HUMAN' && o.next_actor !== (wsEffectiveRole() || 'secretary')))
     ? sec(zh ? '等待中' : 'WAITING') + '<div class="card" style="margin:0 16px;border-color:color-mix(in oklch, var(--accent) 30%, var(--border))"><div style="font-size:13px;line-height:1.6">' + opWaitingLabel(o) + (o.wake_at ? ' · ' + (zh?'下次自动检查 ':'auto-check ') + fmtDate(o.wake_at) : '') + ' — ' + opNextCopy(o) + '</div></div>'
     : '';
 
@@ -4746,7 +4749,7 @@ function viewExpOp(o) {
   const zh = state.lang === 'zh';
   const e = opExpense(o);
   const amt = money(opExpAmount(o));
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
 
   const relRep = expOpRelatedRepair(o);
   const related = '<div class="card" style="margin:0 16px"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (zh?'关联':'Related') + '</b></div>' +
@@ -4862,7 +4865,7 @@ function viewRepairOp(o) {
 /* Repair Human Action：role + next_action_code 分流（复用 Generic 规则） */
 function repairActionHtml(o) {
   const zh = state.lang === 'zh';
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   const u = opRepairUnit(o);
   if (o.esc !== 'WAITING_HUMAN') return '';
   const humanName = o.next_actor === 'owner' ? 'Owner' : o.next_actor === 'secretary' ? 'Secretary' : null;
@@ -4938,7 +4941,7 @@ function repairDemoHtml(o) {
 /* Expense Human Action：纯正向 Human Action（role + next_action_code 分流，无 demo 污染） */
 function expActionHtml(o) {
   const zh = state.lang === 'zh';
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   if (o.esc !== 'WAITING_HUMAN') return '';
   const humanName = o.next_actor === 'owner' ? 'Owner' : o.next_actor === 'secretary' ? 'Secretary' : null;
   if (!humanName) return '';
@@ -5059,7 +5062,7 @@ function expDemoHtml(o) {
    其它角色看到的是自然语言状态，不能看到对方的执行按钮。 */
 function opActionHtml(o) {
   const zh = state.lang === 'zh';
-  const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
+  const me = wsEffectiveRole() || 'secretary';
   const r = opUnitRent(o);
   const nm = o.domain && o.domain.tenant_id ? (ten(o.domain.tenant_id) || {}).name : (r ? (tenantForRent(r) || {}).name : (state.lang==='zh'?'租客':'tenant'));
   /* 严格规则：Human Action / "等待…处理" 状态块 仅在 WAITING_HUMAN 且 next_actor 为真人才渲染。
