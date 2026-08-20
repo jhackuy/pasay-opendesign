@@ -711,6 +711,37 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
     </div>
   </section>
 
+  <!-- 14b · OpenDesign Source of Truth · 008A · Telegram ↔ Operations Work Queue 边界 -->
+  <section class="section" data-od-id="telegram-ops-008a" id="telegram-ops-008a" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · 008A · TELEGRAM ↔ OPERATIONS BOUNDARY</p>
+      <div class="sec-h">
+        <h2 class="h2">Telegram 仍是第一自然语言办公入口<br>Operations 是查看 / 判断 / 审批层，不是手工维护后台</h2>
+      </div>
+      <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
+        <div class="card">
+          <div class="h3">Telegram 自然语言 → Operation 更新</div>
+          <div class="chat" style="margin-top:10px">
+            <div class="chat-row"><div class="bub"><div class="who owner">Owner</div>1680 paid 10k</div></div>
+            <div class="chat-row"><div class="bub"><div class="who bot">Pasay Bot</div>已更新 1680 八月租金：<br>已收 ₱10,000 · 剩余 ₱18,000<br>Mini App Operations 已同步。</div></div>
+          </div>
+          <div class="meta" style="margin-top:10px">系统识别自然语言 → 更新 Rent Operation → Mini App Work Queue 随即显示最新状态。用户不手工维护状态机。</div>
+        </div>
+        <div class="card">
+          <div class="h3">Operations 对 Telegram 的职责</div>
+          <div class="demo-d" style="margin-top:8px">
+            <b>Operations 是</b>：<br>
+            · 查看 · 判断 · 审批 · 异常处理 · 必要人工介入<br><br>
+            <b>不是</b>：<br>
+            · 要求用户手工维护状态的后台系统<br>
+            · 让用户理解 WAITING_HUMAN / WAITING_EXTERNAL 等状态机字段<br><br>
+            Telegram 群 = 快速办公 / 上传 / 自然语言更新 / AI 推进；Mini App Operations = Work Queue 视图（Act Now / AI Working / Waiting / Done Today）。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="section" data-od-id="vnext-bootstrap-007a" id="vnext-bootstrap-007a">
     <div class="container">
       <p class="eyebrow">VNEXT · BOOTSTRAP 007A3 · MERCHANT / TEAM / TELEGRAM WORKSPACE（007A / 007A1 / 007A2 = historical / superseded）</p>
@@ -818,7 +849,7 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
 
 <footer class="pagefoot" data-od-id="footer">
   <div class="container row">
-    <span>Pasay AI · 产品母稿 · 10 Telegram Bot / 11 AI Operations Loop · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No Manual ID）</span>
+    <span>Pasay AI · 产品母稿 · 10 Telegram Bot / 11 AI Operations Loop · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No Manual ID）+ 007C FINAL（Workspace Archive Channel · 主档案消息 · Pin/Edit）+ 008A Operations Work Queue（Telegram 自然语言 → Operation 更新 · Operations = 查看/判断/审批层）</span>
     <a href="pasay-mini-app.html" style="color:var(--accent);font-weight:600">进入交互原型 →</a>
   </div>
 </footer>

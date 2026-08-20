@@ -536,7 +536,7 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
       </div>
 
       <div class="readiness" style="margin-top:26px">
-        <div class="st">VNEXT STATUS · OPERATION FOUNDATION v1 → FROZEN · 已含 004G / 005A2 / 005B1 / 005B2 / 006 / 006A / 006A2 SYNC + 007A3 BOOTSTRAP（INVITE IDENTITY · ACTION AUTHORITY · NO-MANUAL-ID）+ 007C FINAL（PROPERTY TRUTH · WORKSPACE ARCHIVE CHANNEL · 主档案消息）+ 007C FIX1（Open Archive 真实 deep-link · 单文件 Reclassify · PROPERTY_ARCHIVE_007C_FINAL Gate 12/12 PASS）</div>
+        <div class="st">VNEXT STATUS · OPERATION FOUNDATION v1 → FROZEN · 已含 004G / 005A2 / 005B1 / 005B2 / 006 / 006A / 006A2 SYNC + 007A3 BOOTSTRAP（INVITE IDENTITY · ACTION AUTHORITY · NO-MANUAL-ID）+ 007C FINAL（PROPERTY TRUTH · WORKSPACE ARCHIVE CHANNEL · 主档案消息）+ 007C FIX1（Open Archive 真实 deep-link · 单文件 Reclassify · PROPERTY_ARCHIVE_007C_FINAL Gate 12/12 PASS）+ 008A OPERATIONS WORK QUEUE（OPERATIONS ≠ TASKS · ACT NOW / AI WORKING / WAITING / DONE TODAY）</div>
         <div style="font-size:22px;font-weight:700;margin-top:8px;letter-spacing:-0.02em">OPERATION_FOUNDATION_V1_FROZEN · PLUS_LEASE_MOVE_OUT_ACCEPTED · PLUS_EXACT_FROZEN_TELEGRAM_MENU · PLUS_BOOTSTRAP_007A3</div>
         <p class="lead" style="font-size:13px;margin-top:8px;line-height:1.6">
           001B-E Errata：① BLOCKED 残留矛盾修复——"Evidence insufficient"分别转 WAITING_HUMAN（真人补凭证）或 WAITING_EXTERNAL（外部出证据）；BLOCKED 严格限定为无法形成合法下一步，识别出明确 Owner action 即离开 BLOCKED 转 WAITING_HUMAN+next_actor=Owner。② 新增 Operation Close vs Domain Truth 规则——close_outcome 只描述 Operation 生命周期结束，改变现实业务事实必须经合法 Domain Business Event 更新业务对象，Operation CLOSED ≠ 自动修改业务对象事实。③ Freeze 契约追加 Rule 16/17。正式冻结契约见 <a href="pasay-design-system.html#vnext-freeze" style="color:var(--accent)">设计系统 · VNext Freeze Contract</a>。<br><br>
@@ -725,11 +725,74 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
       </div>
     </div>
   </section>
+
+  <section class="section" data-od-id="vnext-ops-008a" id="vnext-ops-008a">
+    <p class="eyebrow">VNEXT · 008A · OPERATIONS WORK QUEUE · 统一运营工作台</p>
+    <h2 class="h2">Operations ≠ Tasks<br>Operation 是推进真实业务结果的主记录</h2>
+    <p class="lead">物业事件 → 创建/更新 Operation → AI 自动推进 → 需要人工时进入 Work Queue → 人处理 → AI 继续推进 → Operation Closed。Task 只是 Operation 需要真人执行时的投影；Task 完成不代表 Operation 结束。</p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="eyebrow">WORK QUEUE</p>
+        <p class="p"><b>Act Now</b>（现在必须处理）· <b>AI Working</b>（AI 推进中）· <b>Waiting</b>（明确等谁/等什么）· <b>Done Today</b>（今日完成）。仅真实异常时才显示 Needs Attention。Operations 不复制 Home Dashboard。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">WAITING CONTRACT</p>
+        <p class="p">禁止只显示 Waiting：必须明确 <b>Waiting for tenant / Secretary / Owner decision / payment / evidence / contractor</b>。卡片与详情均按等待对象表达（如「等待租客 · 下次自动检查 08-25」）。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">AI / HUMAN ACTION</p>
+        <p class="p">AI 自动推进不要求点按钮；人工动作只在真正需要判断/确认时出现（Approve expense · Confirm payment · Decide lease renewal · Review repair quote · Confirm move-out settlement）。<b>禁止</b> Advance / Next Step / Change Status / Complete Step。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">ACTIVITY ≠ TASK</p>
+        <p class="p">Activity 是业务时间线（detected → contacted → promised → ₱10,000 received → remaining → paid → closed），不是任务列表；禁止把这些事件全部生成 Task。Related Task 只显示当前必要投影。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">RENT · 1680 PARTIAL</p>
+        <p class="p">Unit 1680 · Rent · August <b>partially paid</b> · <b>₱10,000 / ₱28,000 received</b> · <b>₱18,000 remaining</b> · AI following up / Waiting for tenant payment。不得简化为 <code>Task: Follow up rent</code>。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">REPAIR · 7789</p>
+        <p class="p">Unit 7789 · Tenant reports <b>leaking sink</b> → Repair Operation：Reported → Secretary checks → Quote received（₱3,200）→ Owner approval → Scheduled → Evidence → Verified → Closed。只有需要某人执行时才投影 Task。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" data-od-id="acceptance-008a" id="acceptance-008a">
+    <p class="eyebrow">VNEXT · 008A · ACCEPTANCE CHECK · Operations Work Queue</p>
+    <h2 class="h2">008A · 统一运营工作台验收</h2>
+    <div class="grid-2">
+      <div class="card">
+        <p class="eyebrow">OPERATIONS ≠ TASKS</p>
+        <p class="p">Work Queue 基于 Operation 主记录（state.operations），非 Task 列表；Task = Operation 执行投影，同一时刻只暴露当前必要 Task，Task 完成 ≠ Operation Closed。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">OWNER 快速定位</p>
+        <p class="p">Act Now 置顶（现在必须处理）；AI Working 与 Waiting 区分；Waiting 明确等谁/等什么；Done Today 只列今日完成。Owner 打开 Operations 几秒内知道要做什么。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">RENT 1680</p>
+        <p class="p">八月租金部分支付：已收 ₱10,000 / 总额 ₱28,000 · 剩余 ₱18,000 · 等待租客尾款（WAITING_EXTERNAL · tenant-external · wake 08-25）· Activity 时间线 3 事件 · 无生成 Task。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">REPAIR 7789</p>
+        <p class="p">厨房水槽漏水 = Repair Operation（非普通 Task）：报价 ₱3,200 已收到 → 等待 Owner 审批（approve_quote 复用现有审批 UI）→ 后续 schedule / evidence / verify / closed。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">AI / HUMAN 契约</p>
+        <p class="p">无 Advance / Next Step / Change Status / Complete Step 按钮；人工动作仅 approve / confirm / decide / review；业务 Task 一律跳转 Operation 处理（禁止 Mark done 绕过业务）。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">NAVIGATION + BOUNDARY</p>
+        <p class="p">Home = 状态/风险概览 · Operations = 进行中工作 · Properties = 资产事实 · Archive = 长期档案，职责不重叠。Telegram 自然语言（"1680 paid 10k"）更新 Operation → Mini App 显示最新状态；Operations 是查看/判断/审批层，非手工维护后台。</p>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="pagefoot" data-od-id="footer">
   <div class="container row">
-    <span>Pasay AI · Product Master · OpenDesign Source of Truth · v1.0 · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No-Manual-ID）· 006B Mini App IA 返修（Home 三段 / Operations Center / Archive 恢复 / Health Score 直白状态 / FAB 收口）· 007C FINAL（一 Workspace 一 Archive Channel · 主档案消息 · Pin/Edit · 单分类 + Reclassify · Snapshot Policy · Building Contacts）</span>
+    <span>Pasay AI · Product Master · OpenDesign Source of Truth · v1.0 · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No-Manual-ID）· 006B Mini App IA 返修（Home 三段 / Operations Center / Archive 恢复 / Health Score 直白状态 / FAB 收口）· 007C FINAL（一 Workspace 一 Archive Channel · 主档案消息 · Pin/Edit · 单分类 + Reclassify · Snapshot Policy · Building Contacts）· 008A Operations Work Queue（Operations ≠ Tasks · Act Now / AI Working / Waiting / Done Today · Waiting Contract）</span>
     <span class="meta">owner review · 建议从「进入交互原型」开始</span>
   </div>
 </footer>
