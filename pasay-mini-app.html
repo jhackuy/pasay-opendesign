@@ -9940,6 +9940,40 @@ function runGatePropertyArchive007CFinal() {
   return { gate: 'PropertyArchive-007C-Final', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_PROPERTY_ARCHIVE_007C_FINAL = runGatePropertyArchive007CFinal;
+/* PASAY-TASK-002 · FIX2 · Home Layout Regression Gate：
+   setupBannerHtml 返回的 .banner DOM 层级必须完整闭合（防止再次少 </div> 导致 Home 横向错位） */
+function runGateHomeLayout() {
+  const results = [];
+  const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
+  try {
+    let banner = setupBannerHtml();
+    const w = ws && ws();
+    if (!banner && w && w.setupSteps && w.setupSteps.length) {
+      const prev = w.setupSteps.map(s => s.done);
+      w.setupSteps[0].done = false;
+      banner = setupBannerHtml();
+      w.setupSteps.forEach((s, i) => { s.done = prev[i]; });
+    }
+    __odAssert(banner !== '', '[FIX2-1] setupBannerHtml 在未完成设置时返回非空 banner');
+    if (banner) {
+      const open = (banner.match(/<div\b/g) || []).length;
+      const close = (banner.match(/<\/div>/g) || []).length;
+      __odAssert(open === close && open >= 2, '[FIX2-2] setupBannerHtml 返回值 div 开闭平衡（open=' + open + ' close=' + close + '）');
+      __odAssert(banner.trim().endsWith('</div>'), '[FIX2-3] banner 最外层 div 已完整闭合（返回值以 </div> 结尾）');
+      __odAssert(banner.indexOf('<div class="banner info"') === 0, '[FIX2-4] banner 根节点为单个 .banner info（无嵌套错位）');
+    }
+    /* Home 结构顺序（viewHome 源码静态检查）：banner 位于 greeting 上方独占一行 · Today 右侧 · Search 全宽 */
+    const homeSrc = viewHome.toString();
+    const bannerIdx = homeSrc.indexOf('${setupBannerHtml()}');
+    __odAssert(bannerIdx !== -1 && (bannerIdx < homeSrc.indexOf('Good morning') || bannerIdx < homeSrc.indexOf('早上好')), '[FIX2-5] Home 中 setup banner 位于 greeting 上方（独占一行，不吞并下方元素）');
+    __odAssert(homeSrc.indexOf('btn btn-s block') !== -1 && homeSrc.indexOf('justify-content:flex-start') !== -1, '[FIX2-6] Search 输入为全宽 block 按钮（正常全宽）');
+    __odAssert(homeSrc.indexOf('justify-content:space-between') !== -1 && homeSrc.indexOf('Today') !== -1, '[FIX2-7] greeting 与 Today 为 space-between 布局（Today 正常位于右侧）');
+  } catch (e) {
+    results.push({ pass: false, msg: 'Home Layout gate threw: ' + (e && e.message ? e.message : e) });
+  }
+  return { gate: 'HomeLayout-FIX2', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_HOME_LAYOUT = runGateHomeLayout;
 window.__OD_RUN_GATES = function() {
   const a = runGateA();
   const b = runGateB();

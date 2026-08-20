@@ -769,6 +769,49 @@ try {
   }
 }
 
+/* ─────────────── Run Home Layout Regression Gate (PASAY-TASK-002 · FIX2) ─────────────── */
+{
+  const gateHome = ctx.window.__OD_GATE_HOME_LAYOUT;
+  if (typeof gateHome === 'function') {
+    try {
+      const r = gateHome();
+      console.log('\n═══════ Home Layout Regression Gate (PASAY-TASK-002 · FIX2) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('HomeLayout-FIX2', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('HomeLayout-FIX2 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('HomeLayout-FIX2 gate not exposed on window (__OD_GATE_HOME_LAYOUT = ' + typeof gateHome + ')');
+    allPass = false;
+  }
+
+  /* 函数源码级静态断言：setupBannerHtml 内部 div 必须平衡且以完整三层闭合结尾（不只查全文件 div 总数） */
+  try {
+    const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
+    const script = miniSrc.match(/<script>([\s\S]*?)<\/script>/i);
+    const code = script ? script[1] : miniSrc;
+    const fnMatch = code.match(/function setupBannerHtml\(\)\s*\{([\s\S]*?)\n\}/);
+    const body = fnMatch ? fnMatch[1] : '';
+    const open = (body.match(/<div\b/g) || []).length;
+    const close = (body.match(/<\/div>/g) || []).length;
+    const checks = [
+      { n: 1, cond: fnMatch !== null && open === close && open >= 2, msg: '[FIX2-s1] setupBannerHtml 函数体内 <div>(' + open + ') 与 </div>(' + close + ') 计数平衡' },
+      { n: 2, cond: /<\/button><\/div><\/div><\/div>'/.test(body), msg: "[FIX2-s2] setupBannerHtml return 以 </button></div></div></div>' 完整三层闭合结尾（banner 根节点已闭合）" },
+      { n: 3, cond: body.indexOf('<div class="banner info"') !== -1 && (body.match(/<div class="banner info"/g) || []).length === 1, msg: '[FIX2-s3] 仅一个 .banner info 根节点（无重复/嵌套 banner）' }
+    ];
+    let statAll = true;
+    checks.forEach(c => { const ok = c.cond; statAll = statAll && ok; console.log('  ' + (ok ? '✓' : '✗') + '  ' + c.msg); });
+    console.log(format('HomeLayout-FIX2-static', { gate: 'HomeLayout-FIX2-static', pass: statAll, total: checks.length, passed: checks.filter(c => c.cond).length, results: [] }));
+    allPass = allPass && statAll;
+  } catch (e) {
+    console.error('HomeLayout-FIX2 static assertions threw:', e && e.stack ? e.stack : e);
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
