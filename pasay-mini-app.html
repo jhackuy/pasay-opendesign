@@ -3677,7 +3677,7 @@ function viewLeaseOp(o) {
       : '<div class="row-l1"><b style="font-size:13.5px">' + (zh ? '签约证据 / 核验' : 'Agreement evidence / verification') + '</b></div>' + '<div class="meta" style="margin-top:6px">' + (zh ? '暂无签约证据。' : 'No agreement evidence yet.') + '</div>') +
     '</div>';
 
-  const tl = '<div class="card" style="margin:0 16px"><div class="tl">' + o.tl.map((x, idx) => ({ x, idx })).sort((a, b) => (a.x.at || '').localeCompare(b.x.at || '') || a.idx - b.idx).map(({ x }) => '<div class="tl-i"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at || '') + '</div></div>').join('') + '</div></div>';
+  const tl = '<div class="card" style="margin:0 16px"><div class="tl">' + opTlSorted(o).map(x => '<div class="tl-i"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at || '') + '</div></div>').join('') + '</div></div>';
 
   const humanAction = o.esc === 'WAITING_HUMAN' ? leaseActionHtml(o) : '';
   const demo = leaseDemoHtml(o);
@@ -4558,7 +4558,7 @@ function viewMoveOutOp(o) {
     ${childrenBlock}
     ${related}
     ${sec(zh?'时间线':'Timeline')}
-    <div class="card" style="margin:0 16px"><div class="tl">${o.tl.map(tlRow).join('')}</div></div>
+    <div class="card" style="margin:0 16px"><div class="tl">${opTlSorted(o).map(tlRow).join('')}</div></div>
   `);
 }
 
@@ -4602,11 +4602,16 @@ function opCard(o) {
 function nextLine(o) {
   if (o.esc === 'CLOSED') return o.close_reason || '';
   const c = opNextCopy(o);
-  const t = o.domain && o.domain.tenant_id ? (ten(o.domain.tenant_id) || {}).name : '租客';
+  const t = o.domain && o.domain.tenant_id ? ((ten(o.domain.tenant_id) || o.domain.tenant || {}).name) : (o.domain && o.domain.tenant ? o.domain.tenant.name : '租客');
   const act = o.next_actor && o.next_actor !== 'tenant-external' ? (o.next_actor === 'owner' ? 'Owner' : 'Secretary') : null;
   return c + (o.wake_at ? ' · ' + (state.lang==='zh'?'下次自动检查 ':'auto-check ') + fmtDate(o.wake_at) : '');
 }
 /* 008A · Operation Type 标签（用户语言） */
+/* PASAY-TASK-003-FIX1 · P1 · Activity Timeline 统一 chronological 排序（不依赖插入顺序） */
+function opTlSorted(o) {
+  const tl = (o && o.tl) || [];
+  return tl.map((x, idx) => ({ x, idx })).sort((a, b) => String(a.x.at || '').localeCompare(String(b.x.at || '')) || a.idx - b.idx).map(z => z.x);
+}
 function opTypeLabel(o) {
   const zh = state.lang === 'zh';
   if (o.kind === 'collect_rent') return zh ? '收租' : 'Rent';
@@ -4804,12 +4809,12 @@ function viewRepairOp(o) {
   const related = '<div class="card" style="margin:0 16px"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (zh?'关联':'Related') + '</b></div>' +
     '<div class="row" style="padding:9px 0;cursor:pointer" data-a="nav" data-href="#/property/' + u + '"><div class="row-main"><b style="font-size:13.5px">' + u + '</b><span class="sub">' + (zh?'物业':'property') + '</span></div><div class="row-r">' + ic('chev', 14) + '</div></div>' +
     (rp ? '<div class="row" style="padding:9px 0;cursor:pointer" data-a="nav" data-href="#/repair/' + rp.id + '"><div class="row-main"><b style="font-size:13.5px;font-family:var(--font-mono)">' + rp.id + '</b><span class="sub">' + ttl + '</span></div><div class="row-r">' + repChip(rp) + ic('chev', 14) + '</div></div>' : '') +
-    (o.quotes && o.quotes.length ? o.quotes.map(q => '<div class="row" style="padding:9px 0;cursor:pointer" data-a="nav" data-href="#/expense/' + q.expenseId + '"><div class="row-main"><b style="font-size:13px;font-family:var(--font-mono)">' + q.expenseId + '</b><span class="sub">' + (zh?'报价 ':'quote ') + money(q.amount) + ' · v' + (q.version||1) + '</span></div><div class="row-r">' + expChip(exp(q.expenseId)) + ic('chev', 14) + '</div></div>').join('') : '') +
+    (o.quotes && o.quotes.length ? o.quotes.map(q => { const qe = q.expenseId ? exp(q.expenseId) : null; const href = qe ? '#/expense/' + q.expenseId : null; return '<div class="row" style="padding:9px 0' + (href ? ';cursor:pointer' : '') + '"' + (href ? ' data-a="nav" data-href="' + href + '"' : '') + '><div class="row-main"><b style="font-size:13px;font-family:var(--font-mono)">' + (q.expenseId || (zh?'报价':'quote')) + '</b><span class="sub">' + (zh?'报价 ':'quote ') + money(q.amount) + ' · v' + (q.version||1) + '</span></div><div class="row-r">' + (qe ? expChip(qe) : '') + ic('chev', 14) + '</div></div>'; }).join('') : '') +
     '</div>';
 
   const quoteEv = '<div class="card" style="margin:0 16px">' +
     (o.quotes && o.quotes.length
-      ? o.quotes.map(q => '<div class="row" style="cursor:default"><div class="row-l1"><b style="font-size:13px;font-family:var(--font-mono)">' + q.expenseId + '</b><span class="tag">' + (zh?'报价 v':'quote v') + (q.version||1) + '</span>' + expChip(exp(q.expenseId)) + '</div><div class="row-l2 meta">' + money(q.amount) + ' · ' + (zh?'由维修人员提供':'from technician') + '</div></div>').join('')
+      ? o.quotes.map(q => '<div class="row" style="cursor:default"><div class="row-l1"><b style="font-size:13px;font-family:var(--font-mono)">' + (q.expenseId || (zh?'报价':'quote')) + '</b><span class="tag">' + (zh?'报价 v':'quote v') + (q.version||1) + '</span>' + (q.expenseId ? expChip(exp(q.expenseId)) : '<span class="chip st-neu">' + (zh?'报价':'quote') + '</span>') + '</div><div class="row-l2 meta">' + money(q.amount) + ' · ' + (zh?'由维修人员提供':'from technician') + '</div></div>').join('')
       : '<div class="row-l1"><b style="font-size:13.5px">' + (zh?'维修报价 / 费用方案':'Repair quote / proposal') + '</b></div>' + '<div class="meta" style="margin-top:6px">' + (zh?'暂无报价。':'No quote yet.') + '</div>') +
     '</div>';
 
