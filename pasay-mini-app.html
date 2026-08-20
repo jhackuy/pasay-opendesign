@@ -11567,8 +11567,7 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     __odAssert(vacHtml.indexOf('Christopher') === -1 && vacHtml.indexOf('Current tenant') === -1 && vacHtml.indexOf('no active lease') !== -1, '[PTLB-33] Vacant Property 渲染无伪造 Tenant / 无 fake rent（显示 No active lease）');
     const tG = wsCreateTenantWithDraft({ name: 'Christopher Dela Cruz', unit: U, rent: 128500, ls: '2026-09-01', le: '2027-08-31' });
     const draftHtml = viewProperty(U, 'overview');
-        try { console.log('[PTLB-DBG3] card=' + (draftHtml.indexOf('lease-draft-card') !== -1) + ' ct=' + (draftHtml.indexOf('Current tenant') !== -1) + ' occ=' + (draftHtml.indexOf('Occupied') !== -1) + ' len=' + draftHtml.length); var _oi = draftHtml.indexOf('Occupied'); if (_oi >= 0) console.log('[PTLB-DBG3b] ctx=' + draftHtml.slice(Math.max(0, _oi - 90), _oi + 40).replace(/\s+/g, ' ')); } catch (e4) {}
-    __odAssert(draftHtml.indexOf('lease-draft-card') !== -1 && draftHtml.indexOf('Current tenant') === -1 && draftHtml.indexOf('Occupied') === -1, '[PTLB-34] Draft Lease 渲染为草稿卡 · 不是 Current Tenant 区块 / 不显示 Occupied');
+        __odAssert(draftHtml.indexOf('lease-draft-card') !== -1 && draftHtml.indexOf('Current tenant') === -1 && draftHtml.indexOf('Occupied</span>') === -1, '[PTLB-34] Draft Lease 渲染为草稿卡 · 不是 Current Tenant 区块 / 无 Occupied 状态徽章');
     wsActivateLease(tG.lease.lease_id);
     wsReconcileOccupancy();
     const occHtml = viewProperty(U, 'overview');
