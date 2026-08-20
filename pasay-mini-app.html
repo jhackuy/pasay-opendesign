@@ -4520,7 +4520,8 @@ function viewRents(q) {
 
 function viewRent(id) {
   const r = state.rents.find(x => x.id === id); if (!r) return viewRents(new URLSearchParams());
-  const p = prop(r.unit), t = tenantForRent(r);
+  /* F3-4 · Rent → Property 权威解析（rent.property_id / lease.property_id），禁止 prop(r.unit) 串房 */
+  const p = rentProperty(r), t = tenantForRent(r);
   const rtname = t ? t.name : L('未知','Unknown');
   const out = Math.max(r.amount - paidAmt(r) - pendAmt(r), 0);
   const hasUnconfirmed = r.payments.some(x => x.status === 'unconfirmed');
@@ -5786,14 +5787,13 @@ function viewTenants() {
 
 function viewTenant(id) {
   const t = ten(id); if (!t) return viewTenants();
-  /* P0-2 · Current Property / Rent 只从 Active Lease 派生（tenant.unit 仅 legacy 显示） */
-  const curProp = tenantCurrentProperty(t) || prop(t.unit);
+  /* F3-2 · Current Property / Current Rent 只来自 Active Lease（无 unit fallback：
+     无 Active Lease → Current Property = none · Current Rent = none，仅显示该租客自己的历史 context） */
   const curLease = tenantCurrentLease(t);
-  const p = curProp;
+  const p = tenantCurrentProperty(t);
   const tLeases = state.leases.filter(l => l.tenant_id === id);
   const tRents = rentsForTenant(id);
-  /* 当前租客按其 active lease 显示当期租金；历史/迁出租客显示自己 lease 的最后一条租金（不串到新租客） */
-  const r = curLease ? (currentRentForLease(curLease.lease_id) || null) : (t.status === 'active' ? rentByUnit(p ? p.unit : t.unit) : (tRents[tRents.length - 1] || null));
+  const r = curLease ? (currentRentForLease(curLease.lease_id) || null) : (tRents[tRents.length - 1] || null);
   const relatedTasks = state.tasks.filter(x => x.related === t.unit || x.subject.includes(t.name));
   const isOwner = roleIs('owner');
   let actionBlock = '';
