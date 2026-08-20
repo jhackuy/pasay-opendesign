@@ -11466,8 +11466,8 @@ function runGateMiniApp008BFix2() {
     __odAssert(s06.dueAmt > 0 && s06.rents.length > 0 && s07.dueAmt === 0 && s07.rents.length === 0, '[FIX2-1] 切换 Month：2026-06 有数据 · 2026-07 归零（KPI 与列表真实变化）');
     /* 2 · 切换 Property 后 Rent + Expense 同时过滤 */
     __odAssert(s1608.rents.length > 0 && s1608.rents.every(r => r.unit === '1608') && s1608.exps.every(e => e.unit === '1608'), '[FIX2-2] 切换 Property=1608：Rent 与 Expense 同时过滤');
-    /* 3 · Property truth 中存在但当月无 Rent 的 Unit 仍可选 */
-    __odAssert(s1708.rents.length === 0 && s1708.propOpts.indexOf('1708') !== -1, '[FIX2-3] Property truth 中 1708（2026-06 无 Rent）仍可选');
+    /* 3 · Property truth 中存在但当月无 Rent 的 Unit 仍可选（FIX1 · selector 内部 value 用 PRP；label 含 unit） */
+    __odAssert(s1708.rents.length === 0 && s1708.propOpts.some(o => (o && o.label && o.label.indexOf('1708') !== -1)), '[FIX2-3] Property truth 中 1708（2026-06 无 Rent）仍可选');
     /* 4 · 2026-07 空月份：全部本期数据为 0 + Empty State */
     __odAssert(s07.dueAmt === 0 && s07.paidAmtSum === 0 && s07.overdueAmt === 0 && s07.expPaid === 0 && s07.empty === true, '[FIX2-4] 2026-07 空月份：所有本期指标归零 + Empty State=true');
     /* 5 · 某月无 Rent 但有 Expense → 不错误显示 Empty */
@@ -12656,16 +12656,39 @@ function runGateFinanceWorkspaceP0() {
     const oA = state.rents.find(r => r.lease_id === dr1.lease.lease_id && r.period === '2026-09');
     const oB = state.rents.find(r => r.lease_id === dr2.lease.lease_id && r.period === '2026-09');
     A(oA.property_id === p1.prop.id && oB.property_id === p2.prop.id, '[FIN-16] Rent obligation 用 property_id 关联（同 unit 双 Property）');
-    /* property filter by unit（display）应只命中对应 property 的 rent */
-    const fA = finSnapshot(new URLSearchParams('p=2026-09&u=2201'));
-    /* unit filter 当前用 r.unit（display）；同 unit 会同时命中，但这是"按物业显示"过滤——此处证明 filter 不产生财务串味需用不同 unit */
-    A(typeof fA.dueAmt === 'number', '[FIN-16b] Finance property 过滤可计算（不崩）');
-
-    /* 17b · same-unit different-property - 用唯一 unit filter 隔离验证 */
+    /* FIX1 · same-unit different-property 完全隔离（按 Property.id 分别筛选） */
     if (oA && oB) {
-      const fd = finSnapshot(new URLSearchParams('p=2026-09&u=' + '2201'));
-      A(fd.dueAmt === 23000, '[FIN-17] 同 unit 双 Property 合计 due=23,000（11k+12k）· 按 display unit 归组，不拆错账');
+      /* 给 A/B 各配一条真实 paid expense（property_id 已投影） */
+      state.expenses.push({ id: 'EXP-FA', unit: '2201', property_id: p1.prop.id, category: 'Cleaning', purpose: 'A clean', amount: 1000, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-03', receipt: 'rA', relatedRepair: null, tl: [] });
+      state.expenses.push({ id: 'EXP-FB', unit: '2201', property_id: p2.prop.id, category: 'Cleaning', purpose: 'B clean', amount: 2000, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-04', receipt: 'rB', relatedRepair: null, tl: [] });
+      /* 各确认一笔 payment（A 收 11k，B 收 12k） */
+      rentRecordPayment(oA.id, 11000, 'owner', { paid_at: '2026-09-03' });
+      rentRecordPayment(oB.id, 12000, 'owner', { paid_at: '2026-09-04' });
+      /* 选择 Property A（pid=p1.id） */
+      const fA2 = finSnapshot(new URLSearchParams('p=2026-09&pid=' + p1.prop.id));
+      A(fA2.dueAmt === 11000, '[FIN-17A] 选 PRP-A：Rent Due = 11,000（B 11k/12k 排除）');
+      A(fA2.paidAmtSum === 11000, '[FIN-17A2] 选 PRP-A：Collected = 11,000（仅 A payment）');
+      A(fA2.cashPaidOut === 1000, '[FIN-17A3] 选 PRP-A：Cash Paid Out = 1,000（仅 A expense · B 2000 排除）');
+      A(fA2.cashReceivedRent === 11000 && fA2.netCash === 10000, '[FIN-17A4] 选 PRP-A：Cash Received=11k · Net Cash=10k（A 隔离）');
+      A(fA2.rents.every(r => r.property_id === p1.prop.id) && fA2.exps.every(e => e.property_id === p1.prop.id), '[FIN-17A5] 选 PRP-A：Rent/Expense list 仅含 A');
+      /* 选择 Property B */
+      const fB2 = finSnapshot(new URLSearchParams('p=2026-09&pid=' + p2.prop.id));
+      A(fB2.dueAmt === 12000 && fB2.paidAmtSum === 12000 && fB2.cashPaidOut === 2000 && fB2.netCash === 10000, '[FIN-17B] 选 PRP-B：Due=12k · Collected=12k · Paid Out=2k · Net=10k（B 隔离）');
+      /* All Properties → A+B 聚合 */
+      const fAll2 = finSnapshot(new URLSearchParams('p=2026-09'));
+      A(fAll2.dueAmt === 23000 && fAll2.cashReceivedRent === 23000 && fAll2.cashPaidOut === 3000, '[FIN-17-ALL] All Properties：A+B 聚合（due=23k · received=23k · paid out=3k）');
+      /* selectors 内部 value = property_id（label 为用户物业名） */
+      A((viewFinance.toString().indexOf('pid=') !== -1) && fAll2.propOpts.every(o => /^PRP-/.test(o.id)), '[FIN-SELECTOR] Finance selector value = /^PRP-/（Property.id）· 用户不看到内部 ID');
     }
+    /* FIX1 · 旧错误 unit 查询（同 unit 多 Property）歧义 → 不匹配任何 property（不串账） */
+    const fOldU = finSnapshot(new URLSearchParams('p=2026-09&u=2201'));
+    A(fOldU.dueAmt === 0 && fOldU.rents.length === 0, '[FIN-AMBIG] 旧 unit=2201 查询（多 Property）歧义 → 空（不猜 · 必须显式 pid）');
+    /* building/common expense 不塞入具体 Property */
+    state.expenses.push({ id: 'EXP-COMMON', unit: null, property_id: null, category: 'Property fee', purpose: 'pest', amount: 6000, by: 'Secretary', at: '2026-09-05', status: 'paid', paidVia: 'Bank', paid_at: '2026-09-08', receipt: 'rC', relatedRepair: null, tl: [] });
+    const fA3 = finSnapshot(new URLSearchParams('p=2026-09&pid=' + p1.prop.id));
+    A(fA3.cashPaidOut === 1000 && fA3.exps.every(e => e.property_id === p1.prop.id), '[FIN-COMMON] building/common Expense 不塞入选中 Property（选 A 时 common 6000 排除）');
+    const fCommon = finSnapshot(new URLSearchParams('p=2026-09'));
+    A(fCommon.cashPaidOut === 9000, '[FIN-COMMON2] All Properties 才聚合 building/common（1000+2000+6000=9000 现金流出）');
 
     /* 18-19 · status filter 不串 */
     A(finSnapshot(new URLSearchParams('p=2026-09&s=paid')).exps.length === 0 && finSnapshot(new URLSearchParams('p=2026-09&s=exppending')).rents.length === 0, '[FIN-18] Rent-only status（paid）不 corrupt Expenses');
