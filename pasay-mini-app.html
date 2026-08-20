@@ -1452,6 +1452,92 @@ function propertyStatusDot(p) {
   return '<span class="chip st-ok">🟢 ' + (zh ? 'OK' : 'OK') + '</span>';
 }
 
+/* Issue#3 + 007C · 物业行内副标题（业务语言 · Scenario A 压缩 / Scenario B/D 异常展开） */
+function propertyRowSub(p) {
+  const zh = state.lang === 'zh';
+  const r = rentByUnit(p.unit);
+  const overdue = r && r.status === 'overdue';
+  const partial = r && r.status === 'partial';
+  const openRep = openRepairs(p.unit).length > 0;
+  const expiring = p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30;
+  if (overdue) {
+    const days = (r.due ? daysSince(r.due) : 0);
+    return (zh ? '租金逾期 ' + days + ' 天' : 'Rent overdue ' + days + ' days');
+  }
+  if (openRep && partial) return (zh ? '维修进行中 · 尾款未清' : 'Repair active · balance not cleared');
+  if (openRep) return (zh ? '维修等报价 / 备件' : 'Repair waiting quotation / parts');
+  if (partial) return (zh ? '尾款未清' : 'Balance not cleared');
+  if (expiring) return (zh ? '租约 30 天内到期' : 'Lease expiring within 30 days');
+  if (p.status === 'vacant') return (zh ? '可出租' : 'Ready for lease');
+  return (zh ? 'OK' : 'OK');
+}
+
+/* Issue#3 + 007C · Active Operations 聚合（每个独立成行，不互相覆盖 — Scenario D 多事件并存） */
+function propertyActiveOps(p) {
+  const zh = state.lang === 'zh';
+  const r = rentByUnit(p.unit);
+  const ops = [];
+  /* Rent overdue/partial → 来自 R-* Truth */
+  if (r && r.status === 'overdue') {
+    const days = (r.due ? daysSince(r.due) : 0);
+    ops.push({ level: 'crit', icon: 'alert', title: r.unit + ' · ' + (zh ? '租金逾期 ' + days + ' 天' : 'Rent overdue ' + days + ' days'), sub: (zh ? '下一步：Secretary 联系租客' : 'Next: Secretary contacts tenant'), href: '#/rent/' + r.id });
+  } else if (r && r.status === 'partial') {
+    ops.push({ level: 'warn', icon: 'clock', title: r.unit + ' · ' + (zh ? '尾款未清' : 'Balance not cleared'), sub: (zh ? '继续跟进 · AI 暂无需升级' : 'keep following · AI not escalating'), href: '#/rent/' + r.id });
+  }
+  /* Open repairs → 来自 state.repairs */
+  const reps = repairsFor(p.unit).filter(r2 => ['reported','assigned','in_progress','waiting_parts'].includes(r2.status));
+  reps.forEach(rp => {
+    ops.push({ level: 'warn', icon: 'wrench', title: rp.id + ' · ' + rp.issue, sub: (zh ? '维修状态：' + repairStatusLabel(rp.status) : 'Status: ' + repairStatusLabel(rp.status)), href: '#/repair/' + rp.id });
+  });
+  /* Lease expiring */
+  if (p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30) {
+    const days = -daysSince(p.le);
+    ops.push({ level: 'warn', icon: 'doc', title: (zh ? '租约 ' + fmtDate(p.le) + ' 到期，还有 ' + days + ' 天' : 'Lease ends ' + fmtDate(p.le) + ' · ' + days + ' days left'), sub: (zh ? '建议安排续租' : 'Schedule renewal'), href: '#/onboarding' });
+  }
+  /* Missing receipt on pending/approved expense */
+  const expNoRec = state.expenses.filter(e => e.unit === p.unit && e.status !== 'paid' && e.status !== 'rejected' && !e.receipt);
+  if (expNoRec.length) {
+    ops.push({ level: 'warn', icon: 'cam', title: expNoRec.map(e => e.id).join('、') + (zh ? ' · 缺凭证' : ' · missing evidence'), sub: (zh ? '下一步：补凭证或备注' : 'Next: attach evidence or note'), href: '#/exps' });
+  }
+  /* Approved awaiting payment */
+  const approvedExps = state.expenses.filter(e => e.unit === p.unit && e.status === 'approved');
+  if (approvedExps.length) {
+    ops.push({ level: 'neu', icon: 'send', title: approvedExps.map(e => e.id).join('、') + (zh ? ' · 已批准待付款' : ' · approved, awaiting payment'), sub: (zh ? 'Owner 付款后结案' : 'Owner pays to settle'), href: '#/exps?f=approved' });
+  }
+  return ops;
+}
+
+/* Issue#3 + 007C · Missing-data prompts（直接告诉用户缺什么、怎么补） */
+function propertyMissingFields(p, t, r) {
+  const zh = state.lang === 'zh';
+  const missing = [];
+  if (p.status === 'occupied') {
+    if (!t) missing.push({ key: 'tenant', msg: (zh ? '缺少租客资料' : 'Missing tenant'), fix: '#/tenants', fixText: (zh ? '去登记租客' : 'Add tenant') });
+    else {
+      if (!t.phone || t.phone === '—' || t.phone === '') missing.push({ key: 'phone', msg: (zh ? '缺少租客电话' : 'Missing tenant phone'), fix: '#/tenant/' + t.id, fixText: (zh ? '补电话' : 'Add phone') });
+      if (!t.email) missing.push({ key: 'email', msg: (zh ? '缺少租客邮箱' : 'Missing tenant email'), fix: '#/tenant/' + t.id, fixText: (zh ? '补邮箱' : 'Add email') });
+    }
+    if (!p.ls || !p.le) missing.push({ key: 'lease', msg: (zh ? '缺少租约起止日期' : 'Missing lease dates'), fix: '#/onboarding', fixText: (zh ? '上传合同' : '') });
+    if (r && r.amount > 0 && paidAmt(r) === 0 && r.status !== 'paid') missing.push({ key: 'firstpay', msg: (zh ? '尚未登记首笔付款' : 'First payment not recorded'), fix: '#/rents?act=create&unit=' + p.unit, fixText: (zh ? '登记付款' : 'Record payment') });
+  }
+  return missing;
+}
+
+/* Issue#3 + 007C · Building / Property Management Contact（次级，折叠） */
+function propertyBuildingContact(p) {
+  const zh = state.lang === 'zh';
+  /* P 字段为可选项：p.admin / p.adminPhone / p.emergency */
+  const admin = p.admin || '';
+  const adminPhone = p.adminPhone || '';
+  const emergency = p.emergency || '';
+  if (!admin && !adminPhone && !emergency) return '';
+  return '<details style="margin:10px 16px 0"><summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:10px 0;list-style:none"><span style="color:var(--accent)">' + ic('building', 14) + '</span> ' + (zh ? '物业管理联系（可选）' : 'Building / property management contact') + '</summary><div class="card" style="margin-top:4px">' +
+    (admin ? '<div class="dl-row"><span class="k">' + (zh ? '管理处' : 'Management') + '</span><span class="v">' + admin + '</span></div>' : '') +
+    (adminPhone ? '<div class="dl-row"><span class="k">' + (zh ? '电话' : 'Phone') + '</span><span class="v num">' + adminPhone + '</span></div>' : '') +
+    (emergency ? '<div class="dl-row"><span class="k">' + (zh ? '应急' : 'Emergency') + '</span><span class="v num">' + emergency + '</span></div>' : '') +
+    '</div></details>';
+}
+
 /* 系统生成的 nextAction 持久化为 nextActionCode，展示层按 locale 渲染；用户自由文本 nextAction 保持原样 */
 const NEXT_ACTION_I18N = {
   CONFIRM_RENT:           { zh: '确认租金', en: 'Confirm rent' },
