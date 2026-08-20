@@ -11081,6 +11081,69 @@ function runGateMembershipRoleTruthP0() {
     asOwner(); state.lang = 'zh'; const h20z = viewHome();
     __odAssert(h20z.indexOf('undefined') === -1, '[RT-20c] Owner Home zh DOM 无 undefined');
 
+    /* ── PASAY-TASK-006-FIX1 · P0-A · Role 只来自 ACTIVE Membership（fixture 构造 + 函数/渲染行为验证） ── */
+    /* RT-FA1 · REMOVED_MEMBERSHIP_CURRENT_ROLE_NULL */
+    fresh(); wsCreateWorkspace('FA Co', 'FA-owner');
+    const fa1 = wsGenerateInvite('secretary', 'FA Sec', 'u-fa1'); wsAcceptInvite(fa1.id, 'u-fa1');
+    wsRemoveMember(fa1.id);
+    state.currentUserId = 'u-fa1';
+    __odAssert(currentRole() === null && wsEffectiveRole() === null, '[RT-FA1] Removed Membership → currentRole / wsEffectiveRole = null');
+    /* RT-FA2 · INACTIVE_MEMBERSHIP_CURRENT_ROLE_NULL */
+    fresh(); wsCreateWorkspace('FA2 Co', 'FA2-owner');
+    const fa2 = wsGenerateInvite('secretary', 'FA2 Sec', 'u-fa2'); wsAcceptInvite(fa2.id, 'u-fa2');
+    fa2.status = 'inactive';   /* 构造 inactive membership（非 invited / removed） */
+    state.currentUserId = 'u-fa2';
+    __odAssert(currentRole() === null && wsEffectiveRole() === null, '[RT-FA2] Inactive Membership → currentRole / wsEffectiveRole = null');
+    /* RT-FA3 · PENDING_INVITE_CURRENT_ROLE_NULL */
+    fresh(); wsCreateWorkspace('FA3 Co', 'FA3-owner');
+    wsGenerateInvite('secretary', 'FA3 Pending', 'u-fa3');
+    state.currentUserId = 'u-fa3';
+    __odAssert(currentRole() === null && wsEffectiveRole() === null, '[RT-FA3] Pending Invite → currentRole / wsEffectiveRole = null（被邀请角色 ≠ active role）');
+    /* RT-FA4 · REMOVED_HEADER_NO_OWNER_SECRETARY_BADGE */
+    fresh(); wsCreateWorkspace('FA4 Co', 'FA4-owner');
+    const fa4 = wsGenerateInvite('secretary', 'FA4 Sec', 'u-fa4'); wsAcceptInvite(fa4.id, 'u-fa4');
+    wsRemoveMember(fa4.id);
+    state.currentUserId = 'u-fa4';
+    const hdr4 = navBar('t', '', { root: true });
+    __odAssert(hdr4.indexOf('>OW<') === -1 && hdr4.indexOf('>SC<') === -1 && hdr4.indexOf('—') !== -1, '[RT-FA4] Removed Header Avatar 无 OW/SC 徽章（显示 — / no active membership）');
+    /* RT-FA5 · PENDING_HEADER_NO_ACTIVE_ROLE_BADGE */
+    fresh(); wsCreateWorkspace('FA5 Co', 'FA5-owner');
+    wsGenerateInvite('secretary', 'FA5 Pending', 'u-fa5');
+    state.currentUserId = 'u-fa5';
+    const hdr5 = navBar('t', '', { root: true });
+    __odAssert(hdr5.indexOf('>OW<') === -1 && hdr5.indexOf('>SC<') === -1 && hdr5.indexOf('—') !== -1, '[RT-FA5] Pending Header Avatar 无 OW/SC 徽章（显示 — / no active membership）');
+
+    /* ── PASAY-TASK-006-FIX1 · P0-B · Team Setup = 真正 PENDING invite 或 第 2 个 Active Member ── */
+    const teamDone = () => ws().setupSteps.find(s => s.id === 'team').done;
+    /* RT-FB1 · REVOKED_INVITE_DOES_NOT_COMPLETE_TEAM_SETUP */
+    fresh(); wsCreateWorkspace('FB1 Co', 'FB1-owner');
+    const fb1 = wsGenerateInvite('secretary', 'FB1 Sec');
+    wsRevokeInvite(fb1.id);
+    wsReconcileSetupSteps();
+    __odAssert(fb1.status === 'invited' && fb1.invite.status === 'REVOKED' && teamDone() === false, '[RT-FB1] REVOKED 邀请（membership 仍 invited）→ team setup 未完成');
+    /* RT-FB2 · EXPIRED_INVITE_DOES_NOT_COMPLETE_TEAM_SETUP */
+    fresh(); wsCreateWorkspace('FB2 Co', 'FB2-owner');
+    const fb2 = wsGenerateInvite('secretary', 'FB2 Sec');
+    fb2.invite.expiresAt = '2020-01-01';
+    wsRefreshInviteExpiry(fb2);
+    wsReconcileSetupSteps();
+    __odAssert(fb2.invite.status === 'EXPIRED' && teamDone() === false, '[RT-FB2] EXPIRED 邀请 → team setup 未完成');
+    /* RT-FB3 · PENDING_INVITE_COMPLETES_TEAM_SETUP */
+    fresh(); wsCreateWorkspace('FB3 Co', 'FB3-owner');
+    const fb3 = wsGenerateInvite('secretary', 'FB3 Sec');
+    wsReconcileSetupSteps();
+    __odAssert(fb3.invite.status === 'PENDING' && teamDone() === true, '[RT-FB3] PENDING 邀请 → team setup 完成');
+    /* RT-FB4 · SECOND_ACTIVE_MEMBER_COMPLETES_TEAM_SETUP */
+    fresh(); wsCreateWorkspace('FB4 Co', 'FB4-owner');
+    const fb4 = wsGenerateInvite('secretary', 'FB4 Sec'); wsAcceptInvite(fb4.id, 'u-fb4');
+    wsReconcileSetupSteps();
+    __odAssert(wsActiveMembers().length === 2 && teamDone() === true, '[RT-FB4] 第 2 个 Active Member → team setup 完成');
+    /* RT-FB5 · STALE_TEAM_DONE_RECONCILES_FALSE */
+    fresh(); wsCreateWorkspace('FB5 Co', 'FB5-owner');
+    const fb5team = ws().setupSteps.find(s => s.id === 'team'); fb5team.done = true;   /* stale cache */
+    wsReconcileSetupSteps();
+    __odAssert(wsActiveMembers().length === 1 && teamDone() === false, '[RT-FB5] 无 PENDING 邀请且仅 1 个 Active Member → stale team.done=true reconcile 回 false');
+
     /* 21–24 · 核心页 DOM undefined = 0（Home/Queue/Finance/Properties/More/Setup × zh/en × owner/secretary） */
     const pages = [['home', function(){ return viewHome(); }], ['ops', function(){ return viewOps(new URLSearchParams()); }],
       ['finance', function(){ return viewFinance(new URLSearchParams()); }], ['props', function(){ return viewProps(new URLSearchParams()); }],
