@@ -948,11 +948,41 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
       <p class="meta" style="margin-top:14px">008A 契约不改变 Operation Foundation 状态机（esc / next_actor / next_action_code 语义不变）：只升级用户视图与 Operation/Task 关系表达；不动 Telegram 3×2 / 007C Archive / 已验收 Property List & Detail。</p>
     </div>
   </section>
+
+  <!-- 17 · OpenDesign Source of Truth · 008B · Mini App = Mobile Operations Console -->
+  <section class="section" data-od-id="vnext-console-008b" id="vnext-console-008b" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · 008B · MINI APP MOBILE OPERATIONS CONSOLE</p>
+      <div class="sec-h">
+        <h2 class="h2">Mini App 不是 Telegram 的按钮复制<br>而是体验互补的 Mobile Operations Console</h2>
+        <span class="tag">高信息密度 · 低认知负担 · 少找少读少点少重复</span>
+      </div>
+      <div class="banner info">
+        <b>定位</b>：Telegram = 自然语言办公（说一句话 AI 推进）；Mini App = 全局数据浏览 / 长列表连续扫读 / Filter-Sort-Group / Drill-down / 多记录连续处理 / 财务汇总 / 历史与 Evidence 浏览 / 快速进入详情完成动作。<b>不是功能复用，而是体验互补。</b>
+      </div>
+
+      <div class="card" style="margin-top:18px;border-left:3px solid var(--accent)">
+        <div class="freeze-grid">
+          <div class="fc-item"><span class="fc-n">01</span><b>一级导航 = 5 项</b><span>首页（Command Center）· 物业（Asset Directory）· 事项（Action Queue，checklist 图标，非 clock）· 财务（Finance Workspace）· 更多（低频管理）。无 AI / Chat 一级按钮；Archive 退出一级底栏但能力保留在「更多 → 档案」。touch target ≥ 44×44 · bottom safe area 正确。</span></div>
+          <div class="fc-item"><span class="fc-n">02</span><b>首页 = Command Center</b><span>只回答「经营情况怎样？现在有什么值得我知道？」：关键经营摘要（一行数字）· 需要你处理 · 需要关注 · 极简 AI 推进（一句摘要，不展开长列表；异常才升级到需要关注）。Setup 未完成一行入口，完成后消失。一级根页面无意义 Back。</span></div>
+          <div class="fc-item"><span class="fc-n">03</span><b>物业 = Asset Directory</b><span>Occupancy（全部/已出租/空置）与业务异常筛选（租金逾期/维修中/租约即将到期/搬出中/其他）拆成两个维度。Property Row 信息上限：Unit / 1 行辅助 / Tenant / 一个最重要状态或异常 / 进入详情；禁止同一事实重复三遍。FAB 无语义裸 + 已移除 → 明确「+ 新增物业」（Owner-only，不高于业务异常权重）。</span></div>
+          <div class="fc-item"><span class="fc-n">04</span><b>事项 = Action Queue</b><span>分组：需要你处理 / 等待外部·等待他人（明确等谁）/ 自动推进中 / 今天完成。每项信息上限：对象与类型 · 一句事实 · 一句为什么需要处理/等什么 · 一个明确下一动作。AI 自动推进不制造按钮，只显示下一 checkpoint / wake time。<b>连续处理 next-item workflow（P0）</b>：同类待处理记录逐条处理，完成后自动进入下一条 + 进度「已完成 N / M」。</span></div>
+          <div class="fc-item"><span class="fc-n">05</span><b>财务 = Finance Workspace</b><span>数据工作台，不是 Rent / Expense 两按钮复制：本月应收 / 已收 / 逾期 / 支出 · 月份切换 · Property / 状态筛选 · Rent / Payment / Expense Drill-down · 逾期列表 · Payment Evidence 入口。禁止新增复杂财务会计 / 总账 / 税务。</span></div>
+          <div class="fc-item"><span class="fc-n">06</span><b>更多 = 低频管理</b><span>按真实使用价值分组：经营档案（档案 · 导出）· 团队与工作区（团队 · 切换/权限 · Telegram 办公）· 系统（设置 · 学习）。不是「所有功能垃圾桶」。</span></div>
+          <div class="fc-item"><span class="fc-n">07</span><b>Archive = 用户语言</b><span>普通用户界面禁止工程术语（Workspace Archive Channel / Operation / Claim / Evidence / Projection / Snapshot Policy / master post）。用户看到：维修记录 · 付款凭证 · 合同 · 照片 · 支出单据 · 租客资料 · 历史记录；首页 = 搜索 / 分类 / 对象 / 记录数量 / 最近更新。「在 Telegram 中打开」为二级真实能力（007C 数据模型与 deep-link 事实不推翻）。</span></div>
+          <div class="fc-item"><span class="fc-n">08</span><b>Professional UX Gates</b><span>5 秒扫读（每页能回答：哪个页面 / 最重要数据 / 哪里异常 / 能做什么）· 高频 3 Tap（物业→1608→租约；财务→逾期→租金详情；事项→待确认付款→确认）· Info-to-Action Ratio（每个 Card/Badge/Icon 必须帮助判断或完成动作）· Fact De-duplication（同一事实只表达一次）· Status vs Action（状态像状态，按钮像动作）· List vs Detail（列表扫读选择，详情承载完整事实）。</span></div>
+          <div class="fc-item"><span class="fc-n">09</span><b>Visual & Responsive</b><span>List-first · Card 克制 · 数据优先 · 正常状态安静 · 颜色只表达异常/成功/关键动作。Red=严重/逾期/Blocked · Orange=关注 · Green=成功（禁止每个正常物业都变绿色 OK 展览）· Gray=主力。可点击 ≥44×44 · 正文对比度 ≥4.5:1 · 长名称/长金额不溢出 · 不依赖颜色为唯一状态。390px / 430px：0 横向滚动 / 0 重叠 / 0 裁剪 / Bottom Nav 永远可用。</span></div>
+          <div class="fc-item"><span class="fc-n">10</span><b>Terminology Contract</b><span>普通 Owner / Secretary UI 使用业务语言；禁止机械暴露 WAITING_EXTERNAL / ACTIVE / Operation architecture / Claim model / Projection / database fields。内部模型继续使用，界面翻译成真实物业业务语言。系统状态（Loading / Empty / Error / Offline / No Permission / Partial / Processing / Success）已有明确模式（§12 Edge Cases）。</span></div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:14px">008B 契约不改变 Telegram 3×2 Freeze · 核心业务状态机（esc / next_actor / next_action_code）· 007C Archive 数据模型与 deep-link 事实 · 已验收 Property List / Detail 业务事实。Rent / Expense / Repair / Lease / Move-out 业务能力完整保留（退出一级 nav 由更多/财务/事项承接）。</p>
+    </div>
+  </section>
 </main>
 
 <footer class="pagefoot" data-od-id="footer">
   <div class="container row">
-    <span>Pasay AI · 产品母稿 · 01 设计系统 / 已含 004G → 005B2 全部接受 + 006A Source of Truth Sync · Telegram 6-menu IA Freeze + 007A3 Identity/Invite/Action-Authority（Item 11-23 冻结 · 007A/007A1/007A2 = historical）+ 006B Mini App IA 返修（Home Needs You / AI Working / Risks · Operations Center · Archive 一级 · Health Score 直白 · FAB 收口；Telegram IA / 业务状态机 0 改动）+ 007C FINAL 一 Workspace 一 Archive Channel（主档案消息 · Pin/Edit · 单分类 + Reclassify · Snapshot Policy · Building Contacts · 12 条契约）+ 007C FIX1（Open Archive 真实 deep-link · 单文件 Reclassify · PROPERTY_ARCHIVE_007C_FINAL Gate 12/12 PASS）+ 008A Operations Work Queue（Operations ≠ Tasks · Act Now / AI Working / Waiting / Done Today · Waiting Contract · AI-Human Action Contract · 10 条契约）</span>
+    <span>Pasay AI · 产品母稿 · 01 设计系统 / 已含 004G → 005B2 全部接受 + 006A Source of Truth Sync · Telegram 6-menu IA Freeze + 007A3 Identity/Invite/Action-Authority（Item 11-23 冻结 · 007A/007A1/007A2 = historical）+ 006B Mini App IA 返修（Home Needs You / AI Working / Risks · Operations Center · Archive 一级 · Health Score 直白 · FAB 收口；Telegram IA / 业务状态机 0 改动）+ 007C FINAL 一 Workspace 一 Archive Channel（主档案消息 · Pin/Edit · 单分类 + Reclassify · Snapshot Policy · Building Contacts · 12 条契约）+ 007C FIX1（Open Archive 真实 deep-link · 单文件 Reclassify · PROPERTY_ARCHIVE_007C_FINAL Gate 12/12 PASS）+ 008A Operations Work Queue（Operations ≠ Tasks · Act Now / AI Working / Waiting / Done Today · Waiting Contract · AI-Human Action Contract · 10 条契约）+ 008B Mini App Mobile Operations Console（5 项导航 · Command Center / Asset Directory / Action Queue / Finance / More · Archive 用户语言 · 连续处理 · 10 条契约）</span>
     <a href="pasay-mini-app.html" style="color:var(--accent);font-weight:600">进入交互原型 →</a>
   </div>
 </footer>

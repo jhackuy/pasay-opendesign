@@ -10362,7 +10362,7 @@ function runGateMiniApp008B() {
     /* 2 · 无 AI / Chat 一级按钮 */
     __odAssert(navSrc.indexOf("'ai'") === -1 && navSrc.indexOf("'chat'") === -1, '[008B-2] 无 AI / Chat 一级按钮');
     /* 3 · 事项使用 checklist 图标（非 clock） */
-    __odAssert(navSrc.indexOf("ic('queue'") !== -1 && typeof IC.queue === 'string' && IC.queue.indexOf('clock') === -1, '[008B-3] 事项图标 = checklist（queue）非 clock');
+    __odAssert(navSrc.indexOf("'queue'") !== -1 && typeof IC.queue === 'string' && IC.queue.indexOf('clock') === -1, '[008B-3] 事项图标 = checklist（queue）非 clock');
     /* 4 · Archive 能力保留在「更多 → 档案」 */
     __odAssert(moreSrc.indexOf('#/archive') !== -1, '[008B-4] Archive 能力保留（更多页入口 #/archive）');
     /* 5 · 新一级页面存在 */

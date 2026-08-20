@@ -857,6 +857,44 @@ try {
   }
 }
 
+/* ─────────────── Run Mini App 008B Gate (PASAY-TASK-004 · Mobile Operations Console) ─────────────── */
+{
+  const gate008B = ctx.window.__OD_GATE_MINAPP_008B;
+  if (typeof gate008B === 'function') {
+    try {
+      const r = gate008B();
+      console.log('\n═══════ Mini App 008B Gate (PASAY-TASK-004 · Mobile Operations Console) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('MiniApp-008B', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('MiniApp-008B gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('MiniApp-008B gate not exposed on window (__OD_GATE_MINAPP_008B = ' + typeof gate008B + ')');
+    allPass = false;
+  }
+
+  /* 静态断言：CSS / responsive（44×44 touch target · 390/430 无横向滚动） */
+  try {
+    const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
+    const checks = [
+      { n: 1, cond: miniSrc.indexOf('.nav-i { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 8px; min-height: 56px; min-width: 44px;') !== -1, msg: '[008B-s1] Bottom Nav touch target ≥ 44×44（.nav-i min-height 56px + min-width 44px）' },
+      { n: 2, cond: miniSrc.indexOf('max-width: 430px') !== -1 && miniSrc.indexOf('overflow: hidden') !== -1, msg: '[008B-s2] 390/430 无横向滚动（容器 max-width 430 + overflow hidden）' },
+      { n: 3, cond: miniSrc.indexOf('grid-template-columns: repeat(5, 1fr)') !== -1, msg: '[008B-s3] Bottom Nav 5 列布局（repeat(5, 1fr)）' },
+      { n: 4, cond: miniSrc.indexOf('padding-bottom: env(safe-area-inset-bottom)') !== -1, msg: '[008B-s4] Bottom safe area 处理（env(safe-area-inset-bottom)）' }
+    ];
+    let statAll = true;
+    checks.forEach(c => { const ok = c.cond; statAll = statAll && ok; console.log('  ' + (ok ? '✓' : '✗') + '  ' + c.msg); });
+    console.log(format('MiniApp-008B-static', { gate: 'MiniApp-008B-static', pass: statAll, total: checks.length, passed: checks.filter(c => c.cond).length, results: [] }));
+    allPass = allPass && statAll;
+  } catch (e) {
+    console.error('MiniApp-008B static assertions threw:', e && e.stack ? e.stack : e);
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
