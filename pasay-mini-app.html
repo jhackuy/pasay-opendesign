@@ -4440,9 +4440,11 @@ function viewHome() {
     ? '<div class="row" data-a="nav" data-href="#/ops" data-od-id="home-ai-oneliner" style="padding:11px 16px"><div class="row-main"><div class="row-l1" style="font-size:13.5px">' + ic('spark', 15) + ' ' + (state.lang==='zh' ? aiWorking.length + ' 个事项正在自动推进' : aiWorking.length + ' operations in motion') + '</div><div class="row-l2 meta">' + (state.lang==='zh' ? '无需你操作 · 异常会自动升级到「需要关注」' : 'no action needed — anomalies escalate to attention automatically') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>'
     : '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('clock', 17) + '<div class="row-l1" style="font-size:13px">' + (state.lang==='zh' ? 'AI 暂未处理任何推进中事项' : 'No operations are currently in motion') + '</div></div></div>';
 
-  /* 008B · 关键经营摘要（一行数字 · drill-down 到财务） */
+  /* 008B · 关键经营摘要（一行数字 · drill-down 到财务）·
+     PASAY-TASK-012 · Home Finance summary 直接读 FINANCE_WORKSPACE_P0 truth（不新算第二套金额） */
+  const _homeFin = finSnapshot(new URLSearchParams());
   const finSummary = '<div class="row" data-a="nav" data-href="#/finance" data-od-id="home-fin-summary" style="padding:12px 16px"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%">' +
-    [ [zh ? '应收' : 'Due', money(pendingAmt + outstanding)], [zh ? '已收' : 'Paid', money(collected)], [zh ? '逾期' : 'Overdue', money(overdueRents.reduce((a,r)=>a+Math.max(r.amount-paidAmt(r),0),0))], [zh ? '支出' : 'Spent', money(expPaid)] ]
+    [ [zh ? '应收' : 'Due', money(_homeFin.dueAmt)], [zh ? '已收' : 'Paid', money(_homeFin.paidAmtSum)], [zh ? '逾期' : 'Overdue', money(_homeFin.overdueAmt)], [zh ? '净现' : 'Net', money(_homeFin.netCash)] ]
       .map(c => '<div style="text-align:center"><div class="meta" style="font-size:10.5px">' + c[0] + '</div><div style="font-size:13.5px;font-weight:650;font-family:var(--font-mono)">' + c[1] + '</div></div>').join('') +
     '</div></div>';
 
