@@ -4814,6 +4814,8 @@ function finSnapshot(q) {
   /* 聚合：全局 rents + collect_rent Operations 的 domain 快照（008A 1680 隔离 fixture 纳入应收） */
   const allRents = state.rents.slice();
   state.operations.filter(o => o.kind === 'collect_rent').forEach(o => { const r = opUnitRent(o); if (r && !allRents.some(x => x.id === r.id)) allRents.push(r); });
+  /* FIX1 · Rent property_id 投影：legacy rent 缺 property_id 时经 lease.property_id 或 unit（唯一时）推导 */
+  allRents.forEach(r => { if (r.property_id === undefined) { const l = r && r.lease_id ? state.leases.find(x => x.lease_id === r.lease_id) : null; if (l && l.property_id) r.property_id = l.property_id; else if (r.unit) { const mp = state.props.filter(p => p.unit === r.unit); r.property_id = (mp.length === 1) ? mp[0].id : null; } else r.property_id = null; } });
   /* PASAY-TASK-011-FIX1 · Expense property_id 投影：legacy expense 缺 property_id 时由 unit 推导（unit 唯一时）；
      unit 为 null/common 保持 null（building-level Expense 属 common context，不当成具体 Property）。 */
   state.expenses.forEach(e => { if (e.property_id === undefined) { if (e.unit) { const mp = state.props.filter(p => p.unit === e.unit); e.property_id = (mp.length === 1) ? mp[0].id : null; } else { e.property_id = null; } } });
