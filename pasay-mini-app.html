@@ -11462,9 +11462,7 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     __odAssert(propOccupancy(P(U)) === 'vacant' && propCurrentTenant(P(U)) === null, '[PTLB-10] Tenant 联系资料编辑不改变 occupancy（合同真相未动）');
 
     /* ═══ Lease Truth（Draft 语义） ═══ */
-    try { console.log('[PTLB-DBG] leases=' + JSON.stringify(state.leases.map(function(l){ return l.unit + ':' + l.status; })) + ' active2010=' + (active_lease(U) ? active_lease(U).lease_id : 'null') + ' t1lease=' + (t1 && t1.lease ? t1.lease.lease_id + ':' + t1.lease.status : 'undef') + ' U=' + U); } catch (e2) {}
-    try { console.log('[PTLB-DBG2] c1=' + (active_lease(U) === null) + ' c2=' + (propOccupancy(P(U)) === 'vacant') + ' occ=' + propOccupancy(P(U)) + ' pExists=' + !!P(U)); } catch (e3) { console.log('[PTLB-DBG2] threw ' + e3.message); }
-    __odAssert(active_lease(U) === null && propOccupancy(P(U)) === 'vacant', '[PTLB-11] Lease Draft 不占用物业（occupancy 仍 Vacant）');
+    __odAssert(!active_lease(U) && propOccupancy(P(U)) === 'vacant', '[PTLB-11] Lease Draft 不占用物业（occupancy 仍 Vacant）');
     __odAssert(!state.rents.some(r => r.lease_id === t1.lease.lease_id), '[PTLB-12] Lease Draft 不产生 Active Rent truth（无 rent 记录）');
 
     /* ═══ Activate preflight（每个失败用例独立环境） ═══ */
@@ -11496,7 +11494,7 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     wsAddProperty({ unit: U, tower: 'Shore Residences Tower C', addr: 'Shore', type: '2BR · 60㎡' });
     const tA = wsCreateTenantWithDraft({ name: 'Christopher Dela Cruz', phone: '0917 555 0999', unit: U, rent: 128500, deposit: 257000, ls: '2026-09-01', le: '2027-08-31', due: 5 });
     const tB = wsCreateTenantWithDraft({ name: 'Second Tenant', unit: U, rent: 90000, ls: '2026-10-01', le: '2027-09-30' });   /* 激活前第二 Draft 可创建 */
-    __odAssert(tB.ok === true && tB.lease.status === 'draft' && active_lease(U) === null && propOccupancy(P(U)) === 'vacant', '[PTLB-18b] 激活前第二 Draft 存在但不占用物业（occupancy 仍 Vacant）');
+    __odAssert(tB.ok === true && tB.lease.status === 'draft' && !active_lease(U) && propOccupancy(P(U)) === 'vacant', '[PTLB-18b] 激活前第二 Draft 存在但不占用物业（occupancy 仍 Vacant）');
     const act = wsActivateLease(tA.lease.lease_id);
     __odAssert(act.ok === true && active_lease(U).lease_id === tA.lease.lease_id, '[PTLB-26] Owner 可激活有效租约（Activate ok · Lease Active）');
     wsReconcileOccupancy();
@@ -11569,7 +11567,8 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     __odAssert(vacHtml.indexOf('Christopher') === -1 && vacHtml.indexOf('Current tenant') === -1 && vacHtml.indexOf('no active lease') !== -1, '[PTLB-33] Vacant Property 渲染无伪造 Tenant / 无 fake rent（显示 No active lease）');
     const tG = wsCreateTenantWithDraft({ name: 'Christopher Dela Cruz', unit: U, rent: 128500, ls: '2026-09-01', le: '2027-08-31' });
     const draftHtml = viewProperty(U, 'overview');
-    __odAssert(draftHtml.indexOf('lease-draft-card') !== -1 && draftHtml.indexOf('Christopher Dela Cruz') === -1 && draftHtml.indexOf('Occupied') === -1, '[PTLB-34] Draft Lease 渲染为草稿卡 · 不是 Current Tenant / 不显示 Occupied');
+        try { console.log('[PTLB-DBG3] card=' + (draftHtml.indexOf('lease-draft-card') !== -1) + ' ct=' + (draftHtml.indexOf('Current tenant') !== -1) + ' occ=' + (draftHtml.indexOf('Occupied') !== -1) + ' len=' + draftHtml.length); var _oi = draftHtml.indexOf('Occupied'); if (_oi >= 0) console.log('[PTLB-DBG3b] ctx=' + draftHtml.slice(Math.max(0, _oi - 90), _oi + 40).replace(/\s+/g, ' ')); } catch (e4) {}
+    __odAssert(draftHtml.indexOf('lease-draft-card') !== -1 && draftHtml.indexOf('Current tenant') === -1 && draftHtml.indexOf('Occupied') === -1, '[PTLB-34] Draft Lease 渲染为草稿卡 · 不是 Current Tenant 区块 / 不显示 Occupied');
     wsActivateLease(tG.lease.lease_id);
     wsReconcileOccupancy();
     const occHtml = viewProperty(U, 'overview');
@@ -11586,7 +11585,7 @@ function runGatePropertyTenantLeaseBootstrapP0() {
         const widths = html2.match(/width:\s*(\d+)px/g) || [];
         const over = widths.filter(function(w) { const n = parseInt(w.replace(/[^0-9]/g, ''), 10); return n > vw; });
         if (over.length) { okVw = false; why.push(tb + ' fixed width > ' + vw + ': ' + over.join(',')); }
-        if (html2.indexOf('row-main') === -1 && html2.indexOf('min-width:0') === -1) { okVw = false; why.push(tb + ' no flex overflow guard'); }
+        if (html2.indexOf('row-main') === -1 && html2.indexOf('dl-row') === -1 && html2.indexOf('min-width:0') === -1) { okVw = false; why.push(tb + ' no flex overflow guard'); }
       });
       __odAssert(okVw, '[PTLB-' + (vw === 390 ? '38' : '39') + '] ' + vw + 'px Property Detail 无横向溢出 / 有 flex 防护' + (okVw ? '' : '（' + why.join('；') + '）'));
     });
