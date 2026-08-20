@@ -1,0 +1,1 @@
+﻿smoke 2 - silent-launch verification
