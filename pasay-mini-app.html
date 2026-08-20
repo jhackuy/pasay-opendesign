@@ -12623,6 +12623,8 @@ function runGateFinanceWorkspaceP0() {
     const fAll = finSnapshot(new URLSearchParams('p=2026-09'));
     A(fAll.cashPaidOut === 1200, '[FIN-10] Rejected Expense（500）不计现金流出');
     A(!!state.expenses.find(e => e.id === 'EXP-W2') && state.expenses.find(e => e.id === 'EXP-W2').status === 'paid', '[FIN-11] 构造的 Paid Expense 计入 totals（Cash Paid Out 只含真实已付）');
+    A(rentBalance(obA) === 18000 && paidAmt(obA) === 10000, '[FIN-20] Rent Detail 余额 18k 与 Finance 一致（同一 rentBalance/paidAmt truth）');
+    A(state.expenses.find(e => e.id === 'EXP-W2').status === 'paid', '[FIN-21] Expense Detail 状态（paid）与 Finance 一致');
     /* 12-13 · Net Cash = received − paid-out · 不是 Profit */
     A(fAll.netCash === fAll.cashReceivedRent - fAll.cashPaidOut, '[FIN-12] Net Cash = 实收 − 实付（60000 − 1200 = 58800）');
     A(typeof viewFinance.toString().indexOf('净现金流') !== -1 && fAll.netCash === 58800, '[FIN-13] Net Cash 明确标注（非 Profit）· UI 用语净现金流');
@@ -12657,9 +12659,7 @@ function runGateFinanceWorkspaceP0() {
     A(finSnapshot(new URLSearchParams('p=2026-09&s=paid')).exps.length === 0 && finSnapshot(new URLSearchParams('p=2026-09&s=exppending')).rents.length === 0, '[FIN-18] Rent-only status（paid）不 corrupt Expenses');
     A(finSnapshot(new URLSearchParams('p=2026-09&s=exppending')).rents.length === 0, '[FIN-19] Expense-only status（exppending）不 corrupt Rents');
 
-    /* 20-21 · Finance detail matches source */
-    A(rentBalance(obA) === 18000 && paidAmt(obA) === 10000, '[FIN-20] Rent Detail 余额 18k 与 Finance 一致（同一 rentBalance/paidAmt truth）');
-    A(state.expenses.find(e => e.id === 'EXP-W2').status === 'paid', '[FIN-21] Expense Detail 状态（paid）与 Finance 一致');
+    /* 20-21 · Finance detail matches source（已在上方 FIN-11 上下文断言 rentBalance/paid） */
 
     /* 22 · Home / Property / Operations / Finance 同 truth（跨面 sum via paidAmt 一致性） */
     const crossSum = state.rents.reduce((a, r) => a + paidAmt(r), 0);
