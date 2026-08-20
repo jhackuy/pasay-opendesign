@@ -4240,8 +4240,12 @@ function totalOccupied() { return state.props.filter(p => p.status === 'occupied
 /* ── Property Detail ── */
 function viewProperty(u, tab) {
   const p = prop(u); if (!p) return viewProps(new URLSearchParams());
-  const t = p.tenant ? ten(p.tenant) : null;
+  /* PASAY-TASK-007 · Current tenant 派生自 Active Lease（历史 p.tenant 仅作 lifecycle 过渡态 fallback） */
+  const t = propCurrentTenant(p) || (p.tenant ? ten(p.tenant) : null);
   const r = rentByUnit(p.unit);
+  const drafts = propLeaseDrafts(p);
+  const activeL = propLease(p);
+  const zh = state.lang === 'zh';
   const tabs = [['overview', state.lang === 'zh' ? '总览' : 'Overview'], ['fin', state.lang === 'zh' ? '财务' : 'Financial'], ['lease', state.lang === 'zh' ? '租约' : 'Lease'], ['repair', state.lang === 'zh' ? '维修' : 'Repairs'], ['exp', state.lang === 'zh' ? '支出' : 'Expenses'], ['photos', state.lang === 'zh' ? '照片' : 'Photos'], ['tl', state.lang === 'zh' ? '时间线' : 'Timeline'], ['archive', state.lang === 'zh' ? '档案' : 'Archive']];
   const tb = tabs.find(x => x[0] === tab) || tabs[0];
 
@@ -4263,11 +4267,16 @@ function viewProperty(u, tab) {
           <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-s sm" data-a="prop-edit" data-unit="${p.unit}" data-od-id="prop-edit-open">${ic('wrench', 14)}${state.lang==='zh'?'编辑物业（按模块）':'Edit Property (by module)'}</button></div>
         </div>
       </div>
-      ${p.status === 'occupied' && r ? '<div class="card" style="margin:10px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (state.lang==='zh'?'当前租客':'Current tenant') + '</b></div><div class="row" style="padding:10px 0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/tenant/' + t.id + '"><div class="avatar">' + initials(t.name) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + t.name + '</b></div><div class="row-l2">' + t.phone + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div><div class="dl" style="margin:0"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'月租':'Monthly rent') + '</span><span class="v money">' + money(p.rent) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'押金':'Deposit') + '</span><span class="v num">' + money(p.deposit) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'租约':'Lease') + '</span><span class="v num">' + fmtDate(p.ls) + ' → ' + fmtDate(p.le) + '</span></div></div></div>' : '<div class="card" style="margin:10px 16px 0"><div class="row-l1"><b style="font-size:13.5px">' + (state.lang==='zh'?'空置 · 可出租':'Vacant · ready to lease') + '</b></div><div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'已完成 Turnover · 挂牌月租 ':'Turnover done · asking ') + money(p.rent) + '</div></div>'}
+      ${activeL && t ? '<div class="card" style="margin:10px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (state.lang==='zh'?'当前租客':'Current tenant') + '</b><span class="chip st-ok">' + (state.lang==='zh'?'在租':'Occupied') + '</span></div><div class="row" style="padding:10px 0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/tenant/' + t.id + '"><div class="avatar">' + initials(t.name) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + t.name + '</b></div><div class="row-l2">' + t.phone + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div><div class="dl" style="margin:0"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'月租（租约）':'Monthly rent (lease)') + '</span><span class="v money">' + money(propMonthlyRent(p)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'押金':'Deposit') + '</span><span class="v num">' + money(propDeposit(p)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'租约':'Lease') + '</span><span class="v num">' + fmtDate(propLeaseStart(p)) + ' → ' + fmtDate(propLeaseEnd(p)) + '</span></div></div></div>'
+        : '<div class="card" style="margin:10px 16px 0"><div class="row-l1"><b style="font-size:13.5px">' + (state.lang==='zh'?'空置 · 无生效租约':'Vacant · no active lease') + '</b></div><div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'可通过「登记租客」创建租约草稿；Owner 审核激活后才转为已出租。':'Add a tenant to create a lease draft — the property becomes Occupied only after the Owner activates the lease.') + '</div></div>'}
+      ${!activeL && drafts.length ? drafts.map(d => '<div class="card" style="margin:10px 16px 0;border-color:color-mix(in oklch, var(--accent) 35%, var(--border));background:var(--accent-soft)" data-od-id="lease-draft-card"><div class="row-l1" style="align-items:center;gap:8px">' + ic('doc', 16) + '<b style="font-size:13.5px">' + (state.lang==='zh'?'租约草稿 · 待审核':'Lease draft · awaiting review') + '</b><span class="chip st-pend">' + (state.lang==='zh'?'草稿':'Draft') + '</span></div><div class="meta" style="margin-top:6px">' + (ten(d.tenant_id) ? ten(d.tenant_id).name : '—') + ' · ' + money(d.monthly_rent) + (state.lang==='zh'?' / 月':'/mo') + ' · ' + fmtDate(d.start_date) + ' → ' + fmtDate(d.end_date) + '</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">' + (currentRole() === 'owner'
+          ? '<button class="btn btn-p sm" data-a="review-lease" data-id="' + d.lease_id + '">' + (state.lang==='zh'?'审核并激活':'Review & activate') + '</button>'
+          : '<span class="chip st-neu">' + (state.lang==='zh'?'等待 Owner 审核':'awaiting Owner review') + '</span>') + '<button class="btn btn-s sm" data-a="edit-lease-draft" data-id="' + d.lease_id + '">' + (state.lang==='zh'?'编辑草稿':'Edit draft') + '</button></div></div>').join('') : ''}
       ${colOpCard(r, p.unit)}
       <div style="display:flex;gap:8px;padding:12px 16px">
-        ${p.status === 'vacant'
-          ? '<button class="btn btn-p" style="flex:1" data-a="add-tenant" data-unit="' + p.unit + '" data-od-id="prop-add-tenant">' + (state.lang==='zh'?'登记租客':'Add tenant') + '</button>'
+        ${!activeL
+          ? (drafts.length ? '<span class="meta" style="align-self:center;flex:1">' + (state.lang==='zh'?'已有租约草稿 — 审核激活后进入运营':'Draft exists — activate to operate') + '</span>'
+            : '<button class="btn btn-p" style="flex:1" data-a="add-tenant" data-unit="' + p.unit + '" data-od-id="prop-add-tenant">' + (state.lang==='zh'?'登记租客':'Add tenant') + '</button>')
           : '<button class="btn btn-p" style="flex:1" data-a="nav" data-href="#/rents?act=create&unit=' + p.unit + '">' + (state.lang==='zh'?'登记租金':'Log rent') + '</button>'}
         <button class="btn btn-s" style="flex:1" data-a="nav" data-href="#/exps?act=create&unit=${p.unit}">${state.lang==='zh'?'新增支出':'Add expense'}</button>
         <button class="btn btn-s" style="flex:1" data-a="nav" data-href="#/reps?act=create&unit=${p.unit}">${state.lang==='zh'?'报修':'Report'}</button>
@@ -4281,17 +4290,34 @@ function viewProperty(u, tab) {
   } else if (tb[0] === 'fin') {
     const exps = expensesFor(p.unit).filter(e => e.status !== 'rejected');
     const rows = (r ? r.payments.slice().reverse().map(pay => '<div class="row" style="cursor:default"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + money(pay.amount) + '</b><span class="chip st-' + (pay.status === 'confirmed' ? 'ok' : 'pend') + '">' + (pay.status === 'confirmed' ? (state.lang==='zh'?'已确认':'Confirmed') : (state.lang==='zh'?'待确认':'Pending')) + '</span></div><div class="row-l2">' + fmtDate(pay.date) + ' · ' + pay.method + ' · ' + (pay.by === 'Tenant' ? (state.lang==='zh'?'租客':'Tenant') : 'Secretary') + '</div></div></div>') : []) + (exps.map(e => '<div class="row" data-a="nav" data-href="#/expense/' + e.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + e.id + '</b><span class="sub">' + e.purpose + '</span></div><div class="row-l2">' + e.category + ' · ' + fmtDate(e.at) + '</div></div><div class="row-r">' + expChip(e) + '<span class="money">' + money(e.amount) + '</span>' + ic('chev', 15) + '</div></div>')).join('');
-    body = sec(state.lang==='zh'?'本月财务':'June financials') + (r ? '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'应收':'Rent due') + '</span><span class="v money">' + money(r.amount) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'实收':'Received') + '</span><span class="v money pos">' + money(paidAmt(r)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'未收':'Outstanding') + '</span><span class="v money ' + (r.amount - paidAmt(r) > 0 ? 'neg' : '') + '">' + money(Math.max(r.amount - paidAmt(r), 0)) + '</span></div></div>' : '') + sec(state.lang==='zh'?'累计收入（本租约）':'Cumulative (this lease)') + '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'累计租金':'Cumulative rent') + '</span><span class="v money pos">' + money((r ? r.amount : p.rent) * (p.ls ? Math.max(Math.min(daysSince(p.ls) / 30, 18), 1) : 1)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'本月支出':'Expenses (Jun)') + '</span><span class="v money">' + money(exps.reduce((a, e) => a + e.amount, 0)) + '</span></div></div>' + sec(state.lang==='zh'?'付款记录':'Payment history') + '<div class="list" style="margin-top:8px">' + rows + '</div>';
+    body = sec(state.lang==='zh'?'本月财务':'June financials') + (r ? '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'应收':'Rent due') + '</span><span class="v money">' + money(r.amount) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'实收':'Received') + '</span><span class="v money pos">' + money(paidAmt(r)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'未收':'Outstanding') + '</span><span class="v money ' + (r.amount - paidAmt(r) > 0 ? 'neg' : '') + '">' + money(Math.max(r.amount - paidAmt(r), 0)) + '</span></div></div>' : '') + sec(state.lang==='zh'?'累计收入（本租约）':'Cumulative (this lease)') + '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'累计租金':'Cumulative rent') + '</span><span class="v money pos">' + money((r ? r.amount : propMonthlyRent(p)) * (propLeaseStart(p) ? Math.max(Math.min(daysSince(propLeaseStart(p)) / 30, 18), 1) : 1)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'本月支出':'Expenses (Jun)') + '</span><span class="v money">' + money(exps.reduce((a, e) => a + e.amount, 0)) + '</span></div></div>' + sec(state.lang==='zh'?'付款记录':'Payment history') + '<div class="list" style="margin-top:8px">' + rows + '</div>';
   } else if (tb[0] === 'lease') {
-    const renewSoon = p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30;
-    body = (renewSoon ? '<div class="banner warn" style="margin-top:12px">' + ic('clock', 17) + '<div>' + (state.lang==='zh'?'租约 ' : 'Lease ') + fmtDate(p.le) + (state.lang==='zh'?' 到期，还有 ':' expires in ') + (-daysSince(p.le)) + (state.lang==='zh'?' 天。建议安排续租。':' days. Schedule renewal.') + ' <button data-a="nav" data-href="#/tasks" style="text-decoration:underline">' + (state.lang==='zh'?'查看续租任务':'View renewal task') + '</button></div></div>' : '') +
-    '<div class="dl" style="margin-top:12px">' +
-    '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'租客':'Tenant') + '</span><span class="v">' + (t ? t.name : '—') + '</span></div>' +
-    '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'起租':'Start') + '</span><span class="v num">' + fmtDate(p.ls) + '</span></div>' +
-    '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'到期':'End') + '</span><span class="v num">' + fmtDate(p.le) + '</span></div>' +
-    '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'押金':'Deposit') + '</span><span class="v num">' + money(p.deposit) + '</span></div>' +
-    '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'月租':'Rent') + '</span><span class="v money">' + money(p.rent) + '</span></div>' +
-    '</div>' + sec(state.lang==='zh'?'合同文件':'Lease documents') + '<div style="display:flex;gap:8px;padding:0 16px;flex-wrap:wrap"><span class="attach">' + ic('doc', 15) + 'Lease-1608.pdf · 2025</span><span class="attach">' + ic('doc', 15) + 'Deposit-receipt.pdf</span><span class="attach" style="border-style:dashed;color:var(--accent);border-color:color-mix(in oklch, var(--accent) 40%, var(--border))">' + ic('plus', 14) + (state.lang==='zh'?'上传':'Upload') + '</span></div>';
+    /* PASAY-TASK-007 · Lease tab 全部读取 Lease truth（Active Lease 或 Draft），不读 Property 独立字段 */
+    const lsDate = propLeaseStart(p), leDate = propLeaseEnd(p);
+    const renewSoon = leDate && daysSince(leDate) < 0 && daysSince(leDate) > -30;
+    const leaseBlocks = activeL
+      ? '<div class="card" style="margin:12px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:14px">' + activeL.lease_id + '</b><span class="chip st-ok">' + (state.lang==='zh'?'生效中':'Active') + '</span></div><div class="dl" style="margin-top:4px">' +
+        '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'租客':'Tenant') + '</span><span class="v">' + (t ? t.name : '—') + '</span></div>' +
+        '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'起租':'Start') + '</span><span class="v num">' + fmtDate(lsDate) + '</span></div>' +
+        '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'到期':'End') + '</span><span class="v num">' + fmtDate(leDate) + '</span></div>' +
+        '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'押金':'Deposit') + '</span><span class="v num">' + money(propDeposit(p)) + '</span></div>' +
+        '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'月租（租约真相）':'Monthly rent (lease truth)') + '</span><span class="v money">' + money(propMonthlyRent(p)) + '</span></div>' +
+        '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'扣款日':'Rent due day') + '</span><span class="v num">' + (activeL.rent_due_day || 5) + '</span></div>' +
+        '</div><div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'生效租约的关键条款只能通过续租 / 变更加固 / Move-out 合法流程变更。':'Active lease terms may only change through the legal renewal / amendment / move-out flows.') + '</div></div>'
+      : (drafts.length
+        ? drafts.map(d => '<div class="card" style="margin:12px 16px 0;border-color:color-mix(in oklch, var(--accent) 35%, var(--border))"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:14px">' + d.lease_id + '</b><span class="chip st-pend">' + (state.lang==='zh'?'草稿':'Draft') + '</span></div><div class="dl" style="margin-top:4px">' +
+          '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'租客':'Tenant') + '</span><span class="v">' + (ten(d.tenant_id) ? ten(d.tenant_id).name : '—') + '</span></div>' +
+          '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'起租':'Start') + '</span><span class="v num">' + (d.start_date ? fmtDate(d.start_date) : '—') + '</span></div>' +
+          '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'到期':'End') + '</span><span class="v num">' + (d.end_date ? fmtDate(d.end_date) : '—') + '</span></div>' +
+          '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'押金':'Deposit') + '</span><span class="v num">' + money(d.deposit) + '</span></div>' +
+          '<div class="dl-row"><span class="k">' + (state.lang==='zh'?'月租':'Monthly rent') + '</span><span class="v money">' + money(d.monthly_rent) + '</span></div>' +
+          '</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">' + (currentRole() === 'owner'
+            ? '<button class="btn btn-p sm" data-a="review-lease" data-id="' + d.lease_id + '">' + (state.lang==='zh'?'审核并激活':'Review & activate') + '</button>'
+            : '<span class="chip st-neu">' + (state.lang==='zh'?'等待 Owner 审核':'awaiting Owner review') + '</span>') + '<button class="btn btn-s sm" data-a="edit-lease-draft" data-id="' + d.lease_id + '">' + (state.lang==='zh'?'编辑草稿':'Edit draft') + '</button></div></div>').join('')
+        : '<div class="card" style="margin:12px 16px 0"><div class="row-l1"><b style="font-size:13.5px">' + (state.lang==='zh'?'暂无租约':'No lease yet') + '</b></div><div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'登记租客并创建租约草稿，Owner 审核激活后此处显示生效租约。':'Add a tenant to create a lease draft — the active lease appears here after Owner activation.') + '</div></div>');
+    body = (renewSoon && activeL ? '<div class="banner warn" style="margin-top:12px">' + ic('clock', 17) + '<div>' + (state.lang==='zh'?'租约 ' : 'Lease ') + fmtDate(leDate) + (state.lang==='zh'?' 到期，还有 ':' expires in ') + (-daysSince(leDate)) + (state.lang==='zh'?' 天。建议安排续租。':' days. Schedule renewal.') + ' <button data-a="nav" data-href="#/tasks" style="text-decoration:underline">' + (state.lang==='zh'?'查看续租任务':'View renewal task') + '</button></div></div>' : '') +
+    leaseBlocks +
+    sec(state.lang==='zh'?'合同文件':'Lease documents') + '<div style="display:flex;gap:8px;padding:0 16px;flex-wrap:wrap"><span class="attach">' + ic('doc', 15) + (activeL ? activeL.lease_id : 'Lease') + '.pdf · ' + (lsDate || '') + '</span><span class="attach">' + ic('doc', 15) + 'Deposit-receipt.pdf</span><span class="attach" style="border-style:dashed;color:var(--accent);border-color:color-mix(in oklch, var(--accent) 40%, var(--border))">' + ic('plus', 14) + (state.lang==='zh'?'上传':'Upload') + '</span></div>';
   } else if (tb[0] === 'repair') {
     const list = repairsFor(p.unit);
     const rows = list.map(r => '<div class="row" data-a="nav" data-href="#/repair/' + r.id + '" data-od-id="repair-row-' + r.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + r.id + '</b><span class="sub">' + r.issue + '</span></div><div class="row-l2">' + (r.assignee ? assigneeLabel(r.assignee) : (state.lang==='zh'?'未指派':'unassigned')) + ' · ' + fmtDate(r.at) + '</div></div><div class="row-r">' + repChip(r) + ic('chev', 15) + '</div></div>').join('');
@@ -7099,26 +7125,21 @@ const __odClickHandler = function(e) {
     return;
   }
   if (a === 'submit-tenant') {
+    /* PASAY-TASK-007 · Add Tenant = 人员资料 + Lease Draft（不改变 occupancy / rent truth） */
     const name = $('#at-name').value.trim(); const phone = $('#at-phone').value.trim(); const unitSel = $('#at-unit').value.trim(); const dep = +($('#at-deposit').value || 0);
     if (!name || !unitSel) { toast((state.lang==='zh'?'请填写姓名与单元':'name and unit required')); return; }
-    const p = prop(unitSel); if (!p || p.status !== 'vacant') { toast((state.lang==='zh'?'该单元不可入住':'unit not available')); return; }
-    const rent = +($('#at-rent') ? $('#at-rent').value : 0) || p.rent;
+    const p = prop(unitSel); if (!p || propLease(p)) { toast((state.lang==='zh'?'该单元已有生效租约':'unit has an active lease')); return; }
+    const rent = +($('#at-rent') ? $('#at-rent').value : 0) || 0;
     const ls = $('#at-ls') ? $('#at-ls').value : TODAY;
     const le = $('#at-le') ? $('#at-le').value : '2027-06-19';
     const id = 'PT-' + uid('ten');
-    state.tenants.push({ id, name, phone, email: '', unit: unitSel, since: ls, deposit: dep, note: 'system:new_tenant', status: 'active', history: [{ code: 'TENANT_MOVE_IN', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { name: name, unit: unitSel } }] });
-    p.tenant = id; p.status = 'occupied'; p.ls = ls; p.le = le; p.rent = rent; p.deposit = dep; p.health = 80;
-    p.photos = p.photos || [];
-    const mv = addMedia('property', unitSel, 'move_in', 'system:move_in');
-    p.photos.push(mv.id);
-    addMedia('tenant', id, 'id', 'system:id');
-    state.rents.push({ id: 'R-' + TODAY + '-' + unitSel, unit: unitSel, period: '2026-06', amount: rent, due: '2026-06-25', status: 'upcoming', payments: [], lease_id: null });
-    const lid = open_lease(unitSel, id, ls, le, rent, dep, ls);
-    const newRent = state.rents.find(rr => rr.unit === unitSel && rr.id === 'R-' + TODAY + '-' + unitSel);
-    if (newRent) newRent.lease_id = lid;
-    addEvent('TENANT_MOVE_IN', roleIs('owner') ? 'owner' : 'secretary', 'tenant', id, { name: name, unit: unitSel });
+    state.tenants.push({ id, name, phone, email: '', unit: unitSel, since: null, deposit: 0, note: 'system:new_tenant', status: 'active', history: [{ code: 'TENANT_CREATED', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { name: name, unit: unitSel } }] });
+    /* Lease Draft：occupancy 不变 · 不生成 Active Rent truth · 不设置 current tenant */
+    const dr = wsCreateLeaseDraft(unitSel, id, { start_date: ls, end_date: le, monthly_rent: rent, deposit: dep, rent_due_day: 5 });
+    if (!dr.ok) { toast(dr.reason || (state.lang==='zh'?'无法创建租约草稿':'cannot create lease draft')); return; }
+    addEvent('TENANT_CREATED', roleIs('owner') ? 'owner' : 'secretary', 'tenant', id, { name: name, unit: unitSel });
     if (earn('first_tenant')) earnToast(BADGES.find(b => b.id === 'first_tenant'));
-    save(); closeSheet(); render(); toast((state.lang==='zh'?'租客 ':'Tenant ') + name + (state.lang==='zh'?' 已入住 ':' moved into ') + unitSel + ' ✓');
+    save(); closeSheet(); render(); toast((state.lang==='zh'?'租客资料已保存 · 租约草稿已创建，等待 Owner 审核激活':'Tenant saved · lease draft created — awaiting Owner review'));
     return;
   }
   /* ── 生命周期：Move-out / Inspection / Settlement ── */
