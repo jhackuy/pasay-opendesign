@@ -1112,6 +1112,26 @@ try {
   }
 }
 
+/* ─────────────── Run Repair Operation P0 Gate (PASAY-TASK-009) ─────────────── */
+{
+  const gateRepair = ctx.window.__OD_GATE_REPAIR_OPERATION_P0;
+  if (typeof gateRepair === 'function') {
+    try {
+      const r = gateRepair();
+      console.log('\n═══════ Repair Operation P0 Gate (PASAY-TASK-009 · report → quote → decision → verify → close) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('REPAIR_OPERATION_P0', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('REPAIR_OPERATION_P0 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('REPAIR_OPERATION_P0 gate not exposed on window (__OD_GATE_REPAIR_OPERATION_P0 = ' + typeof gateRepair + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
