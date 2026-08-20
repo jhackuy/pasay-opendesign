@@ -6356,18 +6356,32 @@ function sheetEditPropertyBasic(unitId) {
 function sheetEditPropertyRent(unitId) {
   const p = prop(unitId); if (!p) return;
   const zh = state.lang === 'zh';
+  /* PASAY-TASK-007 · Edit 边界：月租 / 押金属于 Lease truth — Active Lease 存在时禁止通过 Property Edit 绕过 */
+  const al = propLease(p);
+  if (al) {
+    openSheet(sheetHead(zh ? '租金 · ' + p.unit : 'Rent · ' + p.unit, '') +
+      '<div class="banner warn" style="margin:0 0 12px">' + ic('shield', 16) + '<div><b>' + (zh ? '租约已生效 — 月租 / 押金由租约单真相决定' : 'Active lease — rent & deposit are lease truth') + '</b><br>' + (zh ? '当前月租 ' + money(propMonthlyRent(p)) + ' · 押金 ' + money(propDeposit(p)) + '。修改必须走续租 / 租约变更加固 / Move-out 合法流程，不能在这里直接改写。' : 'Current rent ' + money(propMonthlyRent(p)) + ' · deposit ' + money(propDeposit(p)) + '. Change them only through the renewal / amendment / move-out flows.') + '</div></div>' +
+      '<button class="btn btn-s block" data-a="close-sheet">' + (zh ? '知道了' : 'Got it') + '</button>');
+    return;
+  }
   openSheet(sheetHead(zh ? '租金 · ' + p.unit : 'Rent · ' + p.unit, '') +
-    field('er-rent', zh ? '月租 (₱)' : 'Monthly rent (₱)', '<input id="er-rent" class="input num" inputmode="numeric" value="' + p.rent + '"/>') +
-    field('er-deposit', zh ? '押金 (₱)' : 'Deposit (₱)', '<input id="er-deposit" class="input num" inputmode="numeric" value="' + p.deposit + '"/>') +
-    '<button class="btn btn-p block" data-a="prop-edit-rent-save" data-unit="' + p.unit + '">' + (zh ? '保存' : 'Save') + '</button>');
+    '<div class="banner info" style="margin:0 0 12px">' + ic('doc', 16) + '<div>' + (zh ? '该物业当前无生效租约 — 月租 / 押金在「租约草稿」中设定，激活后由租约单真相提供。' : 'No active lease — monthly rent & deposit are set in the lease draft and become truth on activation.') + '</div></div>' +
+    '<button class="btn btn-s block" data-a="close-sheet">' + (zh ? '知道了' : 'Got it') + '</button>');
 }
 function sheetEditPropertyLease(unitId) {
   const p = prop(unitId); if (!p) return;
   const zh = state.lang === 'zh';
+  /* PASAY-TASK-007 · Edit 边界：起止日属于 Lease truth — Active Lease 存在时禁止绕过 */
+  const al = propLease(p);
+  if (al) {
+    openSheet(sheetHead(zh ? '租约 · ' + p.unit : 'Lease · ' + p.unit, '') +
+      '<div class="banner warn" style="margin:0 0 12px">' + ic('shield', 16) + '<div><b>' + (zh ? '租约已生效 — 起止日来自生效租约' : 'Active lease — dates come from the active lease') + '</b><br>' + (zh ? fmtDate(propLeaseStart(p)) + ' → ' + fmtDate(propLeaseEnd(p)) + '。修改必须走续租 / 变更加固 / Move-out 合法流程。' : fmtDate(propLeaseStart(p)) + ' → ' + fmtDate(propLeaseEnd(p)) + '. Change them only through renewal / amendment / move-out flows.') + '</div></div>' +
+      '<button class="btn btn-s block" data-a="close-sheet">' + (zh ? '知道了' : 'Got it') + '</button>');
+    return;
+  }
   openSheet(sheetHead(zh ? '租约 · ' + p.unit : 'Lease · ' + p.unit, '') +
-    field('el-ls', zh ? '起租日' : 'Lease start', '<input id="el-ls" class="input" value="' + (p.ls || '') + '"/>') +
-    field('el-le', zh ? '到期日' : 'Lease end', '<input id="el-le" class="input" value="' + (p.le || '') + '"/>') +
-    '<button class="btn btn-p block" data-a="prop-edit-lease-save" data-unit="' + p.unit + '">' + (zh ? '保存' : 'Save') + '</button>');
+    '<div class="banner info" style="margin:0 0 12px">' + ic('doc', 16) + '<div>' + (zh ? '该物业当前无生效租约 — 在「租约草稿」中设定起止日期（登记租客 → 创建草稿 → Owner 审核激活）。' : 'No active lease — set dates in the lease draft (add tenant → create draft → Owner activates).') + '</div></div>' +
+    '<button class="btn btn-s block" data-a="close-sheet">' + (zh ? '知道了' : 'Got it') + '</button>');
 }
 function sheetEditPropertyContact(unitId) {
   const p = prop(unitId); if (!p) return;
@@ -6399,6 +6413,38 @@ function sheetAddTenant() {
     field('at-le', state.lang==='zh'?'租约止（草稿）':'Lease end (draft)', '<input id="at-le" class="input" value="2027-06-19"/>') +
     '<div class="meta" style="margin-bottom:12px">' + (state.lang==='zh'?'保存后：租客资料已建立 + 租约草稿已创建，物业保持空置；Owner 在物业详情审核并激活租约后，才转为已出租并生成租金。':'After save: tenant profile is created and a lease DRAFT is created — the property stays Vacant. Once the Owner reviews & activates in the property detail, it becomes Occupied and rent starts.') + '</div>' +
     '<button class="btn btn-p block" data-a="submit-tenant" data-od-id="submit-tenant">' + (state.lang==='zh'?'保存租客 · 创建租约草稿':'Save tenant · create lease draft') + '</button>');
+}
+/* ── PASAY-TASK-007 · Lease Draft Review → Activate（Owner-only） / Edit Draft ── */
+function sheetLeaseDraftReview(leaseId) {
+  const l = state.leases.find(x => x.lease_id === leaseId); if (!l || l.status !== 'draft') return;
+  const zh = state.lang === 'zh';
+  const t = ten(l.tenant_id); const p = prop(l.unit);
+  openSheet(sheetHead(zh ? '审核租约 · ' + l.lease_id : 'Review lease · ' + l.lease_id, zh ? '激活后物业转为已出租并生成租金' : 'activation occupies the property & starts rent') +
+    '<div class="dl" style="margin-bottom:12px">' +
+    '<div class="dl-row"><span class="k">' + (zh?'物业':'Property') + '</span><span class="v">' + (p ? p.unit + ' · ' + p.tower : '—') + '</span></div>' +
+    '<div class="dl-row"><span class="k">' + (zh?'租客':'Tenant') + '</span><span class="v">' + (t ? t.name : '—') + '</span></div>' +
+    '<div class="dl-row"><span class="k">' + (zh?'月租':'Monthly rent') + '</span><span class="v money">' + money(l.monthly_rent) + '</span></div>' +
+    '<div class="dl-row"><span class="k">' + (zh?'押金':'Deposit') + '</span><span class="v num">' + money(l.deposit) + '</span></div>' +
+    '<div class="dl-row"><span class="k">' + (zh?'起租':'Start') + '</span><span class="v num">' + (l.start_date ? fmtDate(l.start_date) : '—') + '</span></div>' +
+    '<div class="dl-row"><span class="k">' + (zh?'到期':'End') + '</span><span class="v num">' + (l.end_date ? fmtDate(l.end_date) : '—') + '</span></div>' +
+    '<div class="dl-row"><span class="k">' + (zh?'扣款日':'Due day') + '</span><span class="v num">' + (l.rent_due_day || 5) + '</span></div>' +
+    '</div>' +
+    (currentRole() === 'owner'
+      ? '<div class="banner info" style="margin:0 0 12px">' + ic('shield', 16) + '<div>' + (zh ? '激活后：Lease=Active · 物业=已出租 · 当前租客=该租客 · 月租由租约单真相提供 · 首月租金自动生成。' : 'On activation: Lease=Active, property=Occupied, current tenant set, monthly rent sourced from the lease, first-month rent auto-created.') + '</div></div>' +
+        '<button class="btn btn-p block" data-a="activate-lease" data-id="' + l.lease_id + '">' + (zh ? '激活租约':'Activate lease') + '</button>' +
+        '<button class="btn btn-s block" style="margin-top:8px" data-a="close-sheet">' + (zh ? '取消':'Cancel') + '</button>'
+      : '<div class="banner warn" style="margin:0">' + ic('clock', 16) + '<div>' + (zh ? '仅 Owner 可激活租约 — 请将草稿交由 Owner 审核。':'Only the Owner can activate a lease — hand the draft to the Owner for review.') + '</div></div>'));
+}
+function sheetEditLeaseDraft(leaseId) {
+  const l = state.leases.find(x => x.lease_id === leaseId); if (!l || l.status !== 'draft') return;
+  const zh = state.lang === 'zh';
+  openSheet(sheetHead(zh ? '编辑租约草稿 · ' + l.lease_id : 'Edit lease draft · ' + l.lease_id, zh ? '草稿可自由修改 — 激活后需走合法业务流程' : 'drafts are freely editable — activation locks terms') +
+    field('ld-rent', zh ? '月租 (₱)' : 'Monthly rent (₱)', '<input id="ld-rent" class="input num" inputmode="numeric" value="' + (l.monthly_rent || '') + '"/>') +
+    field('ld-deposit', zh ? '押金 (₱)' : 'Deposit (₱)', '<input id="ld-deposit" class="input num" inputmode="numeric" value="' + (l.deposit || '') + '"/>') +
+    field('ld-ls', zh ? '起租' : 'Start', '<input id="ld-ls" class="input" value="' + (l.start_date || TODAY) + '"/>') +
+    field('ld-le', zh ? '到期' : 'End', '<input id="ld-le" class="input" value="' + (l.end_date || '2027-06-19') + '"/>') +
+    field('ld-due', zh ? '扣款日 (1–28)' : 'Rent due day (1–28)', '<input id="ld-due" class="input num" inputmode="numeric" value="' + (l.rent_due_day || 5) + '"/>') +
+    '<button class="btn btn-p block" data-a="submit-lease-draft" data-id="' + l.lease_id + '">' + (zh ? '保存草稿':'Save draft') + '</button>');
 }
 /* ── PASAY-TASK-006 · P0-2 · ROLE SWITCH 不再是生产态产品能力 ──
    生产 UI（Settings / Avatar / More）不提供 Secretary↔Owner 切换；
@@ -6577,8 +6623,8 @@ const __odClickHandler = function(e) {
   /* PASAY-TASK-006 · P0-8 · OWNER-ONLY MUTATION AUTHORITY：
      add-property / submit-property 统一走 ACTIVE Membership.role === owner（wsCanManage）。
      forged click 同样被拦截 —— 不只靠隐藏按钮。 */
-  if ((a === 'add-prop' || a === 'submit-property') && !wsCanManage()) {
-    toast(L('仅 Owner 可登记物业','Only the Owner can register properties'));
+  if ((a === 'add-prop' || a === 'submit-property' || a === 'activate-lease') && !wsCanManage()) {
+    toast(L('仅 Owner 可执行此操作','Only the Owner can perform this action'));
     return;
   }
   if (a === 'nav') { location.hash = el.dataset.href; return; }
@@ -6783,6 +6829,11 @@ const __odClickHandler = function(e) {
   if (a === 'prop-edit-basic-save' || a === 'prop-edit-rent-save' || a === 'prop-edit-lease-save' || a === 'prop-edit-contact-save' || a === 'prop-edit-notes-save') {
     const u = el.dataset.unit;
     const p = prop(u); if (p) {
+      /* PASAY-TASK-007 · Edit 边界（mutation 层）：Active Lease 存在时，rent / lease 模块禁止绕过 Lease truth 改写 */
+      if ((a === 'prop-edit-rent-save' || a === 'prop-edit-lease-save') && propLease(p)) {
+        toast((state.lang==='zh'?'租约已生效 — 月租 / 起止日只能通过续租 / 变更加固 / Move-out 合法流程变更':'Active lease — rent & dates change only through renewal / amendment / move-out flows'));
+        return;
+      }
       if (a === 'prop-edit-basic-save') {
         if ($('eb-tower')) p.tower = $('eb-tower').value || p.tower;
         if ($('eb-type')) p.type = $('eb-type').value || p.type;
@@ -7140,6 +7191,27 @@ const __odClickHandler = function(e) {
     addEvent('TENANT_CREATED', roleIs('owner') ? 'owner' : 'secretary', 'tenant', id, { name: name, unit: unitSel });
     if (earn('first_tenant')) earnToast(BADGES.find(b => b.id === 'first_tenant'));
     save(); closeSheet(); render(); toast((state.lang==='zh'?'租客资料已保存 · 租约草稿已创建，等待 Owner 审核激活':'Tenant saved · lease draft created — awaiting Owner review'));
+    return;
+  }
+  /* ── PASAY-TASK-007 · Lease Draft → Review → Activate（Owner-only activation） ── */
+  if (a === 'review-lease') { sheetLeaseDraftReview(el.dataset.id); return; }
+  if (a === 'edit-lease-draft') { sheetEditLeaseDraft(el.dataset.id); return; }
+  if (a === 'submit-lease-draft') {
+    const l = state.leases.find(x => x.lease_id === el.dataset.id);
+    if (!l || l.status !== 'draft') { toast((state.lang==='zh'?'草稿不可编辑':'draft not editable')); return; }
+    const rent = +($('#ld-rent') ? $('#ld-rent').value : 0) || 0;
+    const dep = +($('#ld-deposit') ? $('#ld-deposit').value : 0) || 0;
+    const ls = $('#ld-ls') ? $('#ld-ls').value : l.start_date;
+    const le = $('#ld-le') ? $('#ld-le').value : l.end_date;
+    const due = +($('#ld-due') ? $('#ld-due').value : 5) || 5;
+    const r2 = wsUpdateLeaseDraft(l.lease_id, { start_date: ls, end_date: le, monthly_rent: rent, deposit: dep, rent_due_day: due });
+    toast(r2.ok ? (state.lang==='zh'?'租约草稿已更新':'Lease draft updated') : (r2.reason || 'error'));
+    if (r2.ok) { save(); closeSheet(); render(); } return;
+  }
+  if (a === 'activate-lease') {
+    /* Owner-only activation（wsActivateLease 内部 preflight 再次校验 role） */
+    const r3 = wsActivateLease(el.dataset.id);
+    toast(r3.ok ? (state.lang==='zh'?'租约已激活 · 物业转为已出租 · 首月租金已生成':'Lease activated — property occupied · first-month rent created') : (r3.reason || (state.lang==='zh'?'激活失败':'activation failed')));
     return;
   }
   /* ── 生命周期：Move-out / Inspection / Settlement ── */
