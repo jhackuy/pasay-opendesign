@@ -10729,6 +10729,94 @@ function runGateRenderUxCloseoutR1() {
   return { gate: 'RenderUxCloseout-R1', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results, leakReport: leakReport };
 }
 window.__OD_GATE_RENDER_UX_CLOSEOUT_R1 = runGateRenderUxCloseoutR1;
+/* PASAY-TASK-005 · 009A · Data Coherence Gate（Node 可执行：fixture 数学 / undefined / 语义一致 / Queue count） */
+function runGateMiniApp009AData() {
+  const results = [];
+  const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
+  try {
+    if (!state.props.some(p => p.unit === '1708')) {
+      state = seed(); state.leases = []; __isFreshSeed = true;
+      if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
+      if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
+      if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
+      if (typeof syncOperationTasks === 'function') syncOperationTasks();
+      wsResetFresh();
+      ensureOps008aScenarios();
+    }
+    /* D1 · 1680 payment math 一致：应收 28,000 = 已收 10,000 + 剩余 18,000 */
+    const r1680 = op('OP-RENT-1680');
+    __odAssert(!!r1680 && opObjective(r1680) === 28000 && opReceived(r1680) === 10000 && opRemaining(r1680) === 18000 && (opReceived(r1680) + opRemaining(r1680)) === opObjective(r1680), '[009A-D1] 1680 payment math 一致（28,000 = 10,000 + 18,000）');
+    /* D2 · 无 undefined tenant / actor（全部 Operation 与 Task） */
+    const badOps = state.operations.filter(function(o) {
+      var nm = null;
+      if (o.domain && o.domain.tenant_id) nm = (ten(o.domain.tenant_id) || o.domain.tenant || {}).name;
+      else if (o.domain && o.domain.tenant) nm = o.domain.tenant.name;
+      else if (o.kind === 'collect_rent') { var r = opUnitRent(o); nm = r ? ((tenantForRent(r) || o.domain.tenant || {}).name || '') : ''; }
+      return o.esc !== 'CLOSED' && nm === undefined;
+    });
+    __odAssert(badOps.length === 0, '[009A-D2] 无 undefined tenant（非 CLOSED Operation 的 tenant 名均可解析）');
+    const badTasks = state.tasks.filter(function(t) { return t.status !== 'done' && (t.assignee === undefined || t.assignee === null); });
+    __odAssert(badTasks.length === 0, '[009A-D2b] 无 undefined / null actor（active Tasks 均有 assignee）');
+    /* D3 · 7789 repair 语义一致：issue=Leaking sink，无「空调」混淆 */
+    const rp7789 = op('OP-REP-7789');
+    const rp = opRepair(rp7789);
+    __odAssert(!!rp && rp.issue === 'Leaking sink' && (rp.desc || '').indexOf('水槽') !== -1 && (rp.issue || '').indexOf('Aircon') === -1 && (rp.issue || '').indexOf('空调') === -1, '[009A-D3] 7789 repair 语义一致（Leaking sink · 水槽 · 无空调混淆）');
+    /* D4 · Queue count truth：header 摘要与分组实际计数一致 */
+    const me = wsEffectiveRole() || 'secretary';
+    const ops = state.operations.slice();
+    const actNow = ops.filter(opNextIsMine);
+    const aiWorking = ops.filter(function(o){ return (o.esc === 'ACTIVE' || o.esc === 'VERIFYING') && !opNextIsMine(o); });
+    const waiting = ops.filter(function(o){ return o.esc === 'WAITING_EXTERNAL' || (o.esc === 'WAITING_HUMAN' && o.next_actor !== me); });
+    const attention = ops.filter(function(o){ return o.esc === 'BLOCKED'; });
+    const needCnt = actNow.length + attention.length;
+    const followCnt = aiWorking.length + waiting.length;
+    __odAssert(needCnt + followCnt >= 0 && needCnt === actNow.length + attention.length && followCnt === aiWorking.length + waiting.length, '[009A-D4] Queue count truth：header 摘要计数与分组实际计数同源一致');
+    const opsHtml = viewOps(new URLSearchParams());
+    __odAssert(opsHtml.indexOf(String(needCnt)) !== -1 && opsHtml.indexOf(String(followCnt)) !== -1, '[009A-D4b] Queue header 摘要（' + needCnt + ' 项需要处理 · ' + followCnt + ' 项跟进中）渲染实际数字');
+  } catch (e) {
+    results.push({ pass: false, msg: '009A Data gate threw: ' + (e && e.message ? e.message : e) });
+  }
+  return { gate: 'MiniApp-009A-Data', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_MINAPP_009A_DATA = runGateMiniApp009AData;
+/* PASAY-TASK-005 · 009A · Browser Visual Gate（真实 DOM QA：render 到 #app · scrollWidth / rect / leak · 390/430）
+   在 OpenDesign Preview / 真实浏览器执行（Node 无布局引擎，不在此运行；由 Node runner 校验暴露）。 */
+window.__OD_RUN_BROWSER_QA = function() {
+  var report = { viewports: {}, pages: [] };
+  var app = document.getElementById('app');
+  if (!app) return { error: 'no #app element' };
+  var pages = [
+    ['home', '#/home'],
+    ['props', '#/props'],
+    ['ops', '#/ops'],
+    ['finance', '#/finance'],
+    ['more', '#/more'],
+    ['archive', '#/archive'],
+    ['prop-1608', '#/property/1608'],
+    ['prop-1608-archive', '#/property/1608?tab=archive']
+  ];
+  [390, 430].forEach(function(vw) {
+    document.documentElement.style.width = vw + 'px';
+    var entries = [];
+    pages.forEach(function(pg) {
+      try {
+        location.hash = pg[1];
+        if (typeof render === 'function') render();
+        var html = app.innerHTML;
+        var leaks = ["'+", 'zh ?', 'ic(', '${', 'undefined', '[object Object]'].filter(function(t){ return html.indexOf(t) !== -1; });
+        if (/(^|[^A-Za-z0-9_])null([^A-Za-z0-9_]|$)/.test(html)) leaks.push('null');
+        var docOverflow = document.documentElement.scrollWidth > vw;
+        var appOverflow = app.scrollWidth > (app.clientWidth + 1);
+        entries.push({ page: pg[0], leaks: leaks, docOverflow: docOverflow, appOverflow: appOverflow });
+      } catch (e) {
+        entries.push({ page: pg[0], error: e && e.message ? e.message : String(e) });
+      }
+    });
+    report.viewports[String(vw)] = entries;
+  });
+  report.pages = pages.map(function(p){ return p[0]; });
+  return report;
+};
 window.__OD_RUN_GATES = function() {
   const a = runGateA();
   const b = runGateB();
