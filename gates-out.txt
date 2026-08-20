@@ -1,0 +1,1514 @@
+
+═══════ Gate A — OP-R1 → REP full cycle (004E) ═══════
+[A] pass=true  37/37
+  1. ✓  seed 后 OP-R1 存在
+  2. ✓  OP-R1.kind === "repair"
+  3. ✓  OP-R1.domain.repair_id === "REP-0001"
+  4. ✓  OP-R1 → arrange_technician
+  5. ✓  rx-sim-quote: OP-R1.currentQuoteExpense 已设
+  6. ✓  rx-sim-quote: child Expense Operation 已创建
+  7. ✓  rx-sim-quote: EXP.relatedRepair === "REP-0001"
+  8. ✓  rx-sim-quote: childOp.domain.repair_id === "REP-0001"
+  9. ✓  rx-sim-quote: REP-0001.relatedExpenses 包含 EXP id
+  10. ✓  rx-sim-quote: OP-R1 → await_quote_approval
+  11. ✓  rx-approve-quote: child op → pay_expense
+  12. ✓  rx-approve-quote: OP-R1 → await_technician_visit
+  13. ✓  OP-R1 已 CLOSED
+  14. ✓  OP-R1.close_outcome === "COMPLETED"
+  15. ✓  REP-0001.status === "completed"
+  16. ✓  OP-R1 保持 CLOSED（永不在原地重开）
+  17. ✓  OP-R2 已创建
+  18. ✓  OP-R2.follow_up_of === "OP-R1"
+  19. ✓  OP-R2.parent_operation_id === "OP-R1"
+  20. ✓  OP-R2.domain.repair_id === "REP-0002"
+  21. ✓  REP-0002.recurrence_of === "REP-0001"
+  22. ✓  REP-0002.status === "reported"
+  23. ✓  REP-0001.status 仍 completed（历史不可变）
+  24. ✓  rx-sim-quote: OP-R2.currentQuoteExpense 已设
+  25. ✓  rx-sim-quote: newExpense.id !== oldExpense.id（≠ REP-0001 关联 Expense）
+  26. ✓  rx-sim-quote: Expense.relatedRepair === "REP-0002"
+  27. ✓  rx-sim-quote: 新 Child Expense Operation 已创建
+  28. ✓  rx-sim-quote: child.parent_operation_id === "OP-R2"
+  29. ✓  rx-sim-quote: child.domain.repair_id === "REP-0002"
+  30. ✓  rx-sim-quote: Supporting Evidence.related_repair === "REP-0002"
+  31. ✓  rx-sim-quote: REP-0002.relatedExpenses 包含 newExpense.id
+  32. ✓  rx-sim-quote: newExpense ∈ REP-0002.relatedExpenses 且 ∉ REP-0001.relatedExpenses
+  33. ✓  rx-sim-quote: OP-R2.next_action_code === await_quote_approval
+  34. ✓  rx-sim-quote: OP-R2.esc === WAITING_EXTERNAL（等待 child 审批，不卡在无 child 的状态）
+  35. ✓  rx-approve-quote: newChild → pay_expense
+  36. ✓  rx-approve-quote: OP-R2 → await_technician_visit
+  37. ✓  再触发 rx-reopen 应升级到 OP-R3（不变式：单调递增）, got nextNum=3 (max OP-RN=2)
+
+═══════ Gate B — 5 路 Owner 评审出口 (004E) ═══════
+[B] pass=true  41/41
+  1. ✓  [approve] 当前 op_review_expense task 已 done
+  2. ✓  [approve] Operation.esc === WAITING_HUMAN
+  3. ✓  [approve] Operation.next_action_code === pay_expense
+  4. ✓  [approve] Expense.status === approved
+  5. ✓  [approve] Operation 未关闭（close_outcome 为 null）
+  6. ✓  [approve] 无其它 task 被"伪 done"（done 必须带 doneAt 时间戳）
+  7. ✓  [approve] superseded 必须带 supersededAt 时间戳
+  8. ✓  [notauthorized] 当前 op_review_expense task 已 done
+  9. ✓  [notauthorized] Operation.esc === CLOSED
+  10. ✓  [notauthorized] Expense.status === rejected
+  11. ✓  [notauthorized] Operation.close_outcome === NOT_PAID
+  12. ✓  [notauthorized] 无其它 task 被"伪 done"（done 必须带 doneAt 时间戳）
+  13. ✓  [notauthorized] superseded 必须带 supersededAt 时间戳
+  14. ✓  [duplicate] 当前 op_review_expense task 已 done
+  15. ✓  [duplicate] Operation.esc === CLOSED
+  16. ✓  [duplicate] Expense.status === rejected
+  17. ✓  [duplicate] Operation.close_outcome === CANCELLED_DUPLICATE
+  18. ✓  [duplicate] 无其它 task 被"伪 done"（done 必须带 doneAt 时间戳）
+  19. ✓  [duplicate] superseded 必须带 supersededAt 时间戳
+  20. ✓  [needinfo] 当前 op_review_expense task 已 done
+  21. ✓  [needinfo] Operation.esc === WAITING_HUMAN
+  22. ✓  [needinfo] Operation.next_action_code === provide_supporting_evidence
+  23. ✓  [needinfo] Operation.next_actor === secretary
+  24. ✓  [needinfo] Expense.status === pending
+  25. ✓  [needinfo] Operation 未关闭（close_outcome 为 null）
+  26. ✓  [needinfo] 无其它 task 被"伪 done"（done 必须带 doneAt 时间戳）
+  27. ✓  [needinfo] superseded 必须带 supersededAt 时间戳
+  28. ✓  [invalid] 当前 op_review_expense task 已 done
+  29. ✓  [invalid] Operation.esc === WAITING_HUMAN
+  30. ✓  [invalid] Operation.next_action_code === revise_after_reject
+  31. ✓  [invalid] Operation.next_actor === secretary
+  32. ✓  [invalid] Expense.status === pending
+  33. ✓  [invalid] Operation 未关闭（close_outcome 为 null）
+  34. ✓  [invalid] 无其它 task 被"伪 done"（done 必须带 doneAt 时间戳）
+  35. ✓  [invalid] superseded 必须带 supersededAt 时间戳
+  36. ✓  [GateB-OPR2] rx-reject-quote 后 child Operation.esc === "CLOSED"
+  37. ✓  [GateB-OPR2] rx-reject-quote 后 child Operation.close_outcome === "NOT_PAID"
+  38. ✓  [GateB-OPR2] rx-reject-quote 后 op_review_expense task.status === "done"（不是 superseded）
+  39. ✓  [GateB-OPR2] op_review_expense task.doneAt 已设置
+  40. ✓  [GateB-OPR2] reject 前 review task.status === "todo"（投影初始状态）
+  41. ✓  [GateB-OPR2] reject 后 review task.status === "done"（doneAt=2026-06-20)
+[Gate C] source repair id: REP-0001
+[Gate C] source unit: 1701
+[Gate C] new repair id: REP-0002
+[Gate C] new repair unit: 1701
+[Gate C] new operation id: OP-R2
+[Gate C] new operation domain.unit: 1701
+[Gate C] new operation domain.repair_id: REP-0002
+[Gate C] recurrence_of: REP-0001
+[Gate C] follow_up_of: OP-R1
+
+═══════ Gate C — 1701 unit recurrence (004E Fix 1) ═══════
+[C] pass=true  9/9
+  1. ✓  [C] seed 后 OP-R1 存在
+  2. ✓  [C] 新 Repair (REP-0002) 已创建
+  3. ✓  [C] REP-0002.unit === "1701"（不是硬编码 1608），got: 1701
+  4. ✓  [C] 新 Operation (OP-R2) 已创建
+  5. ✓  [C] OP-R2.domain.unit === "1701"（不是硬编码 1608），got: 1701
+  6. ✓  [C] OP-R2.domain.repair_id === newRepairId
+  7. ✓  [C] REP-0002.recurrence_of === " + sourceRepairId + "，got: REP-0001
+  8. ✓  [C] OP-R2.follow_up_of === "OP-R1"
+  9. ✓  [C] 复发文案中不含硬编码 "1608"，got tl: broke again — new repair (recurrence of REP-0001) Repair recurrence — new follow
+[Gate D] reset 前 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] reset 前 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate D] 3代 chain Repair IDs: REP-0001, REP-0002, REP-0003, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] 3代 chain Operation IDs: OP-A1, OP-B1, OP-R1, OP-R2, OP-R3
+[Gate D] reset 后 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] reset 后 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate D] REP-0002 removed: YES
+[Gate D] REP-0003 removed: YES
+[Gate D] OP-R2 removed: YES
+[Gate D] OP-R3 removed: YES
+
+═══════ Gate D — Multi-generation reset (004E Fix 2) ═══════
+[D] pass=true  16/16
+  1. ✓  [D] seed 后 OP-R1 存在
+  2. ✓  [D] rx-reopen 后 OP-R2 + REP-0002 存在
+  3. ✓  [D] rx-reopen 后 OP-R3 + REP-0003 存在
+  4. ✓  [D] REP-0002 存在于 chain
+  5. ✓  [D] REP-0003 存在于 chain
+  6. ✓  [D] OP-R2 存在于 chain
+  7. ✓  [D] OP-R3 存在于 chain
+  8. ✓  [D] reset 后 REP-0001 仍存在
+  9. ✓  [D] reset 后 REP-0002 已移除（descendant）
+  10. ✓  [D] reset 后 REP-0003 已移除（descendant）
+  11. ✓  [D] reset 后 OP-R1 仍存在（seed）
+  12. ✓  [D] reset 后 OP-R2 已移除（descendant）
+  13. ✓  [D] reset 后 OP-R3 已移除（descendant）
+  14. ✓  [D] reset 后无 orphan recurrence Repair（got: none）
+  15. ✓  [D] reset 后 OP-R1.esc === "WAITING_HUMAN"（初始态）
+  16. ✓  [D] reset 后 OP-R1.next_action_code === "confirm_repair_info"
+[Gate E] OP-R2 close_reason: Repair verified complete · 1701 aircon fixed
+[Gate E] child op objective: settle 1701 repair quote v1 · ₱4,500
+[Gate E] expense.unit: 1701
+[Gate E] OP-R2.unit: 1701
+
+═══════ Gate E — 1701 full lifecycle, no hardcoded 1608 (004F P0-1) ═══════
+[E] pass=true  12/12
+  1. ✓  [E] seed 后 OP-R1 存在
+  2. ✓  [E] REP-0002.unit === "1701"，got: 1701
+  3. ✓  [E] OP-R2.domain.unit === "1701"，got: 1701
+  4. ✓  [E] confirm expected_result 不含 1608: arrange technician to check 1701 aircon
+  5. ✓  [E] quote expense.unit === "1701"，got: 1701
+  6. ✓  [E] child op objective 不含 1608: settle 1701 repair quote v1 · ₱4,500
+  7. ✓  [E] child op → pay_expense
+  8. ✓  [E] visited expected_result 不含 1608: verify completion evidence
+  9. ✓  [E] OP-R2 已 CLOSED
+  10. ✓  [E] close_reason 不含 1608: Repair verified complete · 1701 aircon fixed
+  11. ✓  [E] OP-R1 保持 CLOSED（历史不可变）
+  12. ✓  [E] REP-0001.status === "completed"（历史不可变）
+[Gate F] reset 前 Repair IDs: REP-0001, REP-0002, REP-0003, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 前 Operation IDs: OP-A1, OP-B1, OP-EX12, OP-EX13, OP-EX14, OP-R1, OP-R2, OP-R3
+[Gate F] reset 前 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011, EXP-0012, EXP-0013, EXP-0014
+[Gate F] reset 后 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 后 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate F] reset 后 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011
+
+═══════ Gate F — Real graph reset + dangling reference scan (004F P0-3) ═══════
+[F] pass=true  13/13
+  1. ✓  [F] seed 后 OP-R1 存在
+  2. ✓  [F] reset 后 REP-0001 仍存在（seed）
+  3. ✓  [F] reset 后 REP-0002 已移除
+  4. ✓  [F] reset 后 REP-0003 已移除
+  5. ✓  [F] reset 后 OP-R1 仍存在（seed）
+  6. ✓  [F] reset 后 OP-R2 已移除
+  7. ✓  [F] reset 后 OP-R3 已移除
+  8. ✓  [F] reset 后无 descendant quote expenses，got: 
+  9. ✓  [F] 0 dangling operation.domain.repair_id，got: 0
+  10. ✓  [F] 0 dangling expense.relatedRepair，got: 0
+  11. ✓  [F] 0 dangling task.tzOp，got: 0
+  12. ✓  [F] 无关 props 仍存在：14
+  13. ✓  [F] state.leases 存在（可为 0，demo 数据完整性差异）：0
+[Gate G] generated Repair IDs: REP-0002, REP-0003, REP-0004, REP-0005, REP-0006, REP-0007, REP-0008, REP-0009, REP-0010, REP-0011, REP-0017, REP-0018
+[Gate G] generated Operation IDs: OP-R2, OP-R3, OP-R4, OP-R5, OP-R6, OP-R7, OP-R8, OP-R9, OP-R10, OP-R11, OP-R12, OP-R13
+[Gate G] total state.repairs count: 18
+
+═══════ Gate G — 12-gen ID stress test (004F P1) ═══════
+[G] pass=true  63/63
+  1. ✓  [G] iteration 1: OP-R2 已创建
+  2. ✓  [G] iteration 1: REP-N 已创建
+  3. ✓  [G] iteration 1: Repair ID 格式正确 REP-0002
+  4. ✓  [G] iteration 1: domain.repair_id === Repair.id
+  5. ✓  [G] iteration 1: 新 Repair ID 未被历史占用 REP-0002
+  6. ✓  [G] iteration 2: OP-R3 已创建
+  7. ✓  [G] iteration 2: REP-N 已创建
+  8. ✓  [G] iteration 2: Repair ID 格式正确 REP-0003
+  9. ✓  [G] iteration 2: domain.repair_id === Repair.id
+  10. ✓  [G] iteration 2: 新 Repair ID 未被历史占用 REP-0003
+  11. ✓  [G] iteration 3: OP-R4 已创建
+  12. ✓  [G] iteration 3: REP-N 已创建
+  13. ✓  [G] iteration 3: Repair ID 格式正确 REP-0004
+  14. ✓  [G] iteration 3: domain.repair_id === Repair.id
+  15. ✓  [G] iteration 3: 新 Repair ID 未被历史占用 REP-0004
+  16. ✓  [G] iteration 4: OP-R5 已创建
+  17. ✓  [G] iteration 4: REP-N 已创建
+  18. ✓  [G] iteration 4: Repair ID 格式正确 REP-0005
+  19. ✓  [G] iteration 4: domain.repair_id === Repair.id
+  20. ✓  [G] iteration 4: 新 Repair ID 未被历史占用 REP-0005
+  21. ✓  [G] iteration 5: OP-R6 已创建
+  22. ✓  [G] iteration 5: REP-N 已创建
+  23. ✓  [G] iteration 5: Repair ID 格式正确 REP-0006
+  24. ✓  [G] iteration 5: domain.repair_id === Repair.id
+  25. ✓  [G] iteration 5: 新 Repair ID 未被历史占用 REP-0006
+  26. ✓  [G] iteration 6: OP-R7 已创建
+  27. ✓  [G] iteration 6: REP-N 已创建
+  28. ✓  [G] iteration 6: Repair ID 格式正确 REP-0007
+  29. ✓  [G] iteration 6: domain.repair_id === Repair.id
+  30. ✓  [G] iteration 6: 新 Repair ID 未被历史占用 REP-0007
+  31. ✓  [G] iteration 7: OP-R8 已创建
+  32. ✓  [G] iteration 7: REP-N 已创建
+  33. ✓  [G] iteration 7: Repair ID 格式正确 REP-0008
+  34. ✓  [G] iteration 7: domain.repair_id === Repair.id
+  35. ✓  [G] iteration 7: 新 Repair ID 未被历史占用 REP-0008
+  36. ✓  [G] iteration 8: OP-R9 已创建
+  37. ✓  [G] iteration 8: REP-N 已创建
+  38. ✓  [G] iteration 8: Repair ID 格式正确 REP-0009
+  39. ✓  [G] iteration 8: domain.repair_id === Repair.id
+  40. ✓  [G] iteration 8: 新 Repair ID 未被历史占用 REP-0009
+  41. ✓  [G] iteration 9: OP-R10 已创建
+  42. ✓  [G] iteration 9: REP-N 已创建
+  43. ✓  [G] iteration 9: Repair ID 格式正确 REP-0010
+  44. ✓  [G] iteration 9: domain.repair_id === Repair.id
+  45. ✓  [G] iteration 9: 新 Repair ID 未被历史占用 REP-0010
+  46. ✓  [G] iteration 10: OP-R11 已创建
+  47. ✓  [G] iteration 10: REP-N 已创建
+  48. ✓  [G] iteration 10: Repair ID 格式正确 REP-0011
+  49. ✓  [G] iteration 10: domain.repair_id === Repair.id
+  50. ✓  [G] iteration 10: 新 Repair ID 未被历史占用 REP-0011
+  51. ✓  [G] iteration 11: OP-R12 已创建
+  52. ✓  [G] iteration 11: REP-N 已创建
+  53. ✓  [G] iteration 11: Repair ID 格式正确 REP-0017
+  54. ✓  [G] iteration 11: domain.repair_id === Repair.id
+  55. ✓  [G] iteration 11: 新 Repair ID 未被历史占用 REP-0017
+  56. ✓  [G] iteration 12: OP-R13 已创建
+  57. ✓  [G] iteration 12: REP-N 已创建
+  58. ✓  [G] iteration 12: Repair ID 格式正确 REP-0018
+  59. ✓  [G] iteration 12: domain.repair_id === Repair.id
+  60. ✓  [G] iteration 12: 新 Repair ID 未被历史占用 REP-0018
+  61. ✓  [G] 12 个新 Repair IDs 均唯一，got: 12 unique of 12
+  62. ✓  [G] 无 REP-00010~19（ID 跳跃式分配），badIds: 
+  63. ✓  [G] 新 Repair IDs 不覆盖已有 REPs，conflicts: 
+
+═══════ Gate H — Production dispatcher integrity (004G P0-1) ═══════
+[H] pass=true  8/8
+  1. ✓  [H] 真实 click dispatcher 已暴露（window.__OD_CLICK_HANDLER）
+  2. ✓  [H] seed 后 OP-R1 存在
+  3. ✓  [H1] rx-confirm-info 已进入 Repair kernel（demoStage==="info_done"），got: info_done
+  4. ✓  [H2] 前置：OP-R2 已存在（reset 前）
+  5. ✓  [H2] reset 已进入 resetAll()：OP-R2 被清空
+  6. ✓  [H2] reset 已进入 resetAll()：location.hash === "#/home"，got: #/home
+  7. ✓  [H3] nav 正常执行（location.hash === "#/props"），got: #/props
+  8. ✓  [H3] toggle-lang 正常执行（lang undefined → zh）
+
+═══════ Gate I — Independent Chain Isolation (004G P0-2) ═══════
+[I] pass=true  21/21
+  1. ✓  [I] 前置：Chain A REP-A3 存在
+  2. ✓  [I] 前置：Chain A OP-A2 存在
+  3. ✓  [I] 前置：对抗性 Chain B OP-R2 存在
+  4. ✓  [I] reset 后 Chain A 根 REP-A1 保留
+  5. ✓  [I] reset 后 REP-A2 / REP-A3 已清理
+  6. ✓  [I] reset 后 OP-A-ROOT 保留（seed 根）
+  7. ✓  [I] reset 后 Chain A 后代 Operations 已清理
+  8. ✓  [I] reset 后 Chain A quote/child expenses 已清理
+  9. ✓  [I] reset 后 Chain A descendant tasks 已删除（无悬空 tzOp）
+  10. ✓  [I] Chain B Repairs 全保留
+  11. ✓  [I] Chain B 对抗性 OP-R2 保留（ID 判断已禁用）
+  12. ✓  [I] Chain B 对抗性 OP-R99 保留（ID 判断已禁用）
+  13. ✓  [I] Chain B OP-EX-B 保留
+  14. ✓  [I] Chain B EXP-B 保留
+  15. ✓  [I] Chain B tasks 保留
+  16. ✓  [I] Chain B Operations 状态完全不变
+  17. ✓  [I] Chain B Tasks 状态完全不变
+  18. ✓  [I] 0 dangling operation.domain.repair_id，got: 0
+  19. ✓  [I] 0 dangling expense.relatedRepair，got: 0
+  20. ✓  [I] 0 dangling task.tzOp，got: 0
+  21. ✓  [I] 0 dangling parent_operation_id / follow_up_of，got: 0
+
+═══════ Gate J — Real Projection Reset + dangling scan (004G P1) ═══════
+[J] pass=true  13/13
+  1. ✓  [J] seed 后 OP-R1 存在
+  2. ✓  [J] rx-reopen → OP-R2 存在
+  3. ✓  [J] rx-reopen → OP-R3 存在
+  4. ✓  [J] 真实 sync 投影已产生 OP-R2/OP-R3 descendant tasks（count=2）
+  5. ✓  [J] OP-R3 的 child settle_expense 已创建
+  6. ✓  [J] 0 dangling operation.domain.repair_id，got: 0
+  7. ✓  [J] 0 dangling expense.relatedRepair，got: 0
+  8. ✓  [J] 0 dangling task.tzOp，got: 0
+  9. ✓  [J] 0 dangling parent_operation_id / follow_up_of，got: 0
+  10. ✓  [J] reset 后 REP-0001 保留（seed）
+  11. ✓  [J] reset 后 REP-0002/0003 已清理
+  12. ✓  [J] reset 后 OP-R1 保留（seed 根）
+  13. ✓  [J] reset 后 OP-R2/OP-R3 已清理
+[Gate C] source repair id: REP-0001
+[Gate C] source unit: 1701
+[Gate C] new repair id: REP-0002
+[Gate C] new repair unit: 1701
+[Gate C] new operation id: OP-R2
+[Gate C] new operation domain.unit: 1701
+[Gate C] new operation domain.repair_id: REP-0002
+[Gate C] recurrence_of: REP-0001
+[Gate C] follow_up_of: OP-R1
+[Gate D] reset 前 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] reset 前 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate D] 3代 chain Repair IDs: REP-0001, REP-0002, REP-0003, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] 3代 chain Operation IDs: OP-A1, OP-B1, OP-R1, OP-R2, OP-R3
+[Gate D] reset 后 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] reset 后 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate D] REP-0002 removed: YES
+[Gate D] REP-0003 removed: YES
+[Gate D] OP-R2 removed: YES
+[Gate D] OP-R3 removed: YES
+[Gate E] OP-R2 close_reason: Repair verified complete · 1701 aircon fixed
+[Gate E] child op objective: settle 1701 repair quote v1 · ₱4,500
+[Gate E] expense.unit: 1701
+[Gate E] OP-R2.unit: 1701
+[Gate F] reset 前 Repair IDs: REP-0001, REP-0002, REP-0003, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 前 Operation IDs: OP-A1, OP-B1, OP-EX12, OP-EX13, OP-EX14, OP-R1, OP-R2, OP-R3
+[Gate F] reset 前 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011, EXP-0012, EXP-0013, EXP-0014
+[Gate F] reset 后 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 后 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate F] reset 后 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011
+[Gate G] generated Repair IDs: REP-0002, REP-0003, REP-0004, REP-0005, REP-0006, REP-0007, REP-0008, REP-0009, REP-0010, REP-0011, REP-0017, REP-0018
+[Gate G] generated Operation IDs: OP-R2, OP-R3, OP-R4, OP-R5, OP-R6, OP-R7, OP-R8, OP-R9, OP-R10, OP-R11, OP-R12, OP-R13
+[Gate G] total state.repairs count: 18
+
+═══════ Gate K — Regression A–J (004G) ═══════
+[K] pass=true  233/233
+  1. ✓  K: Gate A–J 全回归通过（A=37/37, B=41/41, C=9/9, D=16/16, E=12/12, F=13/13, G=63/63, H=8/8, I=21/21, J=13/13）
+
+═══════ Lease Gate A — Foundation reuse (single lifecycle engine) (005A) ═══════
+[Lease-A] pass=true  6/6
+  1. ✓  [LA] LEASE-OP-1 已创建
+  2. ✓  [LA] kind === "lease_renewal"
+  3. ✓  [LA] 初始态 WAITING_HUMAN/secretary/contact_tenant
+  4. ✓  [LA] 单操作容器（无第二套引擎）
+  5. ✓  [LA] syncOperationTasks 投影出 active human task（Generic Kernel）
+  6. ✓  [LA] 投影 task 标记 proj+tzOp（非手写 task）
+
+═══════ Lease Gate B — ≤1 active human task per lease op (005A) ═══════
+[Lease-B] pass=true  6/6
+  1. ✓  [LB] LEASE-OP-1 已创建
+  2. ✓  [LB] 初始 ≤1 active task：1
+  3. ✓  [LB] tenant renew 后 ≤1 active task：1
+  4. ✓  [LB] owner approve 后 ≤1 active task：1
+  5. ✓  [LB] VERIFYING 无 active human task：0
+  6. ✓  [LB] negotiate 后 ≤1 active task：1
+
+═══════ Lease Gate C — Tenant reply/Owner approval ≠ Lease truth (005A) ═══════
+[Lease-C] pass=true  9/9
+  1. ✓  [LC] lease 存在
+  2. ✓  [LC] tenant reply（renew Claim）后 Lease truth 未变
+  3. ✓  [LC] 未出现续租字段（未改 Lease）
+  4. ✓  [LC] Owner approval 后 Lease truth 未变
+  5. ✓  [LC] Owner 已批准（≠ renewed）
+  6. ✓  [LC] evidence 提交（VERIFYING）后 Lease truth 未变
+  7. ✓  [LC] verify → CLOSED RENEWED
+  8. ✓  [LC] 仅 verified result 更新 Lease truth
+  9. ✓  [LC] Lease truth 确实已变化
+
+═══════ Lease Gate D — Secretary task fields (Who/Unit/Action/Reason/Deadline/Expected) (005A) ═══════
+[Lease-D] pass=true  13/13
+  1. ✓  [LD] Secretary contact task 已投影
+  2. ✓  [LD] Who：assignee === "secretary"
+  3. ✓  [LD] Unit：related/object.id 指向 1608 或对应 lease_id
+  4. ✓  [LD] Action：type 为 op_*（可译）
+  5. ✓  [LD] Reason：tzTag + tzOp 存在
+  6. ✓  [LD] Deadline：due 已设置
+  7. ✓  [LD] Expected result：op.expected_result 非空
+  8. ✓  [LD] action card 含 Who
+  9. ✓  [LD] action card 含 Unit
+  10. ✓  [LD] action card 含 Action
+  11. ✓  [LD] action card 含 Reason
+  12. ✓  [LD] action card 含 Deadline
+  13. ✓  [LD] action card 含 Expected result
+
+═══════ Lease Gate E — Full happy path detect→…→Lease updated→CLOSED (005A) ═══════
+[Lease-E] pass=true  8/8
+  1. ✓  [LE] 阶段1 DETECT/CONTACT：contact_tenant
+  2. ✓  [LE] 阶段3 TENANT_RESPONSE：tenantIntent.renew
+  3. ✓  [LE] 阶段4 OWNER：approve_renewal
+  4. ✓  [LE] Owner 已批准
+  5. ✓  [LE] 阶段5 EXECUTE：complete_agreement
+  6. ✓  [LE] 阶段5→6：evidence 已提交 · VERIFYING
+  7. ✓  [LE] 阶段6→CLOSED：RENEWED
+  8. ✓  [LE] Lease 已更新（renewal_status="renewed"）
+
+═══════ Lease Gate F — Negotiation branch (same operation continues) (005A) ═══════
+[Lease-F] pass=true  5/5
+  1. ✓  [LF] 租客要求调整条款（negotiate）
+  2. ✓  [LF] → Owner 决策
+  3. ✓  [LF] 拟定租金已下调（租客协商）
+  4. ✓  [LF] 未新开 workflow（仍 1 个 lease op）
+  5. ✓  [LF] Owner 改条款后 Secretary 继续执行（同一事项）
+
+═══════ Lease Gate G — Unreachable branch (snooze/retry/escalation continuity) (005A) ═══════
+[Lease-G] pass=true  7/7
+  1. ✓  [LG] 第1次无法联系 → WAITING_EXTERNAL + retry（snooze）
+  2. ✓  [LG] 单次失败不关闭
+  3. ✓  [LG] 重试回到联系租客
+  4. ✓  [LG] 第2次无法联系
+  5. ✓  [LG] 多次无法联系 → 升级 Owner（continuity）
+  6. ✓  [LG] 升级过程不关闭
+  7. ✓  [LG] Owner 决定继续尝试（连续）
+[Gate F] reset 前 Repair IDs: REP-0001, REP-0002, REP-0003, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 前 Operation IDs: OP-A1, OP-B1, OP-EX12, OP-EX13, OP-EX14, OP-R1, OP-R2, OP-R3
+[Gate F] reset 前 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011, EXP-0012, EXP-0013, EXP-0014
+[Gate F] reset 后 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 后 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate F] reset 后 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011
+[Gate G] generated Repair IDs: REP-0002, REP-0003, REP-0004, REP-0005, REP-0006, REP-0007, REP-0008, REP-0009, REP-0010, REP-0011, REP-0017, REP-0018
+[Gate G] generated Operation IDs: OP-R2, OP-R3, OP-R4, OP-R5, OP-R6, OP-R7, OP-R8, OP-R9, OP-R10, OP-R11, OP-R12, OP-R13
+[Gate G] total state.repairs count: 18
+
+═══════ Lease Gate H — Repair/Expense/Rent regression unaffected (005A) ═══════
+[Lease-H] pass=true  6/6
+  1. ✓  [LH] Repair full cycle（Gate A）不受影响
+  2. ✓  [LH] Expense 5 路评审（Gate B）不受影响
+  3. ✓  [LH] Graph reset（Gate F）不受影响
+  4. ✓  [LH] 12 代 ID stress（Gate G）不受影响
+  5. ✓  [LH] LEASE-OP-1 与既有 ops 共存
+  6. ✓  [LH] 既有 Repair/Expense ops 仍存在
+
+═══════ Lease Gate I — Transition Matrix (lease_action kind guard + source-state matrix, 005A1 P0-1) (005A1) ═══════
+[Lease-I] pass=true  10/10
+  1. ✓  [LI/1] lx-tenant-renew → OP-R1 JSON 完全不变
+  2. ✓  [LI/1] OP-R1 关键字段未变
+  3. ✓  [LI/2] 初始 op 直接 lx-owner-approve no-op（不在 source state）
+  4. ✓  [LI/2] esc/next_actor 未变化
+  5. ✓  [LI/3] 走到 CLOSED/RENEWED
+  6. ✓  [LI/3] CLOSED 后 lx-tenant-negotiate 不变 esc/outcome/truth/intent/proposal
+  7. ✓  [LI/3] CLOSED 后 lx-owner-approve 不变 esc/outcome/truth/intent/proposal
+  8. ✓  [LI/3] CLOSED 后 lx-evidence-rejected 不变 esc/outcome/truth/intent/proposal
+  9. ✓  [LI/4] 合法 happy path 仍走通到 CLOSED/RENEWED
+  10. ✓  [LI/4] 合法 happy path Lease 已更新
+
+═══════ Lease Gate J — 12-month calendar truth (leaseEndFromStart, 005A1 P0-2) (005A1) ═══════
+[Lease-J] pass=true  15/15
+  1. ✓  [LJ/1] addCalendarMonths(2026-09-30, 12) === 2027-09-30
+  2. ✓  [LJ/1] lease.start 2026-10-01 +12mo === 2027-10-01
+  3. ✓  [LJ/1] 2027-02-28 +12mo === 2028-02-28（day 保留，clamp to 28day month）
+  4. ✓  [LJ/1] 2026-01-31 +1mo（clamp 到 Feb 28）
+  5. ✓  [LJ/1] leaseEndFromStart(2026-10-01, 12) === 2027-09-30
+  6. ✓  [LJ/1] leaseEndFromStart(2027-03-01, 12) === 2028-02-29（跨闰年闰日：start day=1 → 加 12mo → 2028-03-01 → -1 day → 2028-02-29）
+  7. ✓  [LJ/2] sample proposal.proposed_start === 2026-10-01
+  8. ✓  [LJ/2] sample proposal.proposed_end === 2027-09-30
+  9. ✓  [LJ/2] term_months === 12
+  10. ✓  [LJ/3] expiry 2027-02-28 +1d → 2027-03-01
+  11. ✓  [LJ/3] addCalendarMonths(2027-03-01,12) === 2028-03-01
+  12. ✓  [LJ/3] expiry 2027-02-28 + 12mo end === 2028-02-29（跨闰年）
+  13. ✓  [LJ/4] proposal 仍是 2026-10-01..2027-09-30
+  14. ✓  [LJ/4] lease.new_start_date === proposal.proposed_start
+  15. ✓  [LJ/4] lease.new_end_date === proposal.proposed_end（无 +366 误差）
+
+═══════ Lease Gate K — Owner real terms change (terms_before≠terms_after, 005A1 P1) (005A1) ═══════
+[Lease-K] pass=true  8/8
+  1. ✓  [LK] 至少 rent 改变（30000 → 31000）
+  2. ✓  [LK] 至少一个 business 字段真变化（rent/start/end/term）
+  3. ✓  [LK] termsHistory 已记录
+  4. ✓  [LK] termsHistory 含 terms_before + terms_after
+  5. ✓  [LK] changed_by=Owner + changed_at 已记
+  6. ✓  [LK] proposal.end === leaseEndFromStart（calendar helper，非 +366）
+  7. ✓  [LK] change 后仍由 Secretary 在同一 op 内继续 complete_agreement
+  8. ✓  [LK] 同一 op 继续（未新开 lease_renewal workflow）
+
+═══════ Lease Gate L — Rejected Evidence Cannot Resurrect (005A2 P0) (005A2) ═══════
+[Lease-L] pass=true  15/15
+  1. ✓  [LL/1] submit AE-1 status=available
+  2. ✓  [LL/2] AE-1.status === rejected（被真实翻转）
+  3. ✓  [LL/2] AE-1 含 rejected_at + rejected_by + rejection_reason
+  4. ✓  [LL/2] Operation 回到 secretary / complete_agreement
+  5. ✓  [LL/2] 不创建任何 AE-R* fake evidence
+  6. ✓  [LL/3] 重新提交后进入 VERIFYING
+  7. ✓  [LL/3] AE-2 是新 ID 且 status=available
+  8. ✓  [LL/3] AE-1 仍为 rejected（未被覆盖）
+  9. ✓  [LL/4] 最新 verify result outcome=success
+  10. ✓  [LL/4] Verified Result.evidence_ids 含 newEvidence.id AE-2
+  11. ✓  [LL/4] Verified Result.evidence_ids 不含 AE-1（rejected 不可复活）
+  12. ✓  [LL/4] AE-1 终态仍为 rejected
+  13. ✓  [LL/4] AE-2 终态为 verified
+  14. ✓  [LL/5] Lease 正常 RENEWED
+  15. ✓  [LL/5] Lease.new_end_date=2027-09-30
+
+═══════ Lease Gate M — Calendar Month Clamp + Verified Lease truth (005A2 P1) (005A2) ═══════
+[Lease-M] pass=true  6/6
+  1. ✓  [LM/1] clamp: 2026-01-31 +1mo → 2026-02-28
+  2. ✓  [LM/1] clamp: 2028-01-31 +1mo → 2028-02-29（闰年）
+  3. ✓  [LM/1] clamp: 2026-03-31 +1mo → 2026-04-30
+  4. ✓  [LM/2] 1608 proposal: 2026-10-01..2027-09-30
+  5. ✓  [LM/2] Verified Lease truth === proposal.proposed_end
+  6. ✓  [LM/2] Verified Lease.new_end_date === 2027-09-30（非 +366 误差）
+
+═══════ Move-out Gate A — Foundation reuse (single lifecycle engine) (005B) ═══════
+[Moveout-A] pass=true  8/8
+  1. ✓  [MA] MOVEOUT-OP-1 已创建
+  2. ✓  [MA] kind === "move_out"
+  3. ✓  [MA] 初始态 WAITING_HUMAN/secretary/confirm_moveout_date
+  4. ✓  [MA] syncOperationTasks 投影出 active human task（Generic Kernel）
+  5. ✓  [MA] 投影 task 标记 proj+tzOp（不手写）
+  6. ✓  [MA] opProjTypeFor 可解析
+  7. ✓  [MA] 投影类型属于 Move-out task types
+  8. ✓  [MA] Domain Adapter recalcMoveOutSettlement 可用 · refund ≥ 0
+
+═══════ Move-out Gate B — Lease Renewal NOT_RENEW → Move-out continuity (005B) ═══════
+[Moveout-B] pass=true  8/8
+  1. ✓  [MB] LEASE-OP-1 CLOSED/NOT_RENEWED
+  2. ✓  [MB] lx-tenant-notrenew 后 MOVEOUT-OP-1 自动创建
+  3. ✓  [MB] domain.follow_up_of === LEASE-OP-1
+  4. ✓  [MB] MOVEOUT-OP-1 与 LEASE-OP-1 共用同一 lease_id
+  5. ✓  [MB] tenant 一致
+  6. ✓  [MB] unit 一致
+  7. ✓  [MB] op.follow_up_of === LEASE-OP-1
+  8. ✓  [MB/2] lease ending 也触发 MOVEOUT-OP-1
+
+═══════ Move-out Gate C — Active human task invariant (≤1) per phase (005B) ═══════
+[Moveout-C] pass=true  11/11
+  1. ✓  [MC] 初始 ≤1 active task: 1
+  2. ✓  [MC] 阶段 1 ≤1 active task: 1
+  3. ✓  [MC] 阶段 2 ≤1 active task: 0
+  4. ✓  [MC] 阶段 3 ≤1 active task: 0
+  5. ✓  [MC] 阶段 4 ≤1 active task: 1
+  6. ✓  [MC] 阶段 5 ≤1 active task: 0
+  7. ✓  [MC] 阶段 6 ≤1 active task: 0
+  8. ✓  [MC] 阶段 7 ≤1 active task: 1
+  9. ✓  [MC] 阶段 8 ≤1 active task: 1
+  10. ✓  [MC] 阶段 9 ≤1 active task: 0
+  11. ✓  [MC] 阶段 10 ≤1 active task: 0
+
+═══════ Move-out Gate D — Inspection truth (submit / reject / verify) (005B) ═══════
+[Moveout-D] pass=true  9/9
+  1. ✓  [MD] submit 后进入 VERIFYING（未核验）
+  2. ✓  [MD] INSP-1 status=available（待核验）
+  3. ✓  [MD] submit 默认 Findings 已记录
+  4. ✓  [MD] reject 翻转 INSP-1→rejected
+  5. ✓  [MD] reject 后回 secretary/submit_inspection_evidence
+  6. ✓  [MD] INSP-2 新 ID 且 status=available
+  7. ✓  [MD] INSP-1 仍 rejected（无 reopen 机制）
+  8. ✓  [MD] Verify Result 只含 INSP-2（不含 INSP-1）
+  9. ✓  [MD] 终态：INSP-1 rejected / INSP-2 verified
+
+═══════ Move-out Gate E — Settlement math (Case 1 refund / Case 2 tenant owes / Case 3 zero + Attack 7) (005B) ═══════
+[Moveout-E] pass=false  7/13
+  1. ✓  [ME/1] deposit=60000
+  2. ✗  [ME/1] unpaid_rent=30000（来自 R-2026-07-1608 真 truth）
+  3. ✓  [ME/1] utilities=4000（来自 EXP-ELEC-1608 真 truth）
+  4. ✓  [ME/1] tenant_damage=8000（来自 INSP-1 verified finding）
+  5. ✗  [ME/1] total_deductions=42000
+  6. ✗  [ME/1] refund=18000
+  7. ✗  [ME/1] tenant_balance_due=0
+  8. ✓  [ME/2] deduction 75k > deposit 60k → refund=0（无负）
+  9. ✓  [ME/2] tenant_balance_due=15000
+  10. ✗  [ME/3] total_deductions=0
+  11. ✗  [ME/3] refund=60000
+  12. ✓  [ME/3] tenant_balance_due=0
+  13. ✓  [ME/Attack-7] refund 永远非负
+
+═══════ Move-out Gate F — Owner Approval ≠ Settlement (005B) ═══════
+[Moveout-F] pass=true  5/5
+  1. ✓  [MF] approve 后 lease.status !== "closed"
+  2. ✓  [MF] approve 后 unit 未 vacant（仍 occupied）
+  3. ✓  [MF] approve 后 deposit 仍未 settled
+  4. ✓  [MF] approve 后 op 未 CLOSED
+  5. ✓  [MF] 仅 settlement.approved=true（≠ 已结算）
+
+═══════ Move-out Gate G — Evidence rejection integrity (Attack 4) (005B) ═══════
+[Moveout-G] pass=true  8/8
+  1. ✓  [MG] submit SE-1 status=available
+  2. ✓  [MG] reject 翻转 SE-1.status=rejected
+  3. ✓  [MG] reject 后回 secretary
+  4. ✓  [MG] SE-2 新 ID + status=available
+  5. ✓  [MG] SE-1 仍 rejected（不可复活）
+  6. ✓  [MG] 不创建 SE-R* fake evidence
+  7. ✓  [MG] Verify Result 只含 SE-2（不含 SE-1）
+  8. ✓  [MG] 终态：SE-2 verified / SE-1 rejected
+
+═══════ Move-out Gate H — Verified Result Controls Vacancy Truth (005B) ═══════
+[Moveout-H] pass=true  18/18
+  1. ✓  [MH/1] lease.status !== closed 且 deposit 未 settled
+  2. ✓  [MH/1] unit 仍 OCCUPIED（未 vacant）
+  3. ✓  [MH/2] lease.status !== closed 且 deposit 未 settled
+  4. ✓  [MH/2] unit 仍 OCCUPIED（未 vacant）
+  5. ✓  [MH/3] lease.status !== closed 且 deposit 未 settled
+  6. ✓  [MH/3] unit 仍 OCCUPIED（未 vacant）
+  7. ✓  [MH/4] lease.status !== closed 且 deposit 未 settled
+  8. ✓  [MH/4] unit 仍 OCCUPIED（未 vacant）
+  9. ✓  [MH/5] lease.status !== closed 且 deposit 未 settled
+  10. ✓  [MH/5] unit 仍 OCCUPIED（未 vacant）
+  11. ✓  [MH/6] lease.status !== closed 且 deposit 未 settled
+  12. ✓  [MH/6] unit 仍 OCCUPIED（未 vacant）
+  13. ✓  [MH/7] lease.status !== closed 且 deposit 未 settled
+  14. ✓  [MH/7] unit 仍 OCCUPIED（未 vacant）
+  15. ✓  [MH/final] lease.status=closed/tenant_moved_out
+  16. ✓  [MH/final] deposit_status=settled
+  17. ✓  [MH/final] unit.tenant=null · status=vacant
+  18. ✓  [MH/final] op CLOSED/MOVED_OUT
+
+═══════ Move-out Gate I — Owner change settlement + full change→approve→execute→verify persistence (005B1) (005B) ═══════
+[Moveout-I] pass=false  11/20
+  1. ✓  [MI] 系统 damage 起始 = 8000（来自 verified INSP-1）
+  2. ✓  [MI] owner_adjustments 已记录 entry
+  3. ✓  [MI] settlementHistory 已记录
+  4. ✓  [MI] terms_before + terms_after + changed_by=Owner + changed_at
+  5. ✓  [MI] Owner change 不动 finding truth：calculated tenant_damage 仍 = 8000
+  6. ✓  [MI] owner_adjustment_total = 1000
+  7. ✗  [MI] live total = 42000 + 1000 = 43000
+  8. ✗  [MI] live refund = 60000 - 43000 = 17000
+  9. ✓  [MI] change 后仍 owner review（同一事项继续）
+  10. ✓  [MI] approve 后 approved=true
+  11. ✗  [MI] approved_snapshot 固化 final 总扣 43000 / refund 17000
+  12. ✗  [MI] approved_snapshot balance = 0
+  13. ✗  [MI] claim amount = 17000（来自 snapshot，不可 recalc）
+  14. ✓  [MI] claim 锁定 snapshot approved_at
+  15. ✗  [MI] SE-1 amount = 17000（来自 approved snapshot，不变）
+  16. ✗  [MI] 后续 approve 不再重算 refund（不出现 +1000 calc 回滚到 8000）
+  17. ✓  [MI] final verify CLOSED
+  18. ✗  [MI] Verified Result.approved_settlement 携带 snapshot（refund=17000 不变）
+  19. ✓  [MI] Lease close_reason tenant_moved_out
+  20. ✗  [MI] Operation close_reason 包含 ₱17,000
+
+═══════ Move-out Gate J — Transition Matrix / Replay Safety (Attack 1 / 2 / 3 / 5) (005B) ═══════
+[Moveout-J] pass=true  5/5
+  1. ✓  [MJ/Attack-1] mo-owner-approve → Repair op JSON 完全不变
+  2. ✓  [MJ/Attack-2] 初始态 mo-owner-approve no-op
+  3. ✓  [MJ/Attack-3] 无 evidence 时 mo-verify-settlement no-op
+  4. ✓  [MJ] happy path 后 op CLOSED
+  5. ✓  [MJ/Attack-5] CLOSED 后重放所有 mo-* 全 no-op · lease/property/op 终态完全不变
+
+═══════ Move-out Gate K — Child Operation Isolation with real Repair/Expense truth (Attack 6 · 005B1) (005B) ═══════
+[Moveout-K] pass=true  14/14
+  1. ✓  [MK] child Repair op 已挂 parent=MOVEOUT-OP-1
+  2. ✓  [MK/P1] opRepair(child) 返回真实 Repair truth
+  3. ✓  [MK/P1] child.domain.repair_id 解析到 REP-MOVE-DAMAGE
+  4. ✓  [MK/P1] child settle_expense op 已挂 parent
+  5. ✓  [MK/P1] opExpense(child) 返回真实 Expense truth
+  6. ✓  [MK/P1] child.domain.expense_id 解析到 EXP-0013
+  7. ✓  [MK] parent active ≤1（含两个 child 同时刻）
+  8. ✓  [MK] child Repair 有自己的 active 任务
+  9. ✓  [MK] child Expense 有自己的 active 任务
+  10. ✓  [MK] parent CLOSED/MOVED_OUT
+  11. ✓  [MK] child Repair 不被 parent close 删除
+  12. ✓  [MK/P1] child Expense 不被 parent close 删除
+  13. ✓  [MK/Attack-6] Chain A close 不污染 OP-R1
+  14. ✓  [MK/Attack-6] Chain A close 不污染 OP-B1
+
+═══════ Move-out Gate L — Complete Happy Path (→ CLOSED/MOVED_OUT) (005B) ═══════
+[Moveout-L] pass=false  6/7
+  1. ✓  [ML] 全流程收尾：op CLOSED/MOVED_OUT
+  2. ✓  [ML] Lease.status=closed/tenant_moved_out
+  3. ✓  [ML] Deposit SETTLED
+  4. ✓  [ML] Unit VACANT
+  5. ✗  [ML] 1608 refund=18000（Case 1 spec）
+  6. ✓  [ML] Inspection evidence verified
+  7. ✓  [ML] Settlement evidence verified
+
+═══════ Move-out Gate M — Damage / Deduction Path (verified evidence-backed · 005B1) (005B) ═══════
+[Moveout-M] pass=true  6/6
+  1. ✓  [MM] tenant_damage finding 8000 (chargeable=true)
+  2. ✓  [MM] damage finding 关联 evidence
+  3. ✓  [MM] normal_wear finding (chargeable=false)
+  4. ✓  [MM] verify 后 damage=8000 进入 deductions
+  5. ✓  [MM] final truth：Lease closed + deposit settled
+  6. ✓  [MM] final truth：tenant cleared
+
+═══════ Move-out Gate N — Outstanding Rent Integration (real rent truth) (005B) ═══════
+[Moveout-N] pass=false  2/4
+  1. ✗  [MN] unpaid_rent 直接来自 R-2026-07-1608.amount（无伪造）
+  2. ✗  [MN] 修改真实 rent 后重算跟随
+  3. ✓  [MN] 不修改真实 rent.payments 历史（只读 truth）
+  4. ✓  [MN] 不凭空生成 fake rent balance
+
+═══════ Move-out Gate O — Global Dangling Reference Scan (005B) ═══════
+[Moveout-O] pass=true  9/9
+  1. ✓  [MO] 0 dangling operation.domain.lease_id, got: 0
+  2. ✓  [MO] 0 dangling operation.domain.repair_id, got: 0
+  3. ✓  [MO] 0 dangling operation.domain.expense_id, got: 0
+  4. ✓  [MO] 0 dangling operation.domain.unit, got: 0
+  5. ✓  [MO] 0 dangling parent_operation_id, got: 0
+  6. ✓  [MO] 0 dangling follow_up_of, got: 0
+  7. ✓  [MO] 0 dangling task.tzOp, got: 0
+  8. ✓  [MO] 0 dangling task.object.id, got: 0
+  9. ✓  [MO] happy path 仍然 CLOSED
+[Gate C] source repair id: REP-0001
+[Gate C] source unit: 1701
+[Gate C] new repair id: REP-0002
+[Gate C] new repair unit: 1701
+[Gate C] new operation id: OP-R2
+[Gate C] new operation domain.unit: 1701
+[Gate C] new operation domain.repair_id: REP-0002
+[Gate C] recurrence_of: REP-0001
+[Gate C] follow_up_of: OP-R1
+[Gate D] reset 前 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] reset 前 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate D] 3代 chain Repair IDs: REP-0001, REP-0002, REP-0003, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] 3代 chain Operation IDs: OP-A1, OP-B1, OP-R1, OP-R2, OP-R3
+[Gate D] reset 后 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate D] reset 后 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate D] REP-0002 removed: YES
+[Gate D] REP-0003 removed: YES
+[Gate D] OP-R2 removed: YES
+[Gate D] OP-R3 removed: YES
+[Gate E] OP-R2 close_reason: Repair verified complete · 1701 aircon fixed
+[Gate E] child op objective: settle 1701 repair quote v1 · ₱4,500
+[Gate E] expense.unit: 1701
+[Gate E] OP-R2.unit: 1701
+[Gate F] reset 前 Repair IDs: REP-0001, REP-0002, REP-0003, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 前 Operation IDs: OP-A1, OP-B1, OP-EX12, OP-EX13, OP-EX14, OP-R1, OP-R2, OP-R3
+[Gate F] reset 前 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011, EXP-0012, EXP-0013, EXP-0014
+[Gate F] reset 后 Repair IDs: REP-0001, REP-0012, REP-0013, REP-0014, REP-0015, REP-0016
+[Gate F] reset 后 Operation IDs: OP-A1, OP-B1, OP-R1
+[Gate F] reset 后 Expense IDs: EXP-0006, EXP-0007, EXP-0008, EXP-0009, EXP-0010, EXP-0011
+[Gate G] generated Repair IDs: REP-0002, REP-0003, REP-0004, REP-0005, REP-0006, REP-0007, REP-0008, REP-0009, REP-0010, REP-0011, REP-0017, REP-0018
+[Gate G] generated Operation IDs: OP-R2, OP-R3, OP-R4, OP-R5, OP-R6, OP-R7, OP-R8, OP-R9, OP-R10, OP-R11, OP-R12, OP-R13
+[Gate G] total state.repairs count: 18
+
+═══════ Move-out Gate P — Aggregate Regression (A–O + Q/R/S/T + U/V/W + 004G K + 005A2 M) (005B) ═══════
+[Moveout-P] pass=false  428/453
+  1. ✗  P: Move-out A–W + 004G K + 005A2 M（A=8/8, B=8/8, C=11/11, D=9/9, E=7/13, F=5/5, G=8/8, H=18/18, I=11/20, J=5/5, K=14/14, L=6/7, M=6/6, N=2/4, O=9/9, Q=7/7, R=0/7, S=6/6, T=9/9, U=11/11, V=13/13, W=16/16, coreK_004G=233/233, leaseM_005A2=6/6）
+
+═══════ Move-out Gate Q — Rejected Inspection Evidence Cannot Affect Money (005B1 P0-1) (005B1) ═══════
+[Moveout-Q] pass=true  7/7
+  1. ✓  [LQ/1] INSP-1 created available
+  2. ✓  [LQ/2] INSP-1 rejected
+  3. ✓  [LQ/2] INSP-2 created available
+  4. ✓  [LQ/3] INSP-2 verified
+  5. ✓  [LQ/4] rejected evidence 支撑的 finding 不入 financial deduction（damage=0）
+  6. ✓  [LQ/4] settlement.calculated_deductions.tenant_damage = 0
+  7. ✓  [LQ/5] re-link 到 verified INSP-2 后 damage=8000 恢复
+
+═══════ Move-out Gate R — Owner Approved Change Persistence (change→approve→execute→verify · 005B1 P0-2) (005B1) ═══════
+[Moveout-R] pass=false  0/7
+  1. ✗  [LR/0] base refund=18000
+  2. ✗  [LR/1] owner change 后 live refund=17000
+  3. ✗  [LR/2] approved_snapshot.refund_amount = 17000
+  4. ✗  [LR/3] claim.amount=17000（来自 snapshot，不可 recalc）
+  5. ✗  [LR/4] SE-1.amount=17000（来自 approved snapshot，不变）
+  6. ✗  [LR/5] op.close_reason 包含 ₱17,000（来自 snapshot）
+  7. ✗  [LR/5] Verified Result.approved_settlement.refund_amount=17000
+
+═══════ Move-out Gate S — Cross-Lease Financial Isolation (utilities per lease_id · 005B1 P0-3) (005B1) ═══════
+[Moveout-S] pass=true  6/6
+  1. ✓  [LS/1] current lease 存在
+  2. ✓  [LS/2] utility = 4000（仅 EXP-ELEC-1608 lease_id match LS-CURRENT），其他历史/无 lease_id Expenses 排除
+  3. ✓  [LS/2] utility 不应 = 11777（不能把 LS-OLD 历史也加进来）
+  4. ✓  [LS/2] utility 不应 = 4555（不能把 orphan 无 lease_id 也算进来）
+  5. ✓  [LS/3] settlement.calculated_deductions.utilities = 4000（recalc 后）
+  6. ✓  [LS/4] approved_snapshot.utilities 仍 = 4000（LS-OLD 历史 + orphan 不影响）
+
+═══════ Move-out Gate T — Child Truth Integrity (real Repair + real Expense + 0 dangling · 005B1 P1) (005B1) ═══════
+[Moveout-T] pass=true  9/9
+  1. ✓  [LT/1] real Repair truth exists（child opRepair 非空）
+  2. ✓  [LT/1] real Expense truth exists（child opExpense 非空）
+  3. ✓  [LT/2] expManagedOp(real expense) === child Expense Operation（用现有 Expense kernel）
+  4. ✓  [LT/3] 0 dangling child.domain.repair_id, got: 0
+  5. ✓  [LT/3] 0 dangling child.domain.expense_id, got: 0
+  6. ✓  [LT/3] 0 dangling parent_operation_id, got: 0
+  7. ✓  [LT/3] 0 dangling task.tzOp（含 child 任务）, got: 0
+  8. ✓  [LT/4] parent CLOSED，child 仍存在
+  9. ✓  [LT/4] child Repair + Expense 不被 parent close 删除
+
+═══════ Move-out Gate U — Default Lease → Move-out continuity backfill + idempotent + conflict reject (005B2 P0-1) (005B2) ═══════
+[Moveout-U] pass=true  11/11
+  1. ✓  [LU/1] 默认 state MOVEOUT-OP-1.follow_up_of === null
+  2. ✓  [LU/1] 默认 state MOVEOUT-OP-1.domain.follow_up_of === null
+  3. ✓  [LU/1] LEASE-OP-1 存在
+  4. ✓  [LU/2] LEASE-OP-1 CLOSED/NOT_RENEWED
+  5. ✓  [LU/3] continuity backfill: op.follow_up_of === LEASE-OP-1
+  6. ✓  [LU/3] domain.follow_up_of === LEASE-OP-1
+  7. ✓  [LU/4] 不得 duplicate move_out（仍 = 1）
+  8. ✓  [LU/5] timeline 含 continuity backfill 记录
+  9. ✓  [LU/6] 同 source 再调用 → 幂等 no-op（tl 不增）
+  10. ✓  [LU/7] 异 source 调用不静默覆盖（仍 = LEASE-OP-1）
+  11. ✓  [LU/7] continuity_conflict.attempted 已记录
+
+═══════ Move-out Gate V — Temporal truth: cannot vacate before moveout_date; truth date = moveout_date (005B2 P0-2) (005B2) ═══════
+[Moveout-V] pass=true  13/13
+  1. ✓  [LV/1] arrange → WAITING_EXTERNAL/wait_inspection_date
+  2. ✓  [LV/2] 早于 moveout_date submit-inspection no-op（不写 evidence）
+  3. ✓  [LV/2] esc 仍 WAITING_EXTERNAL
+  4. ✓  [LV/2] verify-inspection 在 WAITING_EXTERNAL 下 no-op
+  5. ✓  [LV/3] 未到验房日 mo-inspection-due no-op
+  6. ✓  [LV/4] mo-inspection-due 推进到 WAITING_HUMAN/submit
+  7. ✓  [LV/5] lease.closed_at === moveout_date（2026-09-30），不使用早于真实搬出日期的 TODAY
+  8. ✓  [LV/5] lease.settled_at === 2026-09-30
+  9. ✓  [LV/5] property.move_out_at === 2026-09-30
+  10. ✓  [LV/5] tenant.moved_out_at === 2026-09-30
+  11. ✓  [LV/5] op CLOSED/MOVED_OUT
+  12. ✓  [LV/5] op.closed_at === 2026-09-30
+  13. ✓  [LV/6] truth date 为 moveout_date，不被 simdate 污染
+
+═══════ Move-out Gate W — Collection truth: partial verified → op refuses CLOSE; remaining_tenant_balance tracking (005B2 P0-3) (005B2) ═══════
+[Moveout-W] pass=true  16/16
+  1. ✓  [LW/1] claim kind=collection
+  2. ✓  [LW/1] claim amount = balance_due 2000
+  3. ✓  [LW/1] SE amount = 2000（来自 snapshot claim）
+  4. ✓  [LW/1] verified 2000/2000 → op CLOSED/MOVED_OUT
+  5. ✓  [LW/1] verified_collection_amount=2000 · remaining_tenant_balance=0
+  6. ✓  [LW/1] close_reason 不含 "still owes"
+  7. ✓  [LW/1] close_reason 含 "已收齐 / collected"
+  8. ✓  [LW/1] verified result.verified_collection=2000
+  9. ✓  [LW/2] verified 10000<15000 时 op 回到 secretary/submit（不 CLOSED）
+  10. ✓  [LW/2] verified=10000 · remaining=5000
+  11. ✓  [LW/2] Lease 未 closed（partial）
+  12. ✓  [LW/2] Unit 未 vacant（partial）
+  13. ✓  [LW/3] 补足 5000 + verify → op CLOSED/MOVED_OUT
+  14. ✓  [LW/3] full verified 15000 · remaining 0
+  15. ✓  [LW/3] Lease closed 后 (满额)
+  16. ✓  [LW/3] Unit vacant (满额)
+
+═══════ Bootstrap-007A Gate (007A1 · NO_WORKSPACE / Team / Invite / Binding / Switch / No-ID) ═══════
+[Bootstrap-007A] pass=true  28/28
+  1. ✓  [BS1] 新用户状态 = NO_WORKSPACE（none · 0 active owners）
+  2. ✓  [BS1] 创建后 ACTIVE_OWNER = 1（ACTIVE_OWNER 态）
+  3. ✓  [BS1] First Owner 已绑定（owner/active）
+  4. ✓  [BS2] Secretary 视角 wsCanInvite() === false（action 层 guard）
+  5. ✓  [BS2] Secretary 调用 wsTryGenerateInvite → 拒绝
+  6. ✓  [BS2] 未产生任何新邀请（UI + action 双层 guard）
+  7. ✓  [BS3] Secretary 调用 wsTryRemoveMember → 拒绝
+  8. ✓  [BS3] 成员状态未被改动
+  9. ✓  [BS4] 第二位 Owner 接受邀请 → active owners = 2
+  10. ✓  [BS5] 唯一 Owner 不可被移除（Last Owner 保护）
+  11. ✓  [BS5] Active Owners 仍 = 1
+  12. ✓  [BS6] 唯一 Owner 不可 Leave（Last Owner 保护）
+  13. ✓  [BS7] 前置：两位 Active Owner
+  14. ✓  [BS7] 两位 Owner 时移除其一 → 成功且剩 1 位
+  15. ✓  [BS8] 邀请只能接受一次（第二次拒绝）
+  16. ✓  [BS8] invite.status === ACCEPTED（一次性已使用）
+  17. ✓  [BS8] 成员保持 active（未被二次操作改动）
+  18. ✓  [BS9] 成员状态 = removed
+  19. ✓  [BS9] removed 成员不在 active members（无访问）
+  20. ✓  [BS9] removedAt 已记录（历史保留）
+  21. ✓  [BS10] connect context 已从当前 Merchant 生成
+  22. ✓  [BS10] 用 A 公司的 connect context 绑定到 B 公司 → 拒绝（不跨 Merchant）
+  23. ✓  [BS10] 拒绝后当前 workspace 未标记已连接（未篡改）
+  24. ✓  [BS11] 切换后 current workspace.name 改变
+  25. ✓  [BS11] 切换后 Team 成员随新 workspace 改变
+  26. ✓  [BS11] 原 workspace 进入 otherWorkspaces（可切回）
+  27. ✓  [BS12] 关键 view 不渲染 chat_id / telegram user id / merchant_id / bot token
+  28. ✓  [BS12] Team 页面不渲染疑似 numeric Telegram ID
+
+═══════ Bootstrap-007A2 Gate (007A2 · Authority & Membership Truth) ═══════
+[Bootstrap-007A2] pass=true  32/32
+  1. ✓  [A2-1] preflight remove 通过（允许弹确认）
+  2. ✓  [A2-1] preflight 后 Membership / timeline 零变化（非破坏）
+  3. ✓  [A2-1] Confirm 后 exactly-one mutation（status=removed）
+  4. ✓  [A2-1] Confirm 后 exactly-one audit event（tl +1）
+  5. ✓  [A2-2] 伪造 meta.role=owner 不提升权限（authority 来自 Membership）
+  6. ✓  [A2-2] Membership=secretary 时 invite 被拒
+  7. ✓  [A2-3] remove 成功（owner 操作）
+  8. ✓  [A2-3] removed membership → wsHasAccess()===false
+  9. ✓  [A2-3] render 拦截条件成立（Access Removed 出口）
+  10. ✓  [A2-3] removed 成员不能执行 business action（remove 被拒）
+  11. ✓  [A2-4] Secretary 不能 Leave 其他 Secretary（self-only）
+  12. ✓  [A2-4] Secretary 不能 Leave Owner（forged action 拒绝）
+  13. ✓  [A2-4] 自己的 Membership 可以 Leave
+  14. ✓  [A2-5] A 公司：u-lin = Owner → 可管理
+  15. ✓  [A2-5] 切到 B 公司：u-lin = Secretary（角色隔离）
+  16. ✓  [A2-5] B 公司权限为 Secretary，不继承 A 的 Owner
+  17. ✓  [A2-6] A → B → A 完整恢复（members/role/setup/group 全等，非 count 降级）
+  18. ✓  [A2-6] round-trip 后 Team / authority 不 crash
+  19. ✓  [A2-6] round-trip 后权限恢复（owner）
+  20. ✓  [A2-7] Resend 创建 NEW token + NEW link
+  21. ✓  [A2-7] 旧 invitation 保持 REVOKED（不复活）
+  22. ✓  [A2-7] 新 invite 为 PENDING，member 仍 invited
+  23. ✓  [A2-7] Accept 绑定用户不匹配 → 拒绝（不能按 membership id 任意激活）
+  24. ✓  [A2-7] 正确 user accept → ACCEPTED + acceptedBy 记录
+  25. ✓  [A2-7] Secretary 不能 Revoke（Owner-only mutation）
+  26. ✓  [A2-7] Secretary 不能 Regenerate（Owner-only mutation）
+  27. ✓  [A2-8] bind 时非 Owner → 拒绝（final authority 复检）
+  28. ✓  [A2-8] Owner bind → 成功
+  29. ✓  [A2-8] context exactly-once consumed — 二次 bind 拒绝
+  30. ✓  [A2-9] READY 状态再次 create → reject
+  31. ✓  [A2-9] reject 后 zero mutation
+  32. ✓  [A2-9] First Owner role 来自新 Membership（即使 meta.role=secretary）
+
+═══════ Bootstrap-007A3 Gate (007A3 · Invite Identity & Action Authority) ═══════
+[Bootstrap-007A3] pass=true  20/20
+  1. ✓  [A3-1] 普通邀请：Membership.userId=null · forUserId=null · Invite=PENDING
+  2. ✓  [A3-1] 普通邀请 membership.status=invited
+  3. ✓  [A3-1] Accept 原子执行：绑定 user + active + ACCEPTED + acceptedBy
+  4. ✓  [A3-1] 特殊邀请接受者不匹配 → 拒绝
+  5. ✓  [A3-1] 特殊邀请匹配接受者 → 绑定成功
+  6. ✓  [A3-2] PENDING → REVOKED
+  7. ✓  [A3-2] REVOKED terminal — Accept 拒绝
+  8. ✓  [A3-2] PENDING → ACCEPTED（member active）
+  9. ✓  [A3-2] ACCEPTED / active membership 调 Regenerate → reject
+  10. ✓  [A3-2] reject 后 zero mutation（不得把 Active member 改回 invited）
+  11. ✓  [A3-2] PENDING 主动替换 → NEW token + NEW attempt id
+  12. ✓  [A3-3] invite 有 expiresAt
+  13. ✓  [A3-3] now >= expiresAt && PENDING → EXPIRED + expiredAt
+  14. ✓  [A3-3] EXPIRED Accept → reject
+  15. ✓  [A3-3] Regenerate EXPIRED → 全新 PENDING attempt
+  16. ✓  [A3-3] 旧 EXPIRED 永久保留在 history（不复活）
+  17. ✓  [A3-4] removed 成员 5 类 forged business mutation → zero mutation（统一 dispatcher guard）
+  18. ✓  [A3-4] wsRequireAccess() 对 inactive membership 返回 false
+  19. ✓  [A3-4] active owner wsRequireAccess() === true（不误伤）
+  20. ✓  [A3-4] WS_ACCESS_ACTIONS 覆盖 payment/property/tenant/rent/expense/repair/task/media/team/group 各类别
+
+═══════ Telegram Exact Menu Truth Gate (006A2 Source of Truth sync) ═══════
+[TelegramExactMenuTruth] pass=true  11/11
+  1. ✓  found 2 .menu-grid instances (data-od-id=bot-fixed-menu*) in pasay-telegram-bot.html
+  2. ✓  menu instance 1 button_count = 6
+  3. ✓  menu instance 1 exact order [Home / Properties / Tasks / Rent / Expense / Archive]
+  4. ✓  menu instance 1 no forbidden current-truth labels (no Collections/Expenses/Finance)
+  5. ✓  menu instance 2 button_count = 6
+  6. ✓  menu instance 2 exact order [Home / Properties / Tasks / Rent / Expense / Archive]
+  7. ✓  menu instance 2 no forbidden current-truth labels (no Collections/Expenses/Finance)
+  8. ✓  global: scanned 1 .menu-grid grid-template-columns declaration(s) across the whole <style> block (balanced-brace)
+  9. ✓  .menu-grid column declaration #1 = "repeat(3, minmax(0, 1fr))" (repeat(3, ...) — exactly 3 columns)
+  10. ✓  mobile: scanned 1 @media(max-width:560px) block(s) with balanced-brace parsing (not just the first match)
+  11. ✓  mobile: found 0 .menu-grid grid-template-columns overrides in all mobile media blocks — mobile inherits desktop 3 columns
+
+─────── Telegram Exact Menu Truth Gate · SELF-TEST (in-memory, no file mutation) ───────
+  ✓ negative A: Rent → Collections · gate correctly failed (2 failing assertions)
+  ✓ negative B: Archive → Finance · gate correctly failed (2 failing assertions)
+  ✓ negative C: button_count = 5 (deleted Archive) · gate correctly failed (2 failing assertions)
+  ✓ negative D: mobile repeat(2, 1fr) · gate correctly failed (2 failing assertions)
+  ✓ negative E: mobile repeat(4, 1fr) · gate correctly failed (2 failing assertions — 4-column loophole closed)
+  ✓ negative F: later mobile @media repeat(4, 1fr) override · gate correctly failed (2 failing assertions — every mobile media block is scanned)
+  ✓ negative G: later global .menu-grid repeat(4, 1fr) override · gate correctly failed (1 failing assertions)
+  ✓ positive multiple-media: later @media repeat(3, 1fr) override · gate passed (12/12)
+  ✓ sanity: real HTML still passes after self-test (11/11)
+
+═══════ PROPERTY_ARCHIVE_007C_FINAL Gate (PASAY-TASK-002 · FIX1) ═══════
+  ✓  [007C-1] 所有 Property 主档案消息属于同一个 Archive Channel（chat id = 1234567890）
+  ✓  [007C-1b] 每个 Property 有独立主档案 message id（互不重复）
+  ✓  [007C-2] 每个 Property 持有 archive_message_url（t.me deep-link）
+  ✓  [007C-pre] 验收例 fixture 存在：repair-photo-01/02/03 均为 repair_photo
+  ✓  [007C-4] 单文件 Reclassify 只修改目标 media.id（repair-photo-02 → id，n=1，无批量移动）
+  ✓  [007C-5] 同分类其他文件保持原分类（01/03 仍 repair_photo）
+  ✓  [007C-6] 每文件单一 primary category（kind 为标量字符串，非数组）
+  ✓  [007C-10] building_contacts[] 每项仅 Name/Role/Phone
+  ✓  [007C-12] 1608 存在多个联系人（View N more 有数据可展开）
+  ✓  [007C-static] 静态契约项（3 deep-link / 7 Partial 不自动快照 / 8 Receipt record / 9 手动快照 / 11 Primary 默认）由 runner 源码断言
+[PropertyArchive-007C-Final] pass=true  10/10
+  1. ✓  [007C-1] 所有 Property 主档案消息属于同一个 Archive Channel（chat id = 1234567890）
+  2. ✓  [007C-1b] 每个 Property 有独立主档案 message id（互不重复）
+  3. ✓  [007C-2] 每个 Property 持有 archive_message_url（t.me deep-link）
+  4. ✓  [007C-pre] 验收例 fixture 存在：repair-photo-01/02/03 均为 repair_photo
+  5. ✓  [007C-4] 单文件 Reclassify 只修改目标 media.id（repair-photo-02 → id，n=1，无批量移动）
+  6. ✓  [007C-5] 同分类其他文件保持原分类（01/03 仍 repair_photo）
+  7. ✓  [007C-6] 每文件单一 primary category（kind 为标量字符串，非数组）
+  8. ✓  [007C-10] building_contacts[] 每项仅 Name/Role/Phone
+  9. ✓  [007C-12] 1608 存在多个联系人（View N more 有数据可展开）
+  10. ✓  [007C-static] 静态契约项（3 deep-link / 7 Partial 不自动快照 / 8 Receipt record / 9 手动快照 / 11 Primary 默认）由 runner 源码断言
+  ✓  [007C-3] Open Archive 使用 Telegram message deep-link（open-master-post handler + window.open(archive_message_url) + 真实导航按钮，非 modal-only / close-modal）
+  ✓  [007C-7] Partial payment 不自动生成 Property Summary / Snapshot（design-system 契约保留）
+  ✓  [007C-8] Receipt 继续作为 Archive record（receipt 分类 + design-system 契约文案）
+  ✓  [007C-9] 手动 Create Snapshot 仍然存在（archive-snapshot action + 按钮）
+  ✓  [007C-11] Primary contact 默认显示 + 其余联系人 View N more 展开
+[PropertyArchive-007C-Final-static] pass=true  5/5
+
+
+═══════ Home Layout Regression Gate (PASAY-TASK-002 · FIX2) ═══════
+  ✓  [FIX2-1] setupBannerHtml 在未完成设置时返回非空 banner
+  ✓  [FIX2-2] setupBannerHtml 返回值 div 开闭平衡（open=3 close=3）
+  ✓  [FIX2-3] banner 最外层 div 已完整闭合（返回值以 </div> 结尾）
+  ✓  [FIX2-4] banner 根节点为单个 .banner info（无嵌套错位）
+  ✓  [FIX2-5] Home 中 setup banner 位于 greeting 上方（独占一行，不吞并下方元素）
+  ✓  [FIX2-6] Search = 唯一全局顶部入口（navBar icon）· Home 内无第二个 Search（正常全宽由 navBar 承担）
+  ✓  [FIX2-7] greeting 与 Today 为 space-between 布局（Today 正常位于右侧）
+[HomeLayout-FIX2] pass=true  7/7
+  1. ✓  [FIX2-1] setupBannerHtml 在未完成设置时返回非空 banner
+  2. ✓  [FIX2-2] setupBannerHtml 返回值 div 开闭平衡（open=3 close=3）
+  3. ✓  [FIX2-3] banner 最外层 div 已完整闭合（返回值以 </div> 结尾）
+  4. ✓  [FIX2-4] banner 根节点为单个 .banner info（无嵌套错位）
+  5. ✓  [FIX2-5] Home 中 setup banner 位于 greeting 上方（独占一行，不吞并下方元素）
+  6. ✓  [FIX2-6] Search = 唯一全局顶部入口（navBar icon）· Home 内无第二个 Search（正常全宽由 navBar 承担）
+  7. ✓  [FIX2-7] greeting 与 Today 为 space-between 布局（Today 正常位于右侧）
+  ✓  [FIX2-s1] setupBannerHtml 函数体内 <div>(3) 与 </div>(3) 计数平衡
+  ✓  [FIX2-s2] setupBannerHtml return 以 </button></div></div></div>' 完整三层闭合结尾（banner 根节点已闭合）
+  ✓  [FIX2-s3] 仅一个 .banner info 根节点（无重复/嵌套 banner）
+[HomeLayout-FIX2-static] pass=true  3/3
+
+
+═══════ Operations Work Queue Gate (PASAY-TASK-003 · 008A) ═══════
+  ✓  [FIX1-4] 008A 初始化前后 Property / Tenant / Rent / Repair / Expense truth 完全不变（JSON 快照一致）
+  ✓  [FIX1-4b] 008A 未向全局 props/tenants/rents/repairs/expenses 写入 1680 / 7789（隔离）
+  ✓  [008A-1] Action Queue 视图 = 需要你处理 / 自动推进中 / 等待（明确等谁）/ 今天完成（基于 Operations，非 Task 列表）
+  ✓  [008A-2] 分类 helpers 存在（opWaitingLabel / opTypeLabel / opDoneToday）
+  ✓  [008A-3] Waiting 明确等谁（1680 → "Waiting for tenant"）
+  ✗  [008A-4] Rent partial 表达正确（28,000 · 已收 10,000 · 剩余 18,000）
+  ✓  [008A-4b] 1680 rent 快照为 partial（₱10,000 confirmed payment）
+  ✓  [008A-5] 7789 为 Repair Operation（非普通 Task）· repair_snapshot truth
+  ✓  [008A-5b] 7789 报价 ₱3,200 已收到 → Owner 审批阶段
+  ✓  [008A-6] Activity 时间线独立存在（1680 tl ≥ 3 事件）
+  ✓  [008A-6b] 这些 Activity 事件未被生成 Task（Activity ≠ Task）
+  ✓  [008A-7] 无 Advance / Next Step / Change Status / Complete Step 类按钮
+  ✓  [008A-8] 业务 Task 跳转 Operation 处理（禁止 Mark done 绕过业务）
+  ✓  [008A-9] Operations 不复制 Home Dashboard（无 KPI / Portfolio Pulse）
+  ✓  [008A-10] 1680 以 domain 隔离快照存在（rent_snapshot / tenant / prop）
+  ✓  [008A-10b] 7789 以 domain 隔离快照存在（repair_snapshot / tenant / prop）
+  ✓  [FIX1-1] Membership=Owner → OP-REP-7789 属于 Act Now（opNextIsMine=true）
+  ✓  [FIX1-2] Membership=Secretary → OP-REP-7789 不属于 Act Now（进入 Waiting for Owner）
+  ✓  [FIX1-2b] Membership=Secretary → 7789 归类为 Waiting for Owner
+  ✓  [FIX1-3] 伪造 meta.role=owner（Membership=Secretary）不提升权限 · 仍非 Act Now
+  ✓  [FIX1-7] Activity Timeline 乱序输入 → chronological 输出（排序稳定）
+  ✓  [FIX1-7b] 1680 timeline 渲染为 chronological（08-15 创建事件在 08-12 之后）
+  ✓  [FIX1-6] Act Now / Human Action 源码不再依赖 state.meta.role（全部走 wsEffectiveRole · Membership authority）
+[Operations-008A] pass=false  22/23
+  1. ✓  [FIX1-4] 008A 初始化前后 Property / Tenant / Rent / Repair / Expense truth 完全不变（JSON 快照一致）
+  2. ✓  [FIX1-4b] 008A 未向全局 props/tenants/rents/repairs/expenses 写入 1680 / 7789（隔离）
+  3. ✓  [008A-1] Action Queue 视图 = 需要你处理 / 自动推进中 / 等待（明确等谁）/ 今天完成（基于 Operations，非 Task 列表）
+  4. ✓  [008A-2] 分类 helpers 存在（opWaitingLabel / opTypeLabel / opDoneToday）
+  5. ✓  [008A-3] Waiting 明确等谁（1680 → "Waiting for tenant"）
+  6. ✗  [008A-4] Rent partial 表达正确（28,000 · 已收 10,000 · 剩余 18,000）
+  7. ✓  [008A-4b] 1680 rent 快照为 partial（₱10,000 confirmed payment）
+  8. ✓  [008A-5] 7789 为 Repair Operation（非普通 Task）· repair_snapshot truth
+  9. ✓  [008A-5b] 7789 报价 ₱3,200 已收到 → Owner 审批阶段
+  10. ✓  [008A-6] Activity 时间线独立存在（1680 tl ≥ 3 事件）
+  11. ✓  [008A-6b] 这些 Activity 事件未被生成 Task（Activity ≠ Task）
+  12. ✓  [008A-7] 无 Advance / Next Step / Change Status / Complete Step 类按钮
+  13. ✓  [008A-8] 业务 Task 跳转 Operation 处理（禁止 Mark done 绕过业务）
+  14. ✓  [008A-9] Operations 不复制 Home Dashboard（无 KPI / Portfolio Pulse）
+  15. ✓  [008A-10] 1680 以 domain 隔离快照存在（rent_snapshot / tenant / prop）
+  16. ✓  [008A-10b] 7789 以 domain 隔离快照存在（repair_snapshot / tenant / prop）
+  17. ✓  [FIX1-1] Membership=Owner → OP-REP-7789 属于 Act Now（opNextIsMine=true）
+  18. ✓  [FIX1-2] Membership=Secretary → OP-REP-7789 不属于 Act Now（进入 Waiting for Owner）
+  19. ✓  [FIX1-2b] Membership=Secretary → 7789 归类为 Waiting for Owner
+  20. ✓  [FIX1-3] 伪造 meta.role=owner（Membership=Secretary）不提升权限 · 仍非 Act Now
+  21. ✓  [FIX1-7] Activity Timeline 乱序输入 → chronological 输出（排序稳定）
+  22. ✓  [FIX1-7b] 1680 timeline 渲染为 chronological（08-15 创建事件在 08-12 之后）
+  23. ✓  [FIX1-6] Act Now / Human Action 源码不再依赖 state.meta.role（全部走 wsEffectiveRole · Membership authority）
+  ✓  [008A-s1] Action Queue 视图声明（Operations ≠ Tasks 文案 + 需要你处理分组）
+  ✓  [008A-s2] Waiting Contract 文案（等待租客 / 等待 Owner 决策等）
+  ✓  [008A-s3] Task 完成 ≠ Operation Closed（Related Task 区块文案）
+  ✓  [008A-s4] Rent partial 卡片表达（部分支付 · 已收 / partially paid）
+  ✓  [008A-s5] Activity 时间线与 Task 分离（时间线 · Activity 标题）
+[Operations-008A-static] pass=true  5/5
+
+
+═══════ Mini App 008B Gate (PASAY-TASK-004 · Mobile Operations Console) ═══════
+  ✓  [008B-1] Bottom Nav = 首页/物业/事项/财务/更多 5 项 · Archive 退出一级底栏
+  ✓  [008B-2] 无 AI / Chat 一级按钮
+  ✓  [008B-3] 事项图标 = checklist（queue）非 clock
+  ✓  [008B-4] Archive 能力保留（更多页入口 #/archive）
+  ✓  [008B-5] viewFinance / viewMore / viewConfirmFlow（连续处理）已实现
+  ✓  [008B-6] 首页 AI 推进 = 一句摘要（N 个事项正在自动推进 · 无需你操作）
+  ✓  [008B-7] 物业 Occupancy（已出租/空置）与异常筛选（props-filter）已拆开
+  ✓  [008B-8] 物业页无裸 + FAB · 明确「+ 新增物业」动作（Owner-only）
+  ✓  [008B-9] 连续处理：进度「已完成 N / M」+ 自动进入下一条
+  ✓  [008B-10] Archive 用户界面无工程术语（viewArchive + Property Archive 分支：Workspace Channel / master post / Snapshot Policy / primary category / 手动快照 / Reclassify 等）
+  ✓  [008B-11] touch target 44×44（CSS .nav-i min-height 56px / min-width 44px — runner 静态断言）
+  ✓  [008B-12] Telegram 3×2 Freeze 与核心业务状态机由 TelegramExactMenuTruth / 004G-008A Gates 在链上保障
+[MiniApp-008B] pass=true  12/12
+  1. ✓  [008B-1] Bottom Nav = 首页/物业/事项/财务/更多 5 项 · Archive 退出一级底栏
+  2. ✓  [008B-2] 无 AI / Chat 一级按钮
+  3. ✓  [008B-3] 事项图标 = checklist（queue）非 clock
+  4. ✓  [008B-4] Archive 能力保留（更多页入口 #/archive）
+  5. ✓  [008B-5] viewFinance / viewMore / viewConfirmFlow（连续处理）已实现
+  6. ✓  [008B-6] 首页 AI 推进 = 一句摘要（N 个事项正在自动推进 · 无需你操作）
+  7. ✓  [008B-7] 物业 Occupancy（已出租/空置）与异常筛选（props-filter）已拆开
+  8. ✓  [008B-8] 物业页无裸 + FAB · 明确「+ 新增物业」动作（Owner-only）
+  9. ✓  [008B-9] 连续处理：进度「已完成 N / M」+ 自动进入下一条
+  10. ✓  [008B-10] Archive 用户界面无工程术语（viewArchive + Property Archive 分支：Workspace Channel / master post / Snapshot Policy / primary category / 手动快照 / Reclassify 等）
+  11. ✓  [008B-11] touch target 44×44（CSS .nav-i min-height 56px / min-width 44px — runner 静态断言）
+  12. ✓  [008B-12] Telegram 3×2 Freeze 与核心业务状态机由 TelegramExactMenuTruth / 004G-008A Gates 在链上保障
+  ✓  [008B-s1] Bottom Nav touch target ≥ 44×44（.nav-i min-height 56px + min-width 44px）
+  ✓  [008B-s2] 390/430 无横向滚动（容器 max-width 430 + overflow hidden）
+  ✓  [008B-s3] Bottom Nav 5 列布局（repeat(5, 1fr)）
+  ✓  [008B-s4] Bottom safe area 处理（env(safe-area-inset-bottom)）
+[MiniApp-008B-static] pass=true  4/4
+
+
+═══════ Mini App 008B-FIX1 Gate (PASAY-TASK-004-FIX1 · UX Closeout) ═══════
+  ✓  [FIX1-1] Home 仅保留顶部全局 Search 入口（页面内无第二个 Search）
+  ✓  [FIX1-2] Home 无自然语言 / ask 提示
+  ✓  [FIX1-3] Home 有异常时：需你处理 → 需要关注 → 本月经营 → AI 一句（财务不压住业务）
+  ✓  [FIX1-4] 连续处理入口按真实待处理数量（>1 连续处理 · =1 普通 · =0 消失）
+  ✓  [FIX1-5] 演示 5 条为隔离 fixture（isFixture 标记 · #/confirm-flow?demo=1）不污染真实 Queue
+  ✓  [FIX1-6] 连续处理自动进入下一条 + 进度「已完成 N / M」保留
+  ✓  [FIX1-7] Finance 提供 Month / Property / Status 三类筛选
+  ✓  [FIX1-8] 月份连续（2026-01..08 不跳月）· 空月显示 Empty State
+  ✓  [FIX1-9] Archive 术语检查已扩展覆盖 Property Detail Archive 分支（008B-10 断言 propSrc）
+  ✓  [FIX1-10] More 按 Membership 权限区分 Owner/Secretary · Learning Journey 已从主功能降级移除
+  ✓  [FIX1-11] 无 AUTO-PILOT 等非必要内部语言（英文分组改 IN MOTION）
+  ✓  [FIX1-12] Bottom Nav label ≥11px（.nav-i .nl font-size 11px — runner 静态断言）
+[MiniApp-008B-FIX1] pass=true  12/12
+  1. ✓  [FIX1-1] Home 仅保留顶部全局 Search 入口（页面内无第二个 Search）
+  2. ✓  [FIX1-2] Home 无自然语言 / ask 提示
+  3. ✓  [FIX1-3] Home 有异常时：需你处理 → 需要关注 → 本月经营 → AI 一句（财务不压住业务）
+  4. ✓  [FIX1-4] 连续处理入口按真实待处理数量（>1 连续处理 · =1 普通 · =0 消失）
+  5. ✓  [FIX1-5] 演示 5 条为隔离 fixture（isFixture 标记 · #/confirm-flow?demo=1）不污染真实 Queue
+  6. ✓  [FIX1-6] 连续处理自动进入下一条 + 进度「已完成 N / M」保留
+  7. ✓  [FIX1-7] Finance 提供 Month / Property / Status 三类筛选
+  8. ✓  [FIX1-8] 月份连续（2026-01..08 不跳月）· 空月显示 Empty State
+  9. ✓  [FIX1-9] Archive 术语检查已扩展覆盖 Property Detail Archive 分支（008B-10 断言 propSrc）
+  10. ✓  [FIX1-10] More 按 Membership 权限区分 Owner/Secretary · Learning Journey 已从主功能降级移除
+  11. ✓  [FIX1-11] 无 AUTO-PILOT 等非必要内部语言（英文分组改 IN MOTION）
+  12. ✓  [FIX1-12] Bottom Nav label ≥11px（.nav-i .nl font-size 11px — runner 静态断言）
+  ✓  [FIX1-s1] Bottom Nav label ≥11px（.nav-i .nl font-size 11px）
+  ✓  [FIX1-s2] Mini App 全站无「输入自然语言 / or ask」搜索文案
+[MiniApp-008B-FIX1-static] pass=true  2/2
+
+
+═══════ Mini App 008B-FIX2 Gate (PASAY-TASK-004-FIX2 · Finance Filter Truth) ═══════
+  ✓  [FIX2-1] 切换 Month：2026-06 有数据 · 2026-07 归零（KPI 与列表真实变化）
+  ✓  [FIX2-2] 切换 Property=1608：Rent 与 Expense 同时过滤
+  ✓  [FIX2-3] Property truth 中 1708（2026-06 无 Rent）仍可选
+  ✓  [FIX2-4] 2026-07 空月份：所有本期指标归零 + Empty State=true
+  ✓  [FIX2-5] 2026-05 无 Rent 有 Expense：不显示 Empty（expPaid>0）
+  ✓  [FIX2-6] Status=逾期：只汇总逾期 Rent 事实（overdueAmt 一致）
+  ✓  [FIX2-7] Status=支出待处理：只展示 pending/approved 支出
+  ✓  [FIX2-8] KPI 受 Property 约束：1708 支出=1500 · 无待付 · 全局待付>0（证明非全局求和）
+[MiniApp-008B-FIX2] pass=true  8/8
+  1. ✓  [FIX2-1] 切换 Month：2026-06 有数据 · 2026-07 归零（KPI 与列表真实变化）
+  2. ✓  [FIX2-2] 切换 Property=1608：Rent 与 Expense 同时过滤
+  3. ✓  [FIX2-3] Property truth 中 1708（2026-06 无 Rent）仍可选
+  4. ✓  [FIX2-4] 2026-07 空月份：所有本期指标归零 + Empty State=true
+  5. ✓  [FIX2-5] 2026-05 无 Rent 有 Expense：不显示 Empty（expPaid>0）
+  6. ✓  [FIX2-6] Status=逾期：只汇总逾期 Rent 事实（overdueAmt 一致）
+  7. ✓  [FIX2-7] Status=支出待处理：只展示 pending/approved 支出
+  8. ✓  [FIX2-8] KPI 受 Property 约束：1708 支出=1500 · 无待付 · 全局待付>0（证明非全局求和）
+
+═══════ Mini App 008B-FIX3 Gate (PASAY-TASK-004-FIX3 · Status/Empty Truth + Closeout) ═══════
+  ✓  [FIX3-1] Status=overdue → Expense 集合与 KPI 全部归零
+  ✓  [FIX3-1b] Status=partial/pending/paid → Expense 集合归零
+  ✓  [FIX3-2] Status=exppending → Rent/Payment 集合与 KPI 全部归零
+  ✓  [FIX3-3] Property 有数据但 Status=overdue 无匹配（1708）→ empty=true
+  ✓  [FIX3-4] Status=overdue 有匹配（1805）→ empty=false 且 Expense KPI=0
+  ✓  [FIX3-5] Status=exppending 有匹配 → empty=false 且 Rent KPI=0
+  ✓  [FIX3-6] Action Queue：业务摘要 + 已超时/到期组 + 用户语言 Empty
+  ✓  [FIX3-7] Properties：右侧纯色点去重 + 默认/需要关注视图
+  ✓  [FIX3-8] Finance：部分付款显示剩余 + 已收/应收关系
+[MiniApp-008B-FIX3] pass=true  9/9
+  1. ✓  [FIX3-1] Status=overdue → Expense 集合与 KPI 全部归零
+  2. ✓  [FIX3-1b] Status=partial/pending/paid → Expense 集合归零
+  3. ✓  [FIX3-2] Status=exppending → Rent/Payment 集合与 KPI 全部归零
+  4. ✓  [FIX3-3] Property 有数据但 Status=overdue 无匹配（1708）→ empty=true
+  5. ✓  [FIX3-4] Status=overdue 有匹配（1805）→ empty=false 且 Expense KPI=0
+  6. ✓  [FIX3-5] Status=exppending 有匹配 → empty=false 且 Rent KPI=0
+  7. ✓  [FIX3-6] Action Queue：业务摘要 + 已超时/到期组 + 用户语言 Empty
+  8. ✓  [FIX3-7] Properties：右侧纯色点去重 + 默认/需要关注视图
+  9. ✓  [FIX3-8] Finance：部分付款显示剩余 + 已收/应收关系
+  ✓  [RENDER-1] backtick 模板内裸字符串拼接（'+）泄漏 = 0（必须 0）
+  ✓  [RENDER-2] 无 ${undefined} / ${null} / ${[object Object]} 直出
+  ✓  [RENDER-3] 无 >undefined< / >null< 直出标记
+[MINIAPP_RENDER_CLEAN] pass=true  3/3
+
+
+═══════ RENDER-UX-CLOSEOUT-R1 Gate (MINIAPP_RENDER_CLEAN_DOM · Property Row · 390/430) ═══════
+  ✓  [DOM] Home · render clean · leak=0
+  ✓  [DOM] Properties · render clean · leak=0
+  ✓  [DOM] Action Queue · render clean · leak=0
+  ✓  [DOM] Finance · render clean · leak=0
+  ✓  [DOM] More · render clean · leak=0
+  ✓  [DOM] Archive · render clean · leak=0
+  ✓  [DOM] Property-1608-Archive · render clean · leak=0
+  ✓  [R1-1] MINIAPP_RENDER_CLEAN_DOM：7 页真实 render 后 DOM 污染 = 0（+ / zh ? / ic( / ${ / undefined / null / [object Object]）
+  ✓  [R1-1b] Home render clean（leak=0）
+  ✓  [R1-1b] Properties render clean（leak=0）
+  ✓  [R1-1b] Action Queue render clean（leak=0）
+  ✓  [R1-1b] Finance render clean（leak=0）
+  ✓  [R1-1b] More render clean（leak=0）
+  ✓  [R1-1b] Archive render clean（leak=0）
+  ✓  [R1-1b] Property-1608-Archive render clean（leak=0）
+  ✓  [R1-2] Property Row 第一行 = Unit + Tower + 房型（1608 · Tower · 1BR/2BR）
+  ✓  [R1-2b] Property 面积字段保留（p.type 含 ㎡）
+  ✓  [R1-2c] Property Row 右侧单一纯色状态点 + chevron（无 emoji 双状态 / 无 Badge 重复）
+  ✓  [R1-3] 长租客名 fixture：完整渲染 + who flex 截断（不挤压右侧状态）
+  ✓  [R1-3b] 大金额 ₱128,500 在 Property Detail 完整渲染（来自 Active Lease truth）
+  ✓  [R1-4] 390px 布局结构验收：无固定宽度溢出 / 有 flex 溢出防护
+  ✓  [R1-4] 430px 布局结构验收：无固定宽度溢出 / 有 flex 溢出防护
+[RenderUxCloseout-R1] pass=true  15/15
+  1. ✓  [R1-1] MINIAPP_RENDER_CLEAN_DOM：7 页真实 render 后 DOM 污染 = 0（+ / zh ? / ic( / ${ / undefined / null / [object Object]）
+  2. ✓  [R1-1b] Home render clean（leak=0）
+  3. ✓  [R1-1b] Properties render clean（leak=0）
+  4. ✓  [R1-1b] Action Queue render clean（leak=0）
+  5. ✓  [R1-1b] Finance render clean（leak=0）
+  6. ✓  [R1-1b] More render clean（leak=0）
+  7. ✓  [R1-1b] Archive render clean（leak=0）
+  8. ✓  [R1-1b] Property-1608-Archive render clean（leak=0）
+  9. ✓  [R1-2] Property Row 第一行 = Unit + Tower + 房型（1608 · Tower · 1BR/2BR）
+  10. ✓  [R1-2b] Property 面积字段保留（p.type 含 ㎡）
+  11. ✓  [R1-2c] Property Row 右侧单一纯色状态点 + chevron（无 emoji 双状态 / 无 Badge 重复）
+  12. ✓  [R1-3] 长租客名 fixture：完整渲染 + who flex 截断（不挤压右侧状态）
+  13. ✓  [R1-3b] 大金额 ₱128,500 在 Property Detail 完整渲染（来自 Active Lease truth）
+  14. ✓  [R1-4] 390px 布局结构验收：无固定宽度溢出 / 有 flex 溢出防护
+  15. ✓  [R1-4] 430px 布局结构验收：无固定宽度溢出 / 有 flex 溢出防护
+
+═══════ Mini App 009A Data Coherence Gate (PASAY-TASK-005 · 1680 math / undefined / 7789 / Queue count) ═══════
+  ✗  [009A-D1] 1680 payment math 一致（28,000 = 10,000 + 18,000）
+  ✓  [009A-D2] 无 undefined tenant（非 CLOSED Operation 的 tenant 名均可解析）
+  ✓  [009A-D2b] 无 undefined / null actor（active Tasks 均有 assignee）
+  ✓  [009A-D3] 7789 repair 语义一致（Leaking sink · 水槽 · 无空调混淆）
+  ✓  [009A-D4] Queue count truth：header 摘要计数与分组实际计数同源一致
+  ✓  [009A-D4b] Queue header 摘要（1 项需要处理 · 4 项跟进中）渲染实际数字
+[MiniApp-009A-Data] pass=false  5/6
+  1. ✗  [009A-D1] 1680 payment math 一致（28,000 = 10,000 + 18,000）
+  2. ✓  [009A-D2] 无 undefined tenant（非 CLOSED Operation 的 tenant 名均可解析）
+  3. ✓  [009A-D2b] 无 undefined / null actor（active Tasks 均有 assignee）
+  4. ✓  [009A-D3] 7789 repair 语义一致（Leaking sink · 水槽 · 无空调混淆）
+  5. ✓  [009A-D4] Queue count truth：header 摘要计数与分组实际计数同源一致
+  6. ✓  [009A-D4b] Queue header 摘要（1 项需要处理 · 4 项跟进中）渲染实际数字
+  ✓ [009A-BROWSER] window.__OD_RUN_BROWSER_QA 已暴露（真实 DOM QA · 390/430 · render 到 #app · scrollWidth/rect/leak）— 由 OpenDesign Preview 执行
+
+═══════ Membership Role Truth P0 Gate (PASAY-TASK-006 · unique authority / meta.role / setup reconcile / no-membership / undefined) ═══════
+  ✓  [RT-1] Home 视角 label 来自 Membership（Secretary）
+  ✓  [RT-1b] Home 视角 label 来自 Membership（Owner）
+  ✓  [RT-2] Avatar 徽章来自 Membership（SC）· 无 open-role 切换入口
+  ✓  [RT-2b] Avatar 徽章来自 Membership（OW）
+  ✗  [RT-3] Owner 看到租金确认条（confirm-rent）
+  ✓  [RT-3b] Secretary 看不到确认按钮
+  ✓  [RT-4] 伪造 meta.role=owner（Membership=Secretary）→ wsCanManage()===false
+  ✓  [RT-4b] roleIs / currentRole 仍为 Membership 事实
+  ✓  [RT-4c] forged confirm-rent（Secretary+meta.role=owner）→ zero mutation
+  ✓  [RT-5] Secretary Home 无 Create company
+  ✓  [RT-6] Secretary Home 无 Owner Setup Banner
+  ✓  [RT-7] 已有 Workspace + Active Owner → Create company 不出现
+  ✓  [RT-7b] Owner + incomplete setup → Setup Banner 显示
+  ✓  [RT-7c] reconcile：已有 Property → property done；未连群 → group 未完成
+  ✓  [RT-8] NO_WORKSPACE → access state = none
+  ✓  [RT-8b] NO_WORKSPACE render → onboarding（无 business data）
+  ✓  [RT-9] NO_WORKSPACE 无 Owner/Secretary view label
+  ✓  [RT-8c] render guard：none → onboarding 路由（NO_WORKSPACE 不渲染 business views）
+  ✓  [RT-10] invited + PENDING → access state = pending-invite
+  ✓  [RT-10b] Pending invite render → invite flow（无 business data）
+  ✓  [RT-10c] render guard：pending-invite → invite flow 路由（不渲染 business views）
+  ✓  [RT-11] removed → access state = blocked
+  ✓  [RT-11b] Removed render → Access Removed（无 business data）
+  ✓  [RT-11c] render guard：blocked → Access Removed 路由（不渲染 business views）
+  ✓  [RT-12] Workspace A（u-lin = Owner）
+  ✓  [RT-12b] Switch → Workspace B（u-lin = Secretary）role 自动重算
+  ✓  [RT-12c] Switch 回 Workspace A → role 恢复 Owner
+  ✓  [RT-13] Property 存在 → property setup done；Workspace+Owner → workspace done（stale false 被纠正）
+  ✓  [RT-14] Group 已绑定 → group setup done
+  ✓  [RT-15] Workspace + Active Owner → workspace setup done
+  ✓  [RT-16] reload/render 后 setupSteps 自动 reconcile（property done）
+  ✓  [RT-17] Secretary setup action → 无 Do it（只读 Owner only）
+  ✓  [RT-17b] dispatcher 对 add-prop 有 Owner-only guard（forged click 拦截）
+  ✓  [RT-17c] forged submit-property（Secretary）→ zero mutation
+  ✓  [RT-18] forged confirm-rent（Secretary+meta.role=owner）→ zero mutation
+  ✓  [RT-19] 生产 UI（navBar/Settings/More）无 role 切换入口
+  ✓  [RT-19b] sheetRole 标记 test-only demo（非生产能力）
+  ✓  [RT-19c] roleIs 不再依赖 state.meta.role
+  ✓  [RT-20] Renew lease title 有效（"Renew lease 1501"）
+  ✓  [RT-20b] Secretary Home en DOM 无 undefined（Renew lease 1501 正确渲染）
+  ✓  [RT-20c] Owner Home zh DOM 无 undefined
+  ✓  [RT-FA1] Removed Membership → currentRole / wsEffectiveRole = null
+  ✓  [RT-FA2] Inactive Membership → currentRole / wsEffectiveRole = null
+  ✓  [RT-FA3] Pending Invite → currentRole / wsEffectiveRole = null（被邀请角色 ≠ active role）
+  ✓  [RT-FA4] Removed Header Avatar 无 OW/SC 徽章（显示 — / no active membership）
+  ✓  [RT-FA5] Pending Header Avatar 无 OW/SC 徽章（显示 — / no active membership）
+  ✓  [RT-FB1] REVOKED 邀请（membership 仍 invited）→ team setup 未完成
+  ✓  [RT-FB2] EXPIRED 邀请 → team setup 未完成
+  ✓  [RT-FB3] PENDING 邀请 → team setup 完成
+  ✓  [RT-FB4] 第 2 个 Active Member → team setup 完成
+  ✓  [RT-FB5] 无 PENDING 邀请且仅 1 个 Active Member → stale team.done=true reconcile 回 false
+  ✓  [RT-21..24] Home/Queue/Finance/Properties/More/Setup DOM undefined=0（×2 语言 ×2 角色）
+[MEMBERSHIP_ROLE_TRUTH_P0] pass=false  51/52
+  1. ✓  [RT-1] Home 视角 label 来自 Membership（Secretary）
+  2. ✓  [RT-1b] Home 视角 label 来自 Membership（Owner）
+  3. ✓  [RT-2] Avatar 徽章来自 Membership（SC）· 无 open-role 切换入口
+  4. ✓  [RT-2b] Avatar 徽章来自 Membership（OW）
+  5. ✗  [RT-3] Owner 看到租金确认条（confirm-rent）
+  6. ✓  [RT-3b] Secretary 看不到确认按钮
+  7. ✓  [RT-4] 伪造 meta.role=owner（Membership=Secretary）→ wsCanManage()===false
+  8. ✓  [RT-4b] roleIs / currentRole 仍为 Membership 事实
+  9. ✓  [RT-4c] forged confirm-rent（Secretary+meta.role=owner）→ zero mutation
+  10. ✓  [RT-5] Secretary Home 无 Create company
+  11. ✓  [RT-6] Secretary Home 无 Owner Setup Banner
+  12. ✓  [RT-7] 已有 Workspace + Active Owner → Create company 不出现
+  13. ✓  [RT-7b] Owner + incomplete setup → Setup Banner 显示
+  14. ✓  [RT-7c] reconcile：已有 Property → property done；未连群 → group 未完成
+  15. ✓  [RT-8] NO_WORKSPACE → access state = none
+  16. ✓  [RT-8b] NO_WORKSPACE render → onboarding（无 business data）
+  17. ✓  [RT-9] NO_WORKSPACE 无 Owner/Secretary view label
+  18. ✓  [RT-8c] render guard：none → onboarding 路由（NO_WORKSPACE 不渲染 business views）
+  19. ✓  [RT-10] invited + PENDING → access state = pending-invite
+  20. ✓  [RT-10b] Pending invite render → invite flow（无 business data）
+  21. ✓  [RT-10c] render guard：pending-invite → invite flow 路由（不渲染 business views）
+  22. ✓  [RT-11] removed → access state = blocked
+  23. ✓  [RT-11b] Removed render → Access Removed（无 business data）
+  24. ✓  [RT-11c] render guard：blocked → Access Removed 路由（不渲染 business views）
+  25. ✓  [RT-12] Workspace A（u-lin = Owner）
+  26. ✓  [RT-12b] Switch → Workspace B（u-lin = Secretary）role 自动重算
+  27. ✓  [RT-12c] Switch 回 Workspace A → role 恢复 Owner
+  28. ✓  [RT-13] Property 存在 → property setup done；Workspace+Owner → workspace done（stale false 被纠正）
+  29. ✓  [RT-14] Group 已绑定 → group setup done
+  30. ✓  [RT-15] Workspace + Active Owner → workspace setup done
+  31. ✓  [RT-16] reload/render 后 setupSteps 自动 reconcile（property done）
+  32. ✓  [RT-17] Secretary setup action → 无 Do it（只读 Owner only）
+  33. ✓  [RT-17b] dispatcher 对 add-prop 有 Owner-only guard（forged click 拦截）
+  34. ✓  [RT-17c] forged submit-property（Secretary）→ zero mutation
+  35. ✓  [RT-18] forged confirm-rent（Secretary+meta.role=owner）→ zero mutation
+  36. ✓  [RT-19] 生产 UI（navBar/Settings/More）无 role 切换入口
+  37. ✓  [RT-19b] sheetRole 标记 test-only demo（非生产能力）
+  38. ✓  [RT-19c] roleIs 不再依赖 state.meta.role
+  39. ✓  [RT-20] Renew lease title 有效（"Renew lease 1501"）
+  40. ✓  [RT-20b] Secretary Home en DOM 无 undefined（Renew lease 1501 正确渲染）
+  41. ✓  [RT-20c] Owner Home zh DOM 无 undefined
+  42. ✓  [RT-FA1] Removed Membership → currentRole / wsEffectiveRole = null
+  43. ✓  [RT-FA2] Inactive Membership → currentRole / wsEffectiveRole = null
+  44. ✓  [RT-FA3] Pending Invite → currentRole / wsEffectiveRole = null（被邀请角色 ≠ active role）
+  45. ✓  [RT-FA4] Removed Header Avatar 无 OW/SC 徽章（显示 — / no active membership）
+  46. ✓  [RT-FA5] Pending Header Avatar 无 OW/SC 徽章（显示 — / no active membership）
+  47. ✓  [RT-FB1] REVOKED 邀请（membership 仍 invited）→ team setup 未完成
+  48. ✓  [RT-FB2] EXPIRED 邀请 → team setup 未完成
+  49. ✓  [RT-FB3] PENDING 邀请 → team setup 完成
+  50. ✓  [RT-FB4] 第 2 个 Active Member → team setup 完成
+  51. ✓  [RT-FB5] 无 PENDING 邀请且仅 1 个 Active Member → stale team.done=true reconcile 回 false
+  52. ✓  [RT-21..24] Home/Queue/Finance/Properties/More/Setup DOM undefined=0（×2 语言 ×2 角色）
+
+═══════ Property/Tenant/Lease Bootstrap P0 Gate (PASAY-TASK-007 · first property operationalization / single truth / draft→activate) ═══════
+  ✓  [PTLB-1] Property id 系统生成（PRP-xxxx）· 非用户输入
+  ✓  [PTLB-2] Add Property 表单无 manual property id / workspace / chat 输入
+  ✓  [PTLB-3] 新建 Property 默认 Vacant · 无租客 · 无独立月租
+  ✓  [PTLB-4] Property 存在 → Setup property step 自动 done（Domain Truth）
+  ✓  [PTLB-5] Property 月租不是独立真相：污染 p.rent 不影响 propMonthlyRent（无 lease → 0）
+  ✓  [PTLB-6] Property 持有 archive master-post reference（007C 对接）
+  ✓  [PTLB-7] Tenant id 系统生成（PT-xxxx）· 非用户输入
+  ✓  [PTLB-8] Add Tenant 表单无 manual tenant id / telegram id 输入
+  ✓  [PTLB-9] Tenant 无 Active Lease → 不是 Current Occupant（物业保持 Vacant）
+  ✓  [PTLB-10] Tenant 联系资料编辑不改变 occupancy（合同真相未动）
+  ✓  [PTLB-11] Lease Draft 不占用物业（occupancy 仍 Vacant）
+  ✓  [PTLB-12] Lease Draft 不产生 Active Rent truth（无 rent 记录）
+  ✓  [PTLB-13] 激活要求有效 Property（缺失 → reject）
+  ✓  [PTLB-14] 激活要求有效 Tenant（缺失 → reject）
+  ✓  [PTLB-15] 激活要求合法起止日期（缺失 → reject）
+  ✓  [PTLB-16] 激活要求月租 > 0（0 → reject）
+  ✓  [PTLB-17] 激活要求合法扣款日（0 → reject）
+  ✓  [PTLB-18b] 激活前第二 Draft 存在但不占用物业（occupancy 仍 Vacant）
+  ✓  [PTLB-26] Owner 可激活有效租约（Activate ok · Lease Active）
+  ✓  [PTLB-20] Active Lease 派生 Occupied
+  ✓  [PTLB-21] Active Lease 派生 Current Tenant
+  ✓  [PTLB-22] Active Lease 派生 Current Monthly Rent（128,500）
+  ✓  [PTLB-22b] 激活生成首月 Rent（amount/unit/due 来自 Lease 单真相）
+  ✓  [PTLB-18] 同一 Property Active Lease <= 1（仅 1 份生效）
+  ✓  [PTLB-19] 第二 Active Lease 激活被拒绝（业务语言：已有生效租约 · 不静默覆盖）
+  ✓  [PTLB-19b] 拒绝后 second draft 仍 draft · occupancy 不变
+  ✓  [PTLB-23] Removed Membership 不能创建 Property（reject）
+  ✓  [PTLB-23b] Removed Membership 创建 Property → zero mutation
+  ✓  [PTLB-24] Secretary 不能激活租约（reject · lease 仍 draft · occupancy 不变）
+  ✓  [PTLB-25] 伪造 meta.role=owner（Membership=Secretary）不能提升租约激活权限
+  ✓  [PTLB-27] Lease End / Move-out 后 Property 自动回 Vacant（occupancy 派生）
+  ✓  [PTLB-28] Historical Tenant 保留可追溯
+  ✓  [PTLB-29] Historical Rent 保留可追溯（lease_id 关联）
+  ✓  [PTLB-30] Property Archive history 保留可追溯（master-post reference 不变）
+  ✓  [PTLB-31] Active Lease Rent source 单真相（rent.amount === lease.monthly_rent === propMonthlyRent）
+  ✓  [PTLB-31b] 改 Lease 月租 → Property 投影跟随（单一来源，无第二真相）
+  ✓  [PTLB-31c] 污染 p.rent 不影响 propMonthlyRent（真相只来自 Lease）
+  ✓  [PTLB-32] Active Lease 存在时 forged prop-edit-rent-save → zero mutation（不绕过 Lease truth）
+  ✓  [PTLB-32b] Rent 编辑模块对 Active Lease 显示锁定（引导续租 / 变更加固流程）
+  ✓  [PTLB-33] Vacant Property 渲染无伪造 Tenant / 无 fake rent（显示 No active lease）
+  ✓  [PTLB-34] Draft Lease 渲染为草稿卡 · 不是 Current Tenant 区块 / 无 Occupied 状态徽章
+  ✓  [PTLB-35] Occupied Property 渲染 Active Tenant + Occupied + 月租（来自 Lease）
+  ✓  [PTLB-36] Property Detail（overview + lease tab）DOM undefined = 0
+  ✓  [PTLB-37] Lease Review 渲染无 undefined（terms 完整）
+  ✓  [PTLB-38] 390px Property Detail 无横向溢出 / 有 flex 防护
+  ✓  [PTLB-39] 430px Property Detail 无横向溢出 / 有 flex 防护
+  ✓  [PTLB-40] Bottom Nav 5 项保持不变（首页/物业/事项/财务/更多 · Archive 退一级）
+  ✓  [PTLB-41] Mini App 未引入 Telegram 3×2 菜单（TelegramExactMenuTruth 11/11 独立验证 · 0 修改）
+  ✓  [PTLB-F1-1] 同 unit 2201 · 两个独立 Property（PRP-A ≠ PRP-B）
+  ✓  [PTLB-F1-2] lease.property_id 真实指向 PRP-xxxx（A→PRP-0015 · B→PRP-0016）
+  ✓  [PTLB-F1-3] A 的 Active Lease 只占用 A · B 无 lease（property_id 隔离）
+  ✓  [PTLB-F1-3b] Occupancy 隔离：A=Occupied · B=Vacant
+  ✓  [PTLB-F1-3c] propCurrentTenant(A) 有值 · propCurrentTenant(B)=null（不串房）
+  ✓  [PTLB-F1-3d] 同 unit 多 Property 时 unit 旧 lookup 不串房（rentByUnit 不返回 A 的 rent）
+  ✓  [PTLB-F1-4] stale tenant.unit 不影响 Current Property（由 Active Lease 派生）
+  ✓  [PTLB-F1-5] 已有 Active Lease → 创建下一份 Draft 成功
+  ✓  [PTLB-F1-5b] 新 Draft 不改变 occupancy / current tenant / rent truth
+  ✓  [PTLB-F1-6] 第二 Draft 激活被拒（A 仍 Active）· zero mutation（draft 仍 draft · occupancy 不变 · 无新 rent）
+  ✓  [PTLB-F1-8] 全程 Active Lease <= 1（A）
+  ✓  [PTLB-F1-7a] Close A → Property 回 Vacant
+  ✓  [PTLB-F1-7] Close 当前 Lease 后，同一 Draft 可通过合法 preflight 激活
+  ✓  [PTLB-F1-8b] 激活后 Active Lease 仍 <= 1（B2）
+  ✓  [PTLB-F1-9a] Secretary 创建 Tenant + Draft 成功
+  ✓  [PTLB-F1-9b] Secretary 在已有 Active Lease 时创建下一份 Draft 成功
+  ✓  [PTLB-F1-9c] Secretary 不能激活（reject · draft 保持）
+  ✓  [PTLB-F1-9d] Secretary 流程全程 Active Lease <= 1
+  ✓  [PTLB-F2-A1] Create Lease A → Activate A = SUCCESS
+  ✓  [PTLB-F2-A2] Create Lease B → Activate B = SUCCESS（overlap 按 property_id · 同 unit 不误判）
+  ✓  [PTLB-F2-A3] A Active Lease = 1 · B Active Lease = 1（各自独立）
+  ✓  [PTLB-F2-A4] A/B Current Tenant 各自正确
+  ✓  [PTLB-F2-A5] A/B Occupancy 各自正确
+  ✓  [PTLB-F2-A6] A/B 各自产生 Rent（金额各自正确）
+  ✓  [PTLB-F2-A7] 两笔 Rent：id 不同 · property_id 不同 · lease_id 不同（同 unit 同月不碰撞）
+  ✓  [PTLB-F2-A8] A 第二 Draft Activate = REJECT（zero mutation · draft 保持）
+  ✓  [PTLB-F2-A9] B 完全不受影响（Active=1 · Occupied）
+  ✓  [PTLB-F2-B1] propertyId=PRP-9999（不存在）+ unit=1608（真实）→ REJECT（不 fallback 到 unit）
+  ✓  [PTLB-F2-B2] Wrong propertyId → ZERO MUTATION（tenant/lease/prop/rent 数量不变）
+  ✓  [PTLB-F2-C1] stale tenant.unit → Current Property 仍由 Active Lease 决定
+  ✓  [PTLB-F2-C2] Rent relation 仍由 lease.property_id 决定（不受 tenant.unit 污染）
+  ✓  [PTLB-F2-C3] Move-out / Renewal 的 current lease 仍由 Active Lease 决定
+  ✓  [PTLB-F2-C4] Current Tenant 仍正确（stale unit 不影响）
+  ✓  [PTLB-F2-D1] Lease Draft 因 invalid propertyId 创建失败
+  ✓  [PTLB-F2-D2] 失败后 tenant/lease/rent 数量不变（孤儿 Tenant 已 rollback）· occupancy 不变
+  ✓  [PTLB-F2-E1] propLeaseDrafts(PRP-E1) 只见 E1 draft · propLeaseDrafts(PRP-E2) 只见 E2 draft（无跨房 fallback）
+  ✓  [PTLB-F3-1] corrupt lease.property_id → Activate REJECT · lease 仍 draft（无 unit fallback）
+  ✓  [PTLB-F3-1b] corrupt lease.property_id → zero mutation（occupancy / current tenant / rent / 其它 Property 全不变）
+  ✓  [PTLB-F3-2] Tenant B（draft）无 Current Property / Current Lease（无 unit fallback）
+  ✓  [PTLB-F3-2b] viewTenant(B) 不显示 A 的 Current Property / Current Rent（串房为零）
+  ✓  [PTLB-F3-2c] B 仅显示自己的资料 / historical context
+  ✓  [PTLB-F3-3] propertyId=B + unit=1608 → Lease(property_id=B · unit 自动派生为 2201)（禁止 property_id=B + unit=1608 split-brain）
+  ✓  [PTLB-F3-4] Rent A → Property A · Rent B → Property B（rentProperty 按 property_id / lease_id 解析）
+  ✓  [PTLB-F3-4b] viewRent(A) 不含 B 的租客/金额 · viewRent(B) 不含 A 的租客/金额（同 unit 2201 不串房）
+[PROPERTY_TENANT_LEASE_BOOTSTRAP_P0] pass=true  92/92
+  1. ✓  [PTLB-1] Property id 系统生成（PRP-xxxx）· 非用户输入
+  2. ✓  [PTLB-2] Add Property 表单无 manual property id / workspace / chat 输入
+  3. ✓  [PTLB-3] 新建 Property 默认 Vacant · 无租客 · 无独立月租
+  4. ✓  [PTLB-4] Property 存在 → Setup property step 自动 done（Domain Truth）
+  5. ✓  [PTLB-5] Property 月租不是独立真相：污染 p.rent 不影响 propMonthlyRent（无 lease → 0）
+  6. ✓  [PTLB-6] Property 持有 archive master-post reference（007C 对接）
+  7. ✓  [PTLB-7] Tenant id 系统生成（PT-xxxx）· 非用户输入
+  8. ✓  [PTLB-8] Add Tenant 表单无 manual tenant id / telegram id 输入
+  9. ✓  [PTLB-9] Tenant 无 Active Lease → 不是 Current Occupant（物业保持 Vacant）
+  10. ✓  [PTLB-10] Tenant 联系资料编辑不改变 occupancy（合同真相未动）
+  11. ✓  [PTLB-11] Lease Draft 不占用物业（occupancy 仍 Vacant）
+  12. ✓  [PTLB-12] Lease Draft 不产生 Active Rent truth（无 rent 记录）
+  13. ✓  [PTLB-13] 激活要求有效 Property（缺失 → reject）
+  14. ✓  [PTLB-14] 激活要求有效 Tenant（缺失 → reject）
+  15. ✓  [PTLB-15] 激活要求合法起止日期（缺失 → reject）
+  16. ✓  [PTLB-16] 激活要求月租 > 0（0 → reject）
+  17. ✓  [PTLB-17] 激活要求合法扣款日（0 → reject）
+  18. ✓  [PTLB-18b] 激活前第二 Draft 存在但不占用物业（occupancy 仍 Vacant）
+  19. ✓  [PTLB-26] Owner 可激活有效租约（Activate ok · Lease Active）
+  20. ✓  [PTLB-20] Active Lease 派生 Occupied
+  21. ✓  [PTLB-21] Active Lease 派生 Current Tenant
+  22. ✓  [PTLB-22] Active Lease 派生 Current Monthly Rent（128,500）
+  23. ✓  [PTLB-22b] 激活生成首月 Rent（amount/unit/due 来自 Lease 单真相）
+  24. ✓  [PTLB-18] 同一 Property Active Lease <= 1（仅 1 份生效）
+  25. ✓  [PTLB-19] 第二 Active Lease 激活被拒绝（业务语言：已有生效租约 · 不静默覆盖）
+  26. ✓  [PTLB-19b] 拒绝后 second draft 仍 draft · occupancy 不变
+  27. ✓  [PTLB-23] Removed Membership 不能创建 Property（reject）
+  28. ✓  [PTLB-23b] Removed Membership 创建 Property → zero mutation
+  29. ✓  [PTLB-24] Secretary 不能激活租约（reject · lease 仍 draft · occupancy 不变）
+  30. ✓  [PTLB-25] 伪造 meta.role=owner（Membership=Secretary）不能提升租约激活权限
+  31. ✓  [PTLB-27] Lease End / Move-out 后 Property 自动回 Vacant（occupancy 派生）
+  32. ✓  [PTLB-28] Historical Tenant 保留可追溯
+  33. ✓  [PTLB-29] Historical Rent 保留可追溯（lease_id 关联）
+  34. ✓  [PTLB-30] Property Archive history 保留可追溯（master-post reference 不变）
+  35. ✓  [PTLB-31] Active Lease Rent source 单真相（rent.amount === lease.monthly_rent === propMonthlyRent）
+  36. ✓  [PTLB-31b] 改 Lease 月租 → Property 投影跟随（单一来源，无第二真相）
+  37. ✓  [PTLB-31c] 污染 p.rent 不影响 propMonthlyRent（真相只来自 Lease）
+  38. ✓  [PTLB-32] Active Lease 存在时 forged prop-edit-rent-save → zero mutation（不绕过 Lease truth）
+  39. ✓  [PTLB-32b] Rent 编辑模块对 Active Lease 显示锁定（引导续租 / 变更加固流程）
+  40. ✓  [PTLB-33] Vacant Property 渲染无伪造 Tenant / 无 fake rent（显示 No active lease）
+  41. ✓  [PTLB-34] Draft Lease 渲染为草稿卡 · 不是 Current Tenant 区块 / 无 Occupied 状态徽章
+  42. ✓  [PTLB-35] Occupied Property 渲染 Active Tenant + Occupied + 月租（来自 Lease）
+  43. ✓  [PTLB-36] Property Detail（overview + lease tab）DOM undefined = 0
+  44. ✓  [PTLB-37] Lease Review 渲染无 undefined（terms 完整）
+  45. ✓  [PTLB-38] 390px Property Detail 无横向溢出 / 有 flex 防护
+  46. ✓  [PTLB-39] 430px Property Detail 无横向溢出 / 有 flex 防护
+  47. ✓  [PTLB-40] Bottom Nav 5 项保持不变（首页/物业/事项/财务/更多 · Archive 退一级）
+  48. ✓  [PTLB-41] Mini App 未引入 Telegram 3×2 菜单（TelegramExactMenuTruth 11/11 独立验证 · 0 修改）
+  49. ✓  [PTLB-F1-1] 同 unit 2201 · 两个独立 Property（PRP-A ≠ PRP-B）
+  50. ✓  [PTLB-F1-2] lease.property_id 真实指向 PRP-xxxx（A→PRP-0015 · B→PRP-0016）
+  51. ✓  [PTLB-F1-3] A 的 Active Lease 只占用 A · B 无 lease（property_id 隔离）
+  52. ✓  [PTLB-F1-3b] Occupancy 隔离：A=Occupied · B=Vacant
+  53. ✓  [PTLB-F1-3c] propCurrentTenant(A) 有值 · propCurrentTenant(B)=null（不串房）
+  54. ✓  [PTLB-F1-3d] 同 unit 多 Property 时 unit 旧 lookup 不串房（rentByUnit 不返回 A 的 rent）
+  55. ✓  [PTLB-F1-4] stale tenant.unit 不影响 Current Property（由 Active Lease 派生）
+  56. ✓  [PTLB-F1-5] 已有 Active Lease → 创建下一份 Draft 成功
+  57. ✓  [PTLB-F1-5b] 新 Draft 不改变 occupancy / current tenant / rent truth
+  58. ✓  [PTLB-F1-6] 第二 Draft 激活被拒（A 仍 Active）· zero mutation（draft 仍 draft · occupancy 不变 · 无新 rent）
+  59. ✓  [PTLB-F1-8] 全程 Active Lease <= 1（A）
+  60. ✓  [PTLB-F1-7a] Close A → Property 回 Vacant
+  61. ✓  [PTLB-F1-7] Close 当前 Lease 后，同一 Draft 可通过合法 preflight 激活
+  62. ✓  [PTLB-F1-8b] 激活后 Active Lease 仍 <= 1（B2）
+  63. ✓  [PTLB-F1-9a] Secretary 创建 Tenant + Draft 成功
+  64. ✓  [PTLB-F1-9b] Secretary 在已有 Active Lease 时创建下一份 Draft 成功
+  65. ✓  [PTLB-F1-9c] Secretary 不能激活（reject · draft 保持）
+  66. ✓  [PTLB-F1-9d] Secretary 流程全程 Active Lease <= 1
+  67. ✓  [PTLB-F2-A1] Create Lease A → Activate A = SUCCESS
+  68. ✓  [PTLB-F2-A2] Create Lease B → Activate B = SUCCESS（overlap 按 property_id · 同 unit 不误判）
+  69. ✓  [PTLB-F2-A3] A Active Lease = 1 · B Active Lease = 1（各自独立）
+  70. ✓  [PTLB-F2-A4] A/B Current Tenant 各自正确
+  71. ✓  [PTLB-F2-A5] A/B Occupancy 各自正确
+  72. ✓  [PTLB-F2-A6] A/B 各自产生 Rent（金额各自正确）
+  73. ✓  [PTLB-F2-A7] 两笔 Rent：id 不同 · property_id 不同 · lease_id 不同（同 unit 同月不碰撞）
+  74. ✓  [PTLB-F2-A8] A 第二 Draft Activate = REJECT（zero mutation · draft 保持）
+  75. ✓  [PTLB-F2-A9] B 完全不受影响（Active=1 · Occupied）
+  76. ✓  [PTLB-F2-B1] propertyId=PRP-9999（不存在）+ unit=1608（真实）→ REJECT（不 fallback 到 unit）
+  77. ✓  [PTLB-F2-B2] Wrong propertyId → ZERO MUTATION（tenant/lease/prop/rent 数量不变）
+  78. ✓  [PTLB-F2-C1] stale tenant.unit → Current Property 仍由 Active Lease 决定
+  79. ✓  [PTLB-F2-C2] Rent relation 仍由 lease.property_id 决定（不受 tenant.unit 污染）
+  80. ✓  [PTLB-F2-C3] Move-out / Renewal 的 current lease 仍由 Active Lease 决定
+  81. ✓  [PTLB-F2-C4] Current Tenant 仍正确（stale unit 不影响）
+  82. ✓  [PTLB-F2-D1] Lease Draft 因 invalid propertyId 创建失败
+  83. ✓  [PTLB-F2-D2] 失败后 tenant/lease/rent 数量不变（孤儿 Tenant 已 rollback）· occupancy 不变
+  84. ✓  [PTLB-F2-E1] propLeaseDrafts(PRP-E1) 只见 E1 draft · propLeaseDrafts(PRP-E2) 只见 E2 draft（无跨房 fallback）
+  85. ✓  [PTLB-F3-1] corrupt lease.property_id → Activate REJECT · lease 仍 draft（无 unit fallback）
+  86. ✓  [PTLB-F3-1b] corrupt lease.property_id → zero mutation（occupancy / current tenant / rent / 其它 Property 全不变）
+  87. ✓  [PTLB-F3-2] Tenant B（draft）无 Current Property / Current Lease（无 unit fallback）
+  88. ✓  [PTLB-F3-2b] viewTenant(B) 不显示 A 的 Current Property / Current Rent（串房为零）
+  89. ✓  [PTLB-F3-2c] B 仅显示自己的资料 / historical context
+  90. ✓  [PTLB-F3-3] propertyId=B + unit=1608 → Lease(property_id=B · unit 自动派生为 2201)（禁止 property_id=B + unit=1608 split-brain）
+  91. ✓  [PTLB-F3-4] Rent A → Property A · Rent B → Property B（rentProperty 按 property_id / lease_id 解析）
+  92. ✓  [PTLB-F3-4b] viewRent(A) 不含 B 的租客/金额 · viewRent(B) 不含 A 的租客/金额（同 unit 2201 不串房）
+
+═══════ Rent Collection Truth P0 Gate (PASAY-TASK-008 · obligation / payment / lifecycle / operation) ═══════
+  ✓  [RC-1] Active Lease 激活生成首月 obligation
+  ✓  [RC-2] amount_due 唯一来自 Lease（legacy amount 仅投影）
+  ✓  [RC-3] lease_id + period 唯一且幂等
+  ✓  [RC-4] missing Lease 不产生 obligation
+  ✓  [RC-5] Closed Lease 不产生未来 obligation
+  ✓  [RC-6] Upcoming 由 today < due 派生
+  ✓  [RC-7] Due 由 today = due 派生
+  ✓  [RC-8] Overdue 由 today > due 派生
+  ✗  RENT_COLLECTION_TRUTH_P0 gate threw: Cannot read properties of undefined (reading 'push')
+[RENT_COLLECTION_TRUTH_P0] pass=false  8/9
+  1. ✓  [RC-1] Active Lease 激活生成首月 obligation
+  2. ✓  [RC-2] amount_due 唯一来自 Lease（legacy amount 仅投影）
+  3. ✓  [RC-3] lease_id + period 唯一且幂等
+  4. ✓  [RC-4] missing Lease 不产生 obligation
+  5. ✓  [RC-5] Closed Lease 不产生未来 obligation
+  6. ✓  [RC-6] Upcoming 由 today < due 派生
+  7. ✓  [RC-7] Due 由 today = due 派生
+  8. ✓  [RC-8] Overdue 由 today > due 派生
+  9. ✗  RENT_COLLECTION_TRUTH_P0 gate threw: Cannot read properties of undefined (reading 'push')
+
+═══════ Summary ═══════
+✗ GATES FAILED
