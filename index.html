@@ -594,13 +594,67 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
       </div>
     </div>
   </section>
+
+  <section class="section" data-od-id="acceptance-006b" id="acceptance-006b">
+    <p class="eyebrow">VNEXT · MINI APP IA RECOVERY · PASAY-OPENDESIGN-MINIAPP-IA-RECOVERY-001</p>
+    <h2 class="h2">006B · Mini App IA 返修验收</h2>
+    <p class="lead">Telegram frozen 3×2 / 6 按钮菜单 <b>0 改动</b>。Mini App 一级底栏从 5 项固定为 4 项（Home / Properties / Operations / Archive）。Home 重构为 Needs You / AI Working / Risks 三段 + Normal State；Operations 中心化显示真实业务结果；Properties 健康度改为直接状态（🟢/🟡/🔴）；Archive 恢复为一级入口；Rent / Expense 业务能力保留但退出一级 nav。</p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="eyebrow">BOTTOM NAV</p>
+        <p class="p">5 项 (首页 / 物业 / 事项 / 租金 / 支出) → <b>4 项 (Home / Properties / Operations / Archive)</b>。Rent / Expense 业务能力完整保留，由 Home / Properties / Operations / Home exception 直接进入对应业务详情。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">HOME</p>
+        <p class="p">删除 KPI 8 网格 / PORTFOLIO PULSE / LEARNING growth / QUICK ACTIONS 8 按钮 / IMPORTANT EXCEPTION 旧版。三段：<b>需你处理 (NEEDS YOU)</b> · <b>AI 推进中 (AI WORKING)</b> · <b>需要关注 (RISKS ·)</b>。Normal state：「一切正常 · N 套物业运营正常 · AI 持续监控」。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">OPERATIONS CENTER</p>
+        <p class="p">#/tasks 路由 alias → viewOps。viewOps 分类为 Needs You / In Progress / Waiting / Risks / Completed。COMPLETED 下沉不占主屏。每张 Operation Card 业务化文案（What / Current reality / Who / Next / Attention），不暴露 WAITING_EXTERNAL 等状态机字段。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">PROPERTIES</p>
+        <p class="p">Health Score 92/76/58 不再作为主要产品语言。改为 🟢 OK / 🟡 维修待处理 / 🟡 尾款未清 / 🟡 租约 30 天内到期 / 🔴 租金逾期 / ⚪ 空置。<span class="health">{n}</span> 仍可在 Property Detail 内部查看。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">ARCHIVE</p>
+        <p class="p">恢复为一级入口（之前丢失）。按业务对象维度：Properties / Tenants & Leases / Receipts / Repairs / Expenses / Photos / Documents。Archive 是长期事实与证据层，不是网盘。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">FAB 收口</p>
+        <p class="p">Properties / Rent / Expense / Repairs / Tenants / Payments 多页 FAB <b>全部删除</b>。Add Property 由 Properties 列表上下文提供；新增租客由 Team / Onboarding 提供；收付款由 Settings 提供；Expense / Rent / Repair 由对应 Property / Home / Operations 提供。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">RESPONSIVE GATE</p>
+        <p class="p">App 容器 max-width 430px + body padding 18px。Bottom nav grid-template-columns: repeat(4, 1fr)。@media 0 改 columns。.main overflow-y auto 长内容可滚动。.topbar / .nav 高度固定不挤压。Safe area 走 env(safe-area-inset-bottom)。Long tenant name / long operation title 在 .row-main flex 1 容器内 wrap，不会 overflow。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">ADVERSARIAL DEMO</p>
+        <p class="p">「Christopher Dela Cruz」租客名 / 「Replace damaged bedroom air-conditioning compressor」operation title / ₱128,500 expense / 同房同时 Rent overdue + Repair pending + Lease expiring — 均在 390 / 430 viewport 不破版。多问题不再把一排 badge 挤爆（Property 用 propertyStatusDot 单一 chip）。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">BUSINESS TRUTH</p>
+        <p class="p">Information De-duplication：Home / Operations / Rent / Expense / Property 共享同一 source of truth，UI 可多入口，事实只有一个源。业务状态机（esc / next_actor / next_action / wake_at / due_at / escalation_level / priority）<b>未变</b>。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Telegram IA</p>
+        <p class="p">Telegram 6 按钮 3×2 冻结菜单（Home / Properties / Tasks / Rent / Expense / Archive）<b>0 改动</b>。gates-runner Telegram Exact Menu Truth Gate 11/11 PASS。</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">GATES</p>
+        <p class="p">node gates-runner.js → ✓ ALL GATES PASS（核心 004G K=233/233 + Lease A–M + Move-out A–W 含 P=453/453 + Bootstrap-007A 28/28 + Bootstrap-007A2 32/32 + Bootstrap-007A3 20/20 + Telegram Exact Menu 11/11 + 自检 Negative A–G 全正确 FAIL + Positive multiple-media 正确 PASS）。</p>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="pagefoot" data-od-id="footer">
   <div class="container row">
-    <span>Pasay AI · Product Master · OpenDesign Source of Truth · v1.0 · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No-Manual-ID）</span>
+    <span>Pasay AI · Product Master · OpenDesign Source of Truth · v1.0 · 已含 006 Source of Truth Sync + 007A3 Bootstrap（Invite Identity · Action Authority · No-Manual-ID）· 006B Mini App IA 返修（Home 三段 / Operations Center / Archive 恢复 / Health Score 直白状态 / FAB 收口）</span>
     <span class="meta">owner review · 建议从「进入交互原型」开始</span>
   </div>
 </footer>
+<!-- OPENDESIGN-DIRECT-GIT-PROBE-003 -->
+<!-- OPENDESIGN-DIRECT-GIT-PROBE-004 -->
 </body>
 </html>
