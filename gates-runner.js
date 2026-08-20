@@ -1152,6 +1152,26 @@ try {
   }
 }
 
+/* ─────────────── Run Finance Workspace P0 Gate (PASAY-TASK-011) ─────────────── */
+{
+  const gateFin = ctx.window.__OD_GATE_FINANCE_WORKSPACE_P0;
+  if (typeof gateFin === 'function') {
+    try {
+      const r = gateFin();
+      console.log('\n═══════ Finance Workspace P0 Gate (PASAY-TASK-011 · rent performance + cash movement + month/property/status) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('FINANCE_WORKSPACE_P0', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('FINANCE_WORKSPACE_P0 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('FINANCE_WORKSPACE_P0 gate not exposed on window (__OD_GATE_FINANCE_WORKSPACE_P0 = ' + typeof gateFin + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);

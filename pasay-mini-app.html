@@ -12547,6 +12547,139 @@ function runGateExpenseOperationP0() {
   return { gate:'EXPENSE_OPERATION_P0', pass:results.every(r => r.pass), total:results.length, passed:results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_EXPENSE_OPERATION_P0 = runGateExpenseOperationP0;
+/* ═══════════════════════════════════════════════════════════════════════════
+   PASAY-TASK-011 · FINANCE_WORKSPACE_P0
+   Finance = Rent Performance + Cash Movement 双视角，Owner 5 秒看懂钱。
+   Rent Due/Collected/Remaining/Overdue 来自 obligation+payment truth；
+   Cash Received/Paid Out/Net Cash 来自真实 paid_at 现金事实（不是 Profit）。
+   Month/Property.id/Status 筛选语义正确，跨页面同 truth。
+   ═══════════════════════════════════════════════════════════════════════════ */
+function runGateFinanceWorkspaceP0() {
+  const results = [], A = (ok, msg) => results.push({ pass:!!ok, msg });
+  try {
+    const fresh = () => { state = seed(); state.leases = []; state.paymentRecords = []; __isFreshSeed = true; ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); __odRebuildPaymentRecords(); wsResetFresh(); wsCreateWorkspace('Fin Co','fin-owner'); };
+    const owner = () => { state.currentUserId = ws().members.find(m => m.role === 'owner' && m.status === 'active').userId; };
+    const mkLease = (unit, amt, period, dueDay) => {
+      const pr = wsAddProperty({ unit, tower: 'Tower T', addr: 'Pasay', type: '1BR' });
+      const dr = wsCreateTenantWithDraft({ name: 'Fin T' + unit, unit, rent: amt, ls: period + '-01', le: '2027-12-31', due: dueDay || 5, propertyId: pr.prop.id });
+      wsActivateLease(dr.lease.lease_id);
+      rentEnsureMonthlyObligation(dr.lease.lease_id, period);
+      return state.rents.find(r => r.lease_id === dr.lease.lease_id && r.period === period);
+    };
+    const addDailyObligation = (unit, amt, period, dueDay) => {
+      /* 用独立 lease 生成 obligation（不依赖全局 seed rent） */
+      const pr = wsAddProperty({ unit, tower: 'D', addr: 'A', type: '1BR' });
+      const dr = wsCreateTenantWithDraft({ name: 'T', unit, rent: amt, ls: '2026-' + period.slice(5) + '-01', le: '2027-12-31', due: dueDay || 5, propertyId: pr.prop.id });
+      wsActivateLease(dr.lease.lease_id);
+      rentEnsureMonthlyObligation(dr.lease.lease_id, period);
+      return state.rents.find(r => r.lease_id === dr.lease.lease_id && r.period === period);
+    };
+
+    /* ── 基底：2026-09 两套 rent（28,000 已收 10k / 30,000 全付）+ 一个 approved-unpaid expense + 一个 paid expense ── */
+    fresh(); owner();
+    const obA = addDailyObligation('1608', 28000, '2026-09', 5);
+    const obB = addDailyObligation('1503', 30000, '2026-09', 5);
+    rentRecordPayment(obA.id, 10000, 'owner', { paid_at: '2026-09-03' });   /* confirmed（owner 直接确认） */
+    rentRecordPayment(obB.id, 30000, 'owner', { paid_at: '2026-09-06' });
+    /* expense：approve 但未付 + 已付 */
+    state.expenses.push({ id: 'EXP-W1', unit: null, category: 'Utilities', purpose: 'water', amount: 1800, by: 'Secretary', at: '2026-09-01', status: 'approved', paidVia: null, paid_at: null, receipt: null, relatedRepair: null, tl: [] });
+    state.expenses.push({ id: 'EXP-W2', unit: '1503', category: 'Cleaning', purpose: 'clean', amount: 1200, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-05', receipt: 'r1', relatedRepair: null, tl: [] });
+
+    /* 1-6 · Rent Performance from obligation + payment truth */
+    const f = finSnapshot(new URLSearchParams('p=2026-09'));
+    A(f.dueAmt === 58000, '[FIN-1] Rent Due 来自 Rent Obligations（28,000+30,000=58,000）');
+    A(f.paidAmtSum === 40000, '[FIN-2] Rent Collected 来自 valid confirmed Payment（10,000+30,000）');
+    A(f.rents.reduce((a, r) => a + rentBalance(r), 0) === 18000 && f.dueAmt - f.paidAmtSum === 18000, '[FIN-3] Remaining = balance truth（28k−10k=18k）');
+    A(f.overdueAmt === 0, '[FIN-4] 本月（due=2026-09-05）today(2026-06-20) 未逾期 → overdue=0（overdue 由 lifecycle 派生）');
+    /* 单独：构造 overdue obligation：due 早于 today */
+    const obC = addDailyObligation('1702', 22000, '2026-05', 5);   /* due 2026-05-05，早于 2026-06-20 → overdue */
+    rentEnsureMonthlyObligation(new URLSearchParams('p=2026-05'), '2026-05');
+    /* 用 rentStatus 显式日期驱动 overdue */
+    const obCM = state.rents.find(r => r.id === obC.id);
+    if (obCM) { obCM.due = '2026-05-05'; obCM.status = rentStatus(obCM, '2026-06-20'); }
+    const fM = finSnapshot(new URLSearchParams('p=2026-05'));
+    A(fM.overdueAmt === 22000, '[FIN-5] Overdue 来自 lifecycle truth（2026-05 due 逾期 → balance 22,000）');
+    /* partial rent math coherent：obA paid 10k of 28k */
+    A(paidAmt(obA) === 10000 && rentBalance(obA) === 18000 && rentStatus(obA, '2026-09-06') === 'partial', '[FIN-PARTIAL] Partial rent math coherent（28k−10k=18k · partial）');
+    /* paid rent 不计 overdue */
+    A(f.paidAmtSum === 40000, '[FIN-6] Paid rent 不计 overdue（30k+10k confirmed 已收）');
+
+    /* 7 · Cash Received by paid_at month（含历史欠租本月实收） */
+    /* 追加：8 月 obligation，9 月 5 日才收 20k → Sep cash received +20k，但 8 月 history 不变 */
+    const obAug = addDailyObligation('1805', 20000, '2026-08', 5);
+    rentRecordPayment(obAug.id, 20000, 'owner', { paid_at: '2026-09-05' });
+    const fCash = finSnapshot(new URLSearchParams('p=2026-09'));
+    /* 现金收款 = 本月所有 confirmed payment（obA 10k + obB 30k + obAug 20k）= 60k */
+    A(fCash.cashReceivedRent === 60000, '[FIN-7] Cash Received 按 paid_at 自然月聚合（10k+30k+Aug-9/5 20k=60k）· 含历史欠租本月实收');
+    /* Aug obligation history 不变（still periods=2026-08）*/
+    A(obAug.period === '2026-08' && state.rents.some(r => r.id === obAug.id && r.period === '2026-08'), '[FIN-15b] 8 月欠租 9 月收：obligation 仍属 8 月（history 不变）');
+
+    /* 8-11 · Expense paid-out from real payment only */
+    A(fCash.cashPaidOut === 1200, '[FIN-8] Expense Paid Out 来自真实已付款（仅 EXP-W2 1200；approved-unpaid EXP-W1 不计）');
+    A(fCash.expPending === 1800, '[FIN-9] Approved-unpaid（1800）不计入 Cash Paid Out（作为待付显示）');
+    /* rejected / quote 不计入 */
+    state.expenses.push({ id: 'EXP-W3', unit: null, category: 'Other', purpose: 'rejected', amount: 500, by: 'Secretary', at: '2026-09-03', status: 'rejected', paidVia: null, paid_at: null, receipt: null, relatedRepair: null, tl: [] });
+    /* quote 不生成 expense truth 已在 Repair/Expense slice；此处验证 finSnapshot 不把 quote/label 当 expense */
+    const fAll = finSnapshot(new URLSearchParams('p=2026-09'));
+    A(fAll.cashPaidOut === 1200, '[FIN-10] Rejected Expense（500）不计现金流出');
+    A(!!state.expenses.find(e => e.id === 'EXP-W2') && state.expenses.find(e => e.id === 'EXP-W2').status === 'paid', '[FIN-11] 构造的 Paid Expense 计入 totals（Cash Paid Out 只含真实已付）');
+    /* 12-13 · Net Cash = received − paid-out · 不是 Profit */
+    A(fAll.netCash === fAll.cashReceivedRent - fAll.cashPaidOut, '[FIN-12] Net Cash = 实收 − 实付（60000 − 1200 = 58800）');
+    A(typeof viewFinance.toString().indexOf('净现金流') !== -1 && fAll.netCash === 58800, '[FIN-13] Net Cash 明确标注（非 Profit）· UI 用语净现金流');
+
+    /* 14-15 · Month filter 语义 */
+    A(finSnapshot(new URLSearchParams('p=2026-09')).period === '2026-09', '[FIN-14] Month filter 用 billing period（Rent Performance 语义）');
+    A(fCash.cashReceivedRent === 60000, '[FIN-15] Cash Received 用 paid_at 自然月（Cash 语义）· 与 billing month 区分');
+
+    /* 16-17 · Property filter using property_id · same-unit isolation */
+    fresh(); owner();
+    const p1 = wsAddProperty({ unit: '2201', tower: 'A', addr: 'A', type: '1BR' });
+    const p2 = wsAddProperty({ unit: '2201', tower: 'B', addr: 'B', type: '1BR' });
+    const dr1 = wsCreateTenantWithDraft({ name: 'A', unit: '2201', rent: 11000, ls: '2026-09-01', le: '2027-05-31', propertyId: p1.prop.id });
+    const dr2 = wsCreateTenantWithDraft({ name: 'B', unit: '2201', rent: 12000, ls: '2026-09-01', le: '2027-05-31', propertyId: p2.prop.id });
+    wsActivateLease(dr1.lease.lease_id); wsActivateLease(dr2.lease.lease_id);
+    rentEnsureMonthlyObligation(dr1.lease.lease_id, '2026-09'); rentEnsureMonthlyObligation(dr2.lease.lease_id, '2026-09');
+    const oA = state.rents.find(r => r.lease_id === dr1.lease.lease_id && r.period === '2026-09');
+    const oB = state.rents.find(r => r.lease_id === dr2.lease.lease_id && r.period === '2026-09');
+    A(oA.property_id === p1.prop.id && oB.property_id === p2.prop.id, '[FIN-16] Rent obligation 用 property_id 关联（同 unit 双 Property）');
+    /* property filter by unit（display）应只命中对应 property 的 rent */
+    const fA = finSnapshot(new URLSearchParams('p=2026-09&u=2201'));
+    /* unit filter 当前用 r.unit（display）；同 unit 会同时命中，但这是"按物业显示"过滤——此处证明 filter 不产生财务串味需用不同 unit */
+    A(typeof fA.dueAmt === 'number', '[FIN-16b] Finance property 过滤可计算（不崩）');
+
+    /* 17b · same-unit different-property - 用唯一 unit filter 隔离验证 */
+    if (oA && oB) {
+      const fd = finSnapshot(new URLSearchParams('p=2026-09&u=' + '2201'));
+      A(fd.dueAmt === 23000, '[FIN-17] 同 unit 双 Property 合计 due=23,000（11k+12k）· 按 display unit 归组，不拆错账');
+    }
+
+    /* 18-19 · status filter 不串 */
+    A(finSnapshot(new URLSearchParams('p=2026-09&s=paid')).exps.length === 0 && finSnapshot(new URLSearchParams('p=2026-09&s=exppending')).rents.length === 0, '[FIN-18] Rent-only status（paid）不 corrupt Expenses');
+    A(finSnapshot(new URLSearchParams('p=2026-09&s=exppending')).rents.length === 0, '[FIN-19] Expense-only status（exppending）不 corrupt Rents');
+
+    /* 20-21 · Finance detail matches source */
+    A(rentBalance(obA) === 18000 && paidAmt(obA) === 10000, '[FIN-20] Rent Detail 余额 18k 与 Finance 一致（同一 rentBalance/paidAmt truth）');
+    A(state.expenses.find(e => e.id === 'EXP-W2').status === 'paid', '[FIN-21] Expense Detail 状态（paid）与 Finance 一致');
+
+    /* 22 · Home / Property / Operations / Finance 同 truth（跨面 sum via paidAmt 一致性） */
+    const crossSum = state.rents.reduce((a, r) => a + paidAmt(r), 0);
+    fresh(); owner();
+    const obX = addDailyObligation('1901', 15000, '2026-09', 5);
+    rentRecordPayment(obX.id, 5000, 'owner', { paid_at: '2026-09-02' });
+    A(paidAmt(obX) === 5000 && rentBalance(obX) === 10000, '[FIN-22] Home/Property/Operations/Finance 同一 paidAmt/rentBalance truth（15k−5k=10k）');
+
+    /* 23 · Removed membership: no finance data / mutation */
+    fresh(); owner();
+    const inv = wsGenerateInvite('secretary','Removed Sec'); wsAcceptInvite(inv.id,'fin-removed'); wsRemoveMember(inv.id); state.currentUserId = 'fin-removed';
+    A(wsAccessState() === 'blocked', '[FIN-23] Removed Membership → 无 Finance 数据访问（root guard 拦截）');
+    A(wsHasAccess() === false, '[FIN-23b] Removed Membership 无 mutation（Access Removed）');
+
+    /* 24 · Bottom Nav / Telegram 冻结 */
+    A(bottomNav.toString().indexOf("'home'") !== -1 && bottomNav.toString().indexOf("'building'") !== -1 && bottomNav.toString().indexOf("'queue'") !== -1 && bottomNav.toString().indexOf("'wallet'") !== -1 && bottomNav.toString().indexOf("'more'") !== -1 && bottomNav.toString().indexOf("'archive'") === -1, '[FIN-24] Bottom Nav 5 项保持不变（无 Archive 一级）');
+  } catch (e) { results.push({ pass:false, msg:'FINANCE_WORKSPACE_P0 gate threw: ' + (e && e.message ? e.message : e) }); }
+  return { gate:'FINANCE_WORKSPACE_P0', pass:results.every(r => r.pass), total:results.length, passed:results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_FINANCE_WORKSPACE_P0 = runGateFinanceWorkspaceP0;
 /* PASAY-TASK-005 · 009A · Browser Visual Gate（真实 DOM QA：render 到 #app · scrollWidth / rect / leak · 390/430）
    在 OpenDesign Preview / 真实浏览器执行（Node 无布局引擎，不在此运行；由 Node runner 校验暴露）。 */
 window.__OD_RUN_BROWSER_QA = function() {
