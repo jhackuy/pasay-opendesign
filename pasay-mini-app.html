@@ -1164,12 +1164,15 @@ function seed_lease_for(u) {
    activeLeaseByPropId 是权威查询；active_lease(unit) 保留为 legacy 兼容（unit 唯一时经 prop.id 解析，绝不按 unit 直查导致同 unit 碰撞）。 */
 function activeLeaseByPropId(propId) { return state.leases.find(l => l.property_id === propId && l.status === 'active'); }
 function active_lease(unit) {
-  const p = prop(unit);
+  const matches = state.props.filter(x => x.unit === unit);
+  if (matches.length > 1) {
+    /* P0-1 · 同 unit 多个 Property（不同 Tower）：unit 查询有歧义 — 不猜测（返回 undefined），强制走 property_id */
+    return undefined;
+  }
+  const p = matches[0];
   if (p && p.id && p.id.indexOf('PRP-') === 0) {
     const byId = activeLeaseByPropId(p.id);
     if (byId) return byId;
-    /* P0-1 · 同 unit 存在多个 Property（不同 Tower）时，禁止按 unit 直查（会串房） */
-    if (state.props.filter(x => x.unit === unit).length > 1) return undefined;
   }
   return state.leases.find(l => l.unit === unit && l.status === 'active');
 }
@@ -11680,7 +11683,9 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     const actF1 = wsActivateLease(f1tB2.lease.lease_id);
     __odAssert(actF1.ok === false && f1tB2.lease.status === 'draft' && propOccupancy(pA) === 'occupied' && !state.rents.some(r => r.lease_id === f1tB2.lease.lease_id), '[PTLB-F1-6] 第二 Draft 激活被拒（A 仍 Active）· zero mutation（draft 仍 draft · occupancy 不变 · 无新 rent）');
     __odAssert(state.leases.filter(l => l.property_id === F1A.prop.id && l.status === 'active').length === 1, '[PTLB-F1-8] 全程 Active Lease <= 1（A）');
-    close_active_lease('2201', '2026-09-30');   /* 合法结束 A */
+    /* 合法结束 A（Move-out / End current lease 路径语义 = lease → closed） */
+    const lAclose = activeLeaseByPropId(F1A.prop.id);
+    if (lAclose) { lAclose.status = 'closed'; lAclose.move_out_at = '2026-09-30'; }
     wsReconcileOccupancy();
     __odAssert(propOccupancy(pA) === 'vacant', '[PTLB-F1-7a] Close A → Property 回 Vacant');
     const actF1b = wsActivateLease(f1tB2.lease.lease_id);
