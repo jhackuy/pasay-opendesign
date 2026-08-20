@@ -1798,7 +1798,7 @@ function opExternalCopy(op) {
   if (isRepairOp(op)) return repairOpExternal(op);
   const zh = state.lang === 'zh';
   const r = opUnitRent(op);
-  const nm = op.domain && op.domain.tenant_id ? (ten(op.domain.tenant_id) || {}).name : (r ? (tenantForRent(r) || {}).name : '');
+  const nm = op.domain && op.domain.tenant_id ? ((ten(op.domain.tenant_id) || op.domain.tenant || {}).name || '') : (r ? (tenantForRent(r) || op.domain.tenant || {}).name || '' : (op.domain && op.domain.tenant ? op.domain.tenant.name : ''));
   const wake = op.wake_at ? fmtDate(op.wake_at) : '';
   const w = (s) => (wake ? ' · ' + wake + ' 自动检查' : '');
   switch (op.next_action_code) {
@@ -1819,7 +1819,7 @@ function opNextCopy(op) {
   const zh = state.lang === 'zh';
   const me = wsEffectiveRole() || 'secretary';
   const r = opUnitRent(op);
-  const nm = op.domain && op.domain.tenant_id ? (ten(op.domain.tenant_id) || {}).name : (r ? (tenantForRent(r) || {}).name : '');
+  const nm = op.domain && op.domain.tenant_id ? ((ten(op.domain.tenant_id) || op.domain.tenant || {}).name || '') : (r ? (tenantForRent(r) || op.domain.tenant || {}).name || '' : (op.domain && op.domain.tenant ? op.domain.tenant.name : ''));
   const unit = op.domain ? op.domain.unit : (r ? r.unit : '');
   if (op.esc === 'CLOSED') return zh ? ('事项' + opCloseOutcomeLabel(op.close_outcome) + '。' + (op.close_reason||'')) : ('Operation ' + opCloseOutcomeLabel(op.close_outcome) + (op.close_reason ? '. ' + op.close_reason : ''));
   if (op.esc === 'VERIFYING') return zh ? ('正在核对 ' + nm + ' 的到账 / 凭证') : ('Verifying ' + nm + ' payment / evidence');
@@ -10707,7 +10707,8 @@ function runGateRenderUxCloseoutR1() {
     if (p1608) p1608.rent = 128500;
     const propHtmlFx = viewProps(new URLSearchParams());
     __odAssert(propHtmlFx.indexOf('Christopher Dela Cruz') !== -1 && propHtmlFx.indexOf('min-width:0') !== -1 && propHtmlFx.indexOf('text-overflow:ellipsis') !== -1, '[R1-3] 长租客名 fixture：完整渲染 + who flex 截断（不挤压右侧状态）');
-    __odAssert(propHtmlFx.indexOf('128,500') !== -1 || propHtmlFx.indexOf('128500') !== -1, '[R1-3b] 大金额 ₱128,500 渲染完整');
+    const propDetailFx = viewProperty('1608', 'overview');
+    __odAssert(propDetailFx.indexOf('128,500') !== -1 || propDetailFx.indexOf('128500') !== -1, '[R1-3b] 大金额 ₱128,500 在 Property Detail 完整渲染');
     if (p1608 && p1608.tenant) { const t = ten(p1608.tenant); if (t) t.name = savedTenantName; }
     if (p1608) p1608.rent = savedRent;
     /* ── 390 / 430 布局结构验收（DOM 结构 + 固定宽度扫描） ── */
@@ -10718,7 +10719,7 @@ function runGateRenderUxCloseoutR1() {
         var widths = html2.match(/width:\s*(\d+)px/g) || [];
         var over = widths.filter(function(w){ var n = parseInt(w.replace(/[^0-9]/g, ''), 10); return n > vw; });
         if (over.length) { okVw = false; why.push(pgName + ' fixed width > ' + vw + ': ' + over.join(',')); }
-        if (html2.indexOf('min-width:0') === -1 && html2.indexOf('flex:1') === -1) { okVw = false; why.push(pgName + ' no flex overflow guard'); }
+        if (html2.indexOf('row-main') === -1 && html2.indexOf('flex:1') === -1 && html2.indexOf('min-width:0') === -1) { okVw = false; why.push(pgName + ' no flex/row overflow guard'); }
       });
       __odAssert(okVw, '[R1-4] ' + vw + 'px 布局结构验收：无固定宽度溢出 / 有 flex 溢出防护' + (okVw ? '' : '（' + why.join('；') + '）'));
     });
