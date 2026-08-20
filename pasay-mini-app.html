@@ -10083,6 +10083,48 @@ function runGateHomeLayout() {
   return { gate: 'HomeLayout-FIX2', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_HOME_LAYOUT = runGateHomeLayout;
+/* PASAY-TASK-003 · 008A · Operations Work Queue Gate（Operations ≠ Tasks · Work Queue · Waiting Contract · Scenarios） */
+function runGateOperations008A() {
+  const results = [];
+  const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
+  try {
+    ensureOps008aScenarios(); /* 幂等重建 Required Scenarios（其它 gate 可能 reset state） */
+    /* 1 · Operations ≠ Tasks：Work Queue 基于 Operation 主记录 */
+    const src = viewOps.toString() + opCard.toString() + opWaitingLabel.toString() + opTypeLabel.toString();
+    __odAssert(src.indexOf('ACT NOW') !== -1 && src.indexOf('AI WORKING') !== -1 && src.indexOf('DONE TODAY') !== -1, '[008A-1] Work Queue 视图 = Act Now / AI Working / Waiting / Done Today（基于 Operations，非 Task 列表）');
+    /* 2 · 分类 helpers 存在 */
+    __odAssert(typeof opWaitingLabel === 'function' && typeof opTypeLabel === 'function' && typeof opDoneToday === 'function', '[008A-2] 分类 helpers 存在（opWaitingLabel / opTypeLabel / opDoneToday）');
+    /* 3 · Waiting 明确等谁 / 等什么（禁止只显示 Waiting） */
+    const wl = opWaitingLabel(state.operations.find(o => o.id === 'OP-RENT-1680'));
+    __odAssert(wl === (state.lang === 'zh' ? '等待租客' : 'Waiting for tenant'), '[008A-3] Waiting 明确等谁（1680 → "' + wl + '"）');
+    /* 4 · Rent partial：1680 · ₱28,000 · 已收 ₱10,000 · 剩余 ₱18,000 */
+    const r1680 = op('OP-RENT-1680');
+    __odAssert(!!r1680 && opObjective(r1680) === 28000 && opReceived(r1680) === 10000 && opRemaining(r1680) === 18000, '[008A-4] Rent partial 表达正确（28,000 · 已收 10,000 · 剩余 18,000）');
+    const rent1680 = state.rents.find(x => x.id === 'R-2026-08-1680');
+    __odAssert(!!rent1680 && rent1680.status === 'partial' && rent1680.amount === 28000 && rent1680.payments.some(p => p.amount === 10000 && p.status === 'confirmed'), '[008A-4b] 1680 rent 数据为 partial（₱10,000 confirmed payment）');
+    /* 5 · Repair 7789 是 Operation 而非普通 Task */
+    const rp7789 = op('OP-REP-7789');
+    __odAssert(!!rp7789 && rp7789.kind === 'repair' && isRepairOp(rp7789) && !!opRepair(rp7789) && opRepair(rp7789).id === 'REP-7789', '[008A-5] 7789 为 Repair Operation（非普通 Task）· 真实 repair truth');
+    __odAssert(!!rp7789 && rp7789.quote_amount === 3200 && rp7789.quotes && rp7789.quotes.length === 1, '[008A-5b] 7789 报价 ₱3,200 已收到 → Owner 审批阶段');
+    /* 6 · Activity ≠ Task：Operation 时间线是业务事件，不生成 Task */
+    __odAssert(!!r1680 && r1680.tl && r1680.tl.length >= 3, '[008A-6] Activity 时间线独立存在（1680 tl ≥ 3 事件）');
+    __odAssert(!state.tasks.some(t => t.related === 'R-2026-08-1680' || t.tzOp === 'OP-RENT-1680'), '[008A-6b] 这些 Activity 事件未被生成 Task（Activity ≠ Task）');
+    /* 7 · AI/Human Action Contract：禁止 Advance / Next Step / Change Status / Complete Step */
+    const allActs = (opActionHtml.toString() + primaryActionHtml.toString() + repairActionHtml.toString()).replace(/\s+/g, ' ');
+    const banned = ['op-advance', 'op-next-step', 'op-change-status', 'op-complete-step'];
+    __odAssert(banned.every(b => allActs.indexOf(b) === -1), '[008A-7] 无 Advance / Next Step / Change Status / Complete Step 类按钮');
+    /* 8 · Task 完成 ≠ Operation Closed */
+    __odAssert(BUSINESS_TYPES.length > 0 && primaryActionHtml.toString().indexOf('Handle in operation') !== -1, '[008A-8] 业务 Task 跳转 Operation 处理（禁止 Mark done 绕过业务）');
+    /* 9 · Navigation 职责：Operations 不复制 Home Dashboard */
+    __odAssert(viewOps.toString().indexOf('PORTFOLIO PULSE') === -1 && viewOps.toString().indexOf('KPI') === -1, '[008A-9] Operations 不复制 Home Dashboard（无 KPI / Portfolio Pulse）');
+    /* 10 · Scenarios fixtures 完整 */
+    __odAssert(state.props.some(p => p.unit === '1680') && state.props.some(p => p.unit === '7789') && state.tenants.some(t => t.id === 'PT-9') && state.tenants.some(t => t.id === 'PT-10'), '[008A-10] 1680 / 7789 fixtures 完整存在（props / tenants）');
+  } catch (e) {
+    results.push({ pass: false, msg: '008A gate threw: ' + (e && e.message ? e.message : e) });
+  }
+  return { gate: 'Operations-008A', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_OPERATIONS_008A = runGateOperations008A;
 window.__OD_RUN_GATES = function() {
   const a = runGateA();
   const b = runGateB();

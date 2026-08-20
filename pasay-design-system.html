@@ -918,11 +918,41 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
       <p class="meta" style="margin-top:14px">007C 契约独立于 Operation Foundation / Identity 层：Property Truth + Workspace Archive Channel 是新的业务对象层，不改动 Operation 语义、不动 Telegram 6 按钮 3×2 冻结菜单（Team / Setup 管理功能仍只在 Mini App / Settings）。</p>
     </div>
   </section>
+
+  <!-- 16 · OpenDesign Source of Truth · 008A · Operations Work Queue（Operations ≠ Tasks） -->
+  <section class="section" data-od-id="vnext-ops-008a" id="vnext-ops-008a" style="padding-top:0">
+    <div class="container">
+      <p class="eyebrow">VNEXT · 008A · OPERATIONS WORK QUEUE · 统一运营工作台</p>
+      <div class="sec-h">
+        <h2 class="h2">Operations ≠ Tasks<br>Operation 是推进真实业务结果的主记录</h2>
+        <span class="tag">Work Queue · AI 推进 · 人工只在必要时介入</span>
+      </div>
+      <div class="banner info">
+        业务流：<b>物业事件 → 创建/更新 Operation → AI 自动推进 → 需要人工时进入 Work Queue → 人处理 → AI 继续推进 → Operation Closed</b>。禁止退化成「创建 Task → 分配 Task → 完成 Task」。Task 只是 Operation 在当前步骤确实需要真人执行时产生的执行投影。
+      </div>
+
+      <div class="card" style="margin-top:18px;border-left:3px solid var(--accent)">
+        <div class="freeze-grid">
+          <div class="fc-item"><span class="fc-n">01</span><b>Operations ≠ Tasks</b><span>Operation 是持续推进真实物业业务结果的主记录；Task 只是 Operation 需要真人执行时的投影。一个 Operation 可以没有 Task、可以有 Task、原则上同一时刻只暴露当前必要 Task；<b>Task 完成不代表 Operation 结束</b>。</span></div>
+          <div class="fc-item"><span class="fc-n">02</span><b>Work Queue 用户视图</b><span>Act Now（现在必须处理）· AI Working / In Progress（AI 推进中）· Waiting（明确等谁/等什么）· Done Today（今日完成）。仅存在真实异常业务价值时才增加 Needs Attention（BLOCKED）。</span></div>
+          <div class="fc-item"><span class="fc-n">03</span><b>Waiting Contract</b><span>禁止只显示 Waiting：必须明确等谁 / 等什么 —— Waiting for tenant / Secretary / Owner decision / payment / evidence / contractor。</span></div>
+          <div class="fc-item"><span class="fc-n">04</span><b>AI / Human Action Contract</b><span>AI 能自动继续时不要求用户点按钮；人工动作只在真正需要判断/确认时出现（Approve expense · Confirm payment · Decide lease renewal · Review repair quote · Confirm move-out settlement）。<b>禁止暴露</b> Advance / Next Step / Change Status / Complete Step。</span></div>
+          <div class="fc-item"><span class="fc-n">05</span><b>Activity ≠ Task</b><span>Activity 是业务时间线（detected → contacted → promised → ₱10,000 received → remaining → paid → closed），不是任务列表；禁止把这些事件全部生成 Task。</span></div>
+          <div class="fc-item"><span class="fc-n">06</span><b>Operation Card 信息标准</b><span>每项不进入详情也应看懂：Property/Unit · Operation Type（Rent / Expense / Repair / Lease Renewal / Move-out）· 当前发生什么 · 谁/什么在处理 · 下一步 · 是否需要 Owner/Secretary 行动 · 时间紧迫程度。</span></div>
+          <div class="fc-item"><span class="fc-n">07</span><b>Operation Detail = 业务事件</b><span>详情表现为一个正在推进的真实业务事件：Property/Unit · Type · Current Status（用户语言）· Current Step · Next Step · Who/What waiting · Amount · Due/Deadline · Evidence/Record · Activity Timeline · Related Task（如存在）· 必要人工操作按钮。</span></div>
+          <div class="fc-item"><span class="fc-n">08</span><b>Rent partial 表达</b><span>部分付款必须清楚表达：<code>Unit 1680 · Rent · August partially paid · ₱10,000 / ₱28,000 received · ₱18,000 remaining · AI following up / Waiting for tenant payment</code>。不得简化为 <code>Task: Follow up rent</code>。</span></div>
+          <div class="fc-item"><span class="fc-n">09</span><b>Repair 是 Operation</b><span>Repair（如 7789 leaking sink）形成 Repair Operation：Reported → Secretary checks → Quote received → Owner approval → Scheduled → Evidence → Verified → Closed。只有真正需要某人执行的环节才投影 Task。</span></div>
+          <div class="fc-item"><span class="fc-n">10</span><b>Navigation 职责不重叠</b><span>Home = 状态 / 风险 / 今日运营概览 · Operations = 当前所有进行中的业务工作（Work Queue）· Properties = 资产事实 · Archive = 长期业务档案。Operations 不得复制 Home Dashboard。</span></div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:14px">008A 契约不改变 Operation Foundation 状态机（esc / next_actor / next_action_code 语义不变）：只升级用户视图与 Operation/Task 关系表达；不动 Telegram 3×2 / 007C Archive / 已验收 Property List & Detail。</p>
+    </div>
+  </section>
 </main>
 
 <footer class="pagefoot" data-od-id="footer">
   <div class="container row">
-    <span>Pasay AI · 产品母稿 · 01 设计系统 / 已含 004G → 005B2 全部接受 + 006A Source of Truth Sync · Telegram 6-menu IA Freeze + 007A3 Identity/Invite/Action-Authority（Item 11-23 冻结 · 007A/007A1/007A2 = historical）+ 006B Mini App IA 返修（Home Needs You / AI Working / Risks · Operations Center · Archive 一级 · Health Score 直白 · FAB 收口；Telegram IA / 业务状态机 0 改动）+ 007C FINAL 一 Workspace 一 Archive Channel（主档案消息 · Pin/Edit · 单分类 + Reclassify · Snapshot Policy · Building Contacts · 12 条契约）+ 007C FIX1（Open Archive 真实 deep-link · 单文件 Reclassify · PROPERTY_ARCHIVE_007C_FINAL Gate 12/12 PASS）</span>
+    <span>Pasay AI · 产品母稿 · 01 设计系统 / 已含 004G → 005B2 全部接受 + 006A Source of Truth Sync · Telegram 6-menu IA Freeze + 007A3 Identity/Invite/Action-Authority（Item 11-23 冻结 · 007A/007A1/007A2 = historical）+ 006B Mini App IA 返修（Home Needs You / AI Working / Risks · Operations Center · Archive 一级 · Health Score 直白 · FAB 收口；Telegram IA / 业务状态机 0 改动）+ 007C FINAL 一 Workspace 一 Archive Channel（主档案消息 · Pin/Edit · 单分类 + Reclassify · Snapshot Policy · Building Contacts · 12 条契约）+ 007C FIX1（Open Archive 真实 deep-link · 单文件 Reclassify · PROPERTY_ARCHIVE_007C_FINAL Gate 12/12 PASS）+ 008A Operations Work Queue（Operations ≠ Tasks · Act Now / AI Working / Waiting / Done Today · Waiting Contract · AI-Human Action Contract · 10 条契约）</span>
     <a href="pasay-mini-app.html" style="color:var(--accent);font-weight:600">进入交互原型 →</a>
   </div>
 </footer>

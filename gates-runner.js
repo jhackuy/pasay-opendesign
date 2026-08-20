@@ -812,6 +812,47 @@ try {
   }
 }
 
+/* ─────────────── Run Operations Work Queue Gate (PASAY-TASK-003 · 008A) ─────────────── */
+{
+  const gate008A = ctx.window.__OD_GATE_OPERATIONS_008A;
+  if (typeof gate008A === 'function') {
+    try {
+      const r = gate008A();
+      console.log('\n═══════ Operations Work Queue Gate (PASAY-TASK-003 · 008A) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('Operations-008A', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('Operations-008A gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('Operations-008A gate not exposed on window (__OD_GATE_OPERATIONS_008A = ' + typeof gate008A + ')');
+    allPass = false;
+  }
+
+  /* 静态契约断言：源码文本（Operations ≠ Tasks / Waiting Contract 文案 / 禁止按钮 / Navigation 职责） */
+  try {
+    const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
+    const script = miniSrc.match(/<script>([\s\S]*?)<\/script>/i);
+    const code = script ? script[1] : miniSrc;
+    const checks = [
+      { n: 1, cond: code.indexOf('Operation 是推进真实业务结果的主记录') !== -1 && code.indexOf('ACT NOW') !== -1, msg: '[008A-s1] Work Queue 视图声明（Operations ≠ Tasks 文案 + Act Now 分类）' },
+      { n: 2, cond: code.indexOf('Waiting for tenant') !== -1 && code.indexOf('等待租客') !== -1 && code.indexOf('Waiting for Owner decision') !== -1, msg: '[008A-s2] Waiting Contract 文案（等待租客 / 等待 Owner 决策等）' },
+      { n: 3, cond: code.indexOf('任务完成不代表 Operation 结束') !== -1 && code.indexOf('Task done ≠ Operation closed') !== -1, msg: '[008A-s3] Task 完成 ≠ Operation Closed（Related Task 区块文案）' },
+      { n: 4, cond: code.indexOf('部分支付 · 已收') !== -1 || code.indexOf('partially paid') !== -1, msg: '[008A-s4] Rent partial 卡片表达（部分支付 · 已收 / partially paid）' },
+      { n: 5, cond: code.indexOf('时间线 · Activity') !== -1 && code.indexOf('TIMELINE · ACTIVITY') !== -1, msg: '[008A-s5] Activity 时间线与 Task 分离（时间线 · Activity 标题）' }
+    ];
+    let statAll = true;
+    checks.forEach(c => { const ok = c.cond; statAll = statAll && ok; console.log('  ' + (ok ? '✓' : '✗') + '  ' + c.msg); });
+    console.log(format('Operations-008A-static', { gate: 'Operations-008A-static', pass: statAll, total: checks.length, passed: checks.filter(c => c.cond).length, results: [] }));
+    allPass = allPass && statAll;
+  } catch (e) {
+    console.error('Operations-008A static assertions threw:', e && e.stack ? e.stack : e);
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
