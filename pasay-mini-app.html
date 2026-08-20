@@ -7179,54 +7179,73 @@ const __odClickHandler = function(e) {
     return;
   }
   if (a === 'submit-payment') {
+    /* PASAY-TASK-008 · P0 · Payment 单一真相写入 state.paymentRecords */
     const rid = el.dataset.id; const r = state.rents.find(x => x.id === rid); if (!r) return;
+    if (!hasActiveMembership()) { toast(L('无在职 Membership','no active membership')); return; }
+    if (!wsHasAccess()) { toast(L('权限不足：仅工作区成员可登记','Permission denied')); return; }
     const amt = +($('#rp-amount').value || 0); const method = $('#rp-method').value; const note = $('#rp-note').value;
-    r.payments.push({ id: 'P-' + uid('pay'), amount: amt, date: TODAY, method, by: 'Secretary', status: 'unconfirmed', note });
-    r.status = 'pending';
-    const tid = 'T-' + uid('task');
-    state.tasks.unshift({ id: tid, type: 'confirm_rent', subject: '', object: { kind: 'rent', id: r.id }, assignee: 'owner', status: 'todo', priority: 'high', due: TODAY, nextAction: '', source: 'AI', related: r.id, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
+    const rec = rentRecordPayment(rid, amt, 'secretary', { method, note });
+    if (!rec.ok) { toast(rec.reason); return; }
+    const t = state.tasks.find(x => x.related === r.id && x.type === 'confirm_rent' && x.status !== 'done');
+    if (!t) {
+      const tid = 'T-' + uid('task');
+      state.tasks.unshift({ id: tid, type: 'confirm_rent', subject: '', object: { kind: 'rent', id: r.id }, assignee: 'owner', status: 'todo', priority: 'high', due: TODAY, nextAction: '', source: 'AI', related: r.id, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
+    }
     addEvent('RENT_PAYMENT_REGISTERED', 'secretary', 'rent', r.id, { ref: r.unit });
     save(); closeSheet(); render(); toast((state.lang==='zh'?'已登记付款 · 等待 Owner 确认':'Payment registered — awaiting Owner confirmation'));
+    msgTip('rent_registered');
     return;
   }
   if (a === 'confirm-rent') {
-    const r = state.rents.find(x => x.id === el.dataset.id); if (!r) return;
+    /* PASAY-TASK-008 · P0 · 全部 unconfirmed paymentRecords → confirmed；state.paymentRecords 为唯一真相 */
+    const rid = el.dataset.id; const r = state.rents.find(x => x.id === rid); if (!r) return;
     if (!roleIs('owner')) { toast((state.lang==='zh'?'权限不足：只有 Owner 可确认。已作为任务发送给 Owner。':'Only Owner can confirm. Sent to Owner as a task.')); return; }
-    r.payments.forEach(p => { if (p.status === 'unconfirmed') p.status = 'confirmed'; });
-    const paid = paidAmt(r);
-    r.status = paid >= r.amount ? 'paid' : (paid > 0 ? 'partial' : r.status);
+    const before = JSON.stringify({ ob: r.status, paid: paidAmt(r), bal: rentBalance(r) });
+    const rec = rentConfirmAllPending(rid);
+    if (!rec.ok) { toast(rec.reason); return; }
+    /* PASAY-TASK-008 · P0-29 · Paid 后 Rent Operation 可关闭 */
+    const op = state.operations.find(o => o.domain && o.domain.rent_id === r.id);
+    const closed = op ? rentOperationCloseIfPaid(op) : { changed: false };
     const t = state.tasks.find(x => x.related === r.id && x.type === 'confirm_rent' && x.status !== 'done'); if (t) taskDone(t.id);
     if (earn('first_approve')) earnToast(BADGES.find(b => b.id === 'first_approve'));
-    addEvent('RENT_PAYMENT_CONFIRMED', 'owner', 'rent', r.id, { ref: r.unit });
-    save(); render(); toast((state.lang==='zh'?'确认成功 · 已入账 ':'Confirmed · posted ') + money(paid) + ' ✓');
+    addEvent('RENT_PAYMENT_CONFIRMED', 'owner', 'rent', r.id, { ref: r.unit, balance_after: rentBalance(r) });
+    save(); render();
+    const paid = paidAmt(r);
+    if (rentBalance(r) <= 0) toast((state.lang==='zh'?'已确认到账 · 已收齐 ✓':'Confirmed · collected in full ✓'));
+    else toast((state.lang==='zh'?'确认成功 · 已入账 ':'Confirmed · posted ') + money(paid));
     msgTip('rent_confirmed');
     return;
   }
   if (a === 'reject-rent') {
-    const r = state.rents.find(x => x.id === el.dataset.id); if (!r) return;
+    /* PASAY-TASK-008 · P0 · 移除所有 unconfirmed paymentRecords；保留 confirmed 历史 */
+    const rid = el.dataset.id; const r = state.rents.find(x => x.id === rid); if (!r) return;
     if (!roleIs('owner')) { toast((state.lang==='zh'?'权限不足：只有 Owner 可退回。':'Only Owner can reject.')); return; }
-    r.payments = r.payments.filter(p => p.status === 'unconfirmed');
-    const paid = paidAmt(r); r.status = paid >= r.amount ? 'paid' : (paid > 0 ? 'partial' : 'overdue');
+    rentRejectAllPending(rid);
     addEvent('RENT_PAYMENT_REJECTED', 'owner', 'rent', r.id, { ref: r.id });
     save(); render(); toast((state.lang==='zh'?'已退回 · 未确认付款移除':'Rejected — unconfirmed payments removed'));
     return;
   }
   if (a === 'add-payment') { sheetPayment(el.dataset.id); return; }
   if (a === 'reverse-rent') {
-    const r = state.rents.find(x => x.id === el.dataset.id); if (!r) return;
+    const rid = el.dataset.id; const r = state.rents.find(x => x.id === rid); if (!r) return;
     if (!roleIs('owner')) { toast((state.lang==='zh'?'权限不足：逆向仅限 Owner。':'Reversal is Owner-only.')); return; }
-    if (!r.payments.length) { toast((state.lang==='zh'?'没有可逆向的记录':'nothing to reverse')); return; }
-    sheetReverseConfirm(r.id);
+    /* PASAY-TASK-008 · P0 · 列出所有非 reversed paymentRecords 给 Owner 选择 */
+    const pays = state.paymentRecords.filter(p => p.rent_obligation_id === rid && p.status !== 'reversed');
+    if (!pays.length) { toast((state.lang==='zh'?'没有可逆向的记录':'nothing to reverse')); return; }
+    openModal('<b style="font-size:16px">' + (state.lang==='zh'?'逆向付款 · ' + rid:'Reverse payment · ' + rid) + '</b><div class="field" style="margin-top:14px"><label>' + (state.lang==='zh'?'选择要逆向的付款':'Pick a payment to reverse') + '</label><select id="rv-pm" class="select">' + pays.map(p => '<option value="' + p.id + '">' + money(p.amount) + ' · ' + p.paid_at + (p.note ? ' · ' + p.note : '') + '</option>').join('') + '</select></div><div class="field" style="margin-top:10px"><label>' + (state.lang==='zh'?'逆向原因':'Reason') + '</label><textarea id="rv-reason" class="textarea"></textarea></div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-s" style="flex:1" data-a="close-modal">' + (state.lang==='zh'?'取消':'Cancel') + '</button><button class="btn btn-p" style="flex:1" data-a="confirm-reverse-rent" data-id="' + rid + '">' + (state.lang==='zh'?'确认逆向':'Reverse') + '</button></div>');
     return;
   }
   if (a === 'confirm-reverse-rent') {
-    const r = state.rents.find(x => x.id === el.dataset.id); if (!r) return;
+    /* PASAY-TASK-008 · P0 · 改 paymentRecord.status='reversed'（history 保留） */
+    const rid = el.dataset.id; const r = state.rents.find(x => x.id === rid); if (!r) return;
     if (!roleIs('owner')) { toast((state.lang==='zh'?'权限不足：逆向仅限 Owner。':'Reversal is Owner-only.')); return; }
+    const pmrId = $('#rv-pm') ? $('#rv-pm').value : null;
     const reason = $('#rv-reason') ? $('#rv-reason').value.trim() : '';
+    if (!pmrId) { toast((state.lang==='zh'?'请选择要逆向的付款':'pick a payment')); return; }
     if (!reason) { toast((state.lang==='zh'?'请填写逆向原因（将写入审计）':'reason required (logged to audit)')); return; }
-    r.payments = r.payments.slice(0, -1);
-    const paid = paidAmt(r); r.status = paid >= r.amount ? 'paid' : (paid > 0 ? 'partial' : (r.due < TODAY ? 'overdue' : 'upcoming'));
-    addEvent('RENT_PAYMENT_REVERSED', 'owner', 'rent', r.id, { ref: r.id, reason: reason });
+    const rec = rentReversePayment(pmrId, reason);
+    if (!rec.ok) { toast(rec.reason); return; }
+    addEvent('RENT_PAYMENT_REVERSED', 'owner', 'rent', r.id, { ref: r.id, payment: pmrId, reason: reason });
     const m = document.querySelector('.modal-wrap'); if (m) m.remove();
     save(); render(); toast((state.lang==='zh'?'已逆向 · 审计留痕':'Reversed — audit trail kept'));
     return;
