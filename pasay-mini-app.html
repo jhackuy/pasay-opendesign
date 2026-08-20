@@ -772,6 +772,14 @@ if (!state.leases) state.leases = [];
 state.tenants.forEach(t => { if (!t.status) t.status = 'active'; if (!t.history) t.history = []; });
 state.payments.forEach(p => { if (!p.evidence) p.evidence = null; });
 state.props.forEach(p => { if (!p.photos) p.photos = []; if (!p.moveOut) p.moveOut = null; });
+/* PASAY-TASK-002 · building_contacts[] 演示：Primary 默认显示 + View N more 折叠（Name / Role / Phone） */
+state.props.forEach(p => {
+  if (p.unit === '1608' && !p.building_contacts) p.building_contacts = [
+    { name: 'Jose Ramos', role: 'Building Admin', phone: '0917 555 0101' },
+    { name: 'Sunrise Residences Office', role: 'Property Mgmt Office', phone: '+63 2 8123 4567' },
+    { name: 'Guardhouse', role: 'Emergency', phone: '0917 555 0199' }
+  ];
+});
 state.rents.forEach(r => { if (!r.lease_id) r.lease_id = null; r.payments.forEach(p => { if (!p.evidence) p.evidence = null; }); });
 state.activity.forEach(a => { if (!a.code) a.code = null; });
 /* ── VNext Operations：惰性建立 1805 收租 Operation（幂等），业务真相仍由 Rent 单一数据源驱动 ── */
@@ -1523,18 +1531,22 @@ function propertyMissingFields(p, t, r) {
   return missing;
 }
 
-/* Issue#3 + 007C · Building / Property Management Contact（次级，折叠） */
+/* PASAY-TASK-002 · Building Contacts（最终决策）：building_contacts[] · 每项仅 Name/Role/Phone · Primary 默认显示，其余折叠 View N more */
 function propertyBuildingContact(p) {
   const zh = state.lang === 'zh';
-  /* P 字段为可选项：p.admin / p.adminPhone / p.emergency */
-  const admin = p.admin || '';
-  const adminPhone = p.adminPhone || '';
-  const emergency = p.emergency || '';
-  if (!admin && !adminPhone && !emergency) return '';
+  /* p.building_contacts[] 为最终模型；旧字段 p.admin/adminPhone/emergency 作为读取兼容（无新数组时合成 Primary） */
+  let contacts = (p.building_contacts || []).slice();
+  if (!contacts.length && (p.admin || p.adminPhone || p.emergency)) {
+    contacts = [{ name: p.admin || (zh ? '物业管理处' : 'Mgmt office'), role: 'Building Admin', phone: p.adminPhone || '' }];
+    if (p.emergency) contacts.push({ name: zh ? '应急联系人' : 'Emergency', role: 'Emergency', phone: p.emergency });
+  }
+  if (!contacts.length) return '';
+  const primary = contacts[0];
+  const rest = contacts.slice(1);
+  const row = c => '<div class="dl-row"><span class="k">' + c.name + '</span><span class="v">' + (c.role ? c.role + (c.phone ? ' · ' : '') : '') + (c.phone ? '<span class="num">' + c.phone + '</span>' : '') + '</span></div>';
   return '<details style="margin:10px 16px 0"><summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:10px 0;list-style:none"><span style="color:var(--accent)">' + ic('building', 14) + '</span> ' + (zh ? '物业管理联系（可选）' : 'Building / property management contact') + '</summary><div class="card" style="margin-top:4px">' +
-    (admin ? '<div class="dl-row"><span class="k">' + (zh ? '管理处' : 'Management') + '</span><span class="v">' + admin + '</span></div>' : '') +
-    (adminPhone ? '<div class="dl-row"><span class="k">' + (zh ? '电话' : 'Phone') + '</span><span class="v num">' + adminPhone + '</span></div>' : '') +
-    (emergency ? '<div class="dl-row"><span class="k">' + (zh ? '应急' : 'Emergency') + '</span><span class="v num">' + emergency + '</span></div>' : '') +
+    row(primary) +
+    (rest.length ? '<div class="dl-row"><span class="k" style="color:var(--muted)">' + (zh ? '更多联系人' : 'More') + '</span><span class="v"><button class="btn btn-g sm" data-a="building-contacts-more" data-unit="' + p.unit + '">' + (zh ? '查看 ' + rest.length + ' 位' : 'View ' + rest.length + ' more') + '</button></span></div>' : '') +
     '</div></details>';
 }
 
@@ -5738,10 +5750,12 @@ function sheetEditPropertyLease(unitId) {
 function sheetEditPropertyContact(unitId) {
   const p = prop(unitId); if (!p) return;
   const zh = state.lang === 'zh';
-  openSheet(sheetHead(zh ? '物业管理联系 · ' + p.unit : 'Property mgmt · ' + p.unit, zh ? '可选 · 不抢占主视图' : 'Optional · does not crowd main view') +
-    field('ec-admin', zh ? '管理处名称' : 'Mgmt office', '<input id="ec-admin" class="input" value="' + (p.admin || '') + '"/>') +
-    field('ec-phone', zh ? '电话' : 'Phone', '<input id="ec-phone" class="input" placeholder="+63 2 8123 4567" value="' + (p.adminPhone || '') + '"/>') +
-    field('ec-emerg', zh ? '应急电话' : 'Emergency', '<input id="ec-emerg" class="input" value="' + (p.emergency || '') + '"/>') +
+  const primary = (p.building_contacts || [])[0] || {};
+  openSheet(sheetHead(zh ? '物业管理联系 · ' + p.unit : 'Building contact · ' + p.unit, zh ? 'Primary contact · 可选 · 不抢占主视图' : 'Primary contact · optional') +
+    field('bc-name', zh ? '联系人' : 'Name', '<input id="bc-name" class="input" placeholder="Jose Ramos" value="' + (primary.name || '') + '"/>') +
+    field('bc-role', zh ? '角色' : 'Role', '<input id="bc-role" class="input" placeholder="' + (zh ? 'Building Admin / 物业管理处 / 紧急' : 'Building Admin / Mgmt office / Emergency') + '" value="' + (primary.role || '') + '"/>') +
+    field('bc-phone', zh ? '电话' : 'Phone', '<input id="bc-phone" class="input" placeholder="+63 2 8123 4567" value="' + (primary.phone || '') + '"/>') +
+    '<div class="meta" style="margin-bottom:12px">' + (zh ? '编辑主要联系人（默认显示）。更多联系人折叠为 View N more。' : 'Edit primary contact (shown by default). Others collapse under View N more.') + '</div>' +
     '<button class="btn btn-p block" data-a="prop-edit-contact-save" data-unit="' + p.unit + '">' + (zh ? '保存' : 'Save') + '</button>');
 }
 function sheetEditPropertyNotes(unitId) {
@@ -6045,9 +6059,14 @@ const __odClickHandler = function(e) {
         if ($('el-ls')) p.ls = $('el-ls').value || p.ls;
         if ($('el-le')) p.le = $('el-le').value || p.le;
       } else if (a === 'prop-edit-contact-save') {
-        if ($('ec-admin')) p.admin = $('ec-admin').value;
-        if ($('ec-phone')) p.adminPhone = $('ec-phone').value;
-        if ($('ec-emerg')) p.emergency = $('ec-emerg').value;
+        const name = $('bc-name') ? $('bc-name').value : '';
+        const role = $('bc-role') ? $('bc-role').value : '';
+        const phone = $('bc-phone') ? $('bc-phone').value : '';
+        if (name || role || phone) {
+          if (!p.building_contacts) p.building_contacts = [];
+          if (!p.building_contacts.length) p.building_contacts.push({});
+          p.building_contacts[0] = { name, role, phone };
+        }
       } else if (a === 'prop-edit-notes-save') {
         if ($('en-notes')) p.notes = $('en-notes').value;
       }
