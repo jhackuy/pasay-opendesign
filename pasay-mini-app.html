@@ -2489,6 +2489,8 @@ function openTask(obj) { const kind = obj.kind; const target = { expense: exp(ob
 function entityRef(ent) {
   if (!ent || !ent.target) return '';
   const tg = ent.target;
+  /* P0-1 · Property 用户可见引用 = unit（display）；PRP-xxxx 是 relation key，不暴露给用户标题 */
+  if (ent.kind === 'property') return (tg.unit !== undefined && tg.unit !== null && tg.unit !== '') ? tg.unit : (tg.id || '');
   if (tg.id !== undefined && tg.id !== null && tg.id !== '') return tg.id;
   if (tg.unit !== undefined && tg.unit !== null && tg.unit !== '') return tg.unit;
   if (tg.lease_id !== undefined && tg.lease_id !== null && tg.lease_id !== '') return tg.lease_id;
@@ -4355,9 +4357,9 @@ function viewProperty(u, tab) {
       </div>
       ${activeL && t ? '<div class="card" style="margin:10px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (state.lang==='zh'?'当前租客':'Current tenant') + '</b><span class="chip st-ok">' + (state.lang==='zh'?'在租':'Occupied') + '</span></div><div class="row" style="padding:10px 0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/tenant/' + t.id + '"><div class="avatar">' + initials(t.name) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + t.name + '</b></div><div class="row-l2">' + t.phone + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div><div class="dl" style="margin:0"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'月租（租约）':'Monthly rent (lease)') + '</span><span class="v money">' + money(propMonthlyRent(p)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'押金':'Deposit') + '</span><span class="v num">' + money(propDeposit(p)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'租约':'Lease') + '</span><span class="v num">' + fmtDate(propLeaseStart(p)) + ' → ' + fmtDate(propLeaseEnd(p)) + '</span></div></div></div>'
         : '<div class="card" style="margin:10px 16px 0"><div class="row-l1"><b style="font-size:13.5px">' + (state.lang==='zh'?'空置 · 无生效租约':'Vacant · no active lease') + '</b></div><div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'可通过「登记租客」创建租约草稿；Owner 审核激活后才转为已出租。':'Add a tenant to create a lease draft — the property becomes Occupied only after the Owner activates the lease.') + '</div></div>'}
-      ${!activeL && drafts.length ? drafts.map(d => '<div class="card" style="margin:10px 16px 0;border-color:color-mix(in oklch, var(--accent) 35%, var(--border));background:var(--accent-soft)" data-od-id="lease-draft-card"><div class="row-l1" style="align-items:center;gap:8px">' + ic('doc', 16) + '<b style="font-size:13.5px">' + (state.lang==='zh'?'租约草稿 · 待审核':'Lease draft · awaiting review') + '</b><span class="chip st-pend">' + (state.lang==='zh'?'草稿':'Draft') + '</span></div><div class="meta" style="margin-top:6px">' + (ten(d.tenant_id) ? ten(d.tenant_id).name : '—') + ' · ' + money(d.monthly_rent) + (state.lang==='zh'?' / 月':'/mo') + ' · ' + fmtDate(d.start_date) + ' → ' + fmtDate(d.end_date) + '</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">' + (currentRole() === 'owner'
+      ${drafts.length ? drafts.map(d => '<div class="card" style="margin:10px 16px 0;border-color:color-mix(in oklch, var(--accent) 35%, var(--border));background:var(--accent-soft)" data-od-id="lease-draft-card"><div class="row-l1" style="align-items:center;gap:8px">' + ic('doc', 16) + '<b style="font-size:13.5px">' + (state.lang==='zh'?'租约草稿 · 待审核':'Lease draft · awaiting review') + '</b><span class="chip st-pend">' + (state.lang==='zh'?'草稿':'Draft') + '</span></div><div class="meta" style="margin-top:6px">' + (ten(d.tenant_id) ? ten(d.tenant_id).name : '—') + ' · ' + money(d.monthly_rent) + (state.lang==='zh'?' / 月':'/mo') + ' · ' + fmtDate(d.start_date) + ' → ' + fmtDate(d.end_date) + '</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">' + (currentRole() === 'owner'
           ? '<button class="btn btn-p sm" data-a="review-lease" data-id="' + d.lease_id + '">' + (state.lang==='zh'?'审核并激活':'Review & activate') + '</button>'
-          : '<span class="chip st-neu">' + (state.lang==='zh'?'等待 Owner 审核':'awaiting Owner review') + '</span>') + '<button class="btn btn-s sm" data-a="edit-lease-draft" data-id="' + d.lease_id + '">' + (state.lang==='zh'?'编辑草稿':'Edit draft') + '</button></div></div>').join('') : ''}
+          : '<span class="chip st-neu">' + (state.lang==='zh'?'等待 Owner 审核':'awaiting Owner review') + '</span>') + '<button class="btn btn-s sm" data-a="edit-lease-draft" data-id="' + d.lease_id + '">' + (state.lang==='zh'?'编辑草稿':'Edit draft') + '</button>' + (activeL ? '<button class="btn btn-s sm" data-a="nav" data-href="#/property/' + p.unit + '?tab=lease">' + (state.lang==='zh'?'查看当前租约':'View current lease') + '</button>' : '') + '</div>' + (activeL ? '<div class="meta" style="margin-top:8px">' + (state.lang==='zh'?'该物业已有生效租约 — 需先结束 / 续租当前租约，此草稿才能激活。':'This property already has an active lease — end / renew it before this draft can be activated.') + '</div>' : '') + '</div>').join('') : ''}
       ${colOpCard(r, p.unit)}
       <div style="display:flex;gap:8px;padding:12px 16px">
         ${!activeL
@@ -5773,7 +5775,7 @@ function viewTenant(id) {
   let actionBlock = '';
   if (t.status === 'active') {
     actionBlock = '<div style="display:flex;gap:8px;padding:14px 16px">' +
-      '<button class="btn btn-p" style="flex:1" data-a="nav" data-href="#/rents?act=create&unit=' + t.unit + '">' + (state.lang==='zh'?'登记租金':'Log rent') + '</button>' +
+      '<button class="btn btn-p" style="flex:1" data-a="nav" data-href="#/rents?act=create&unit=' + (p ? p.unit : t.unit) + '">' + (state.lang==='zh'?'登记租金':'Log rent') + '</button>' +
       '<button class="btn btn-s" style="flex:1" data-a="follow-tenant" data-id="' + t.id + '">' + (state.lang==='zh'?'跟进':'Follow up') + '</button></div>' +
       '<div style="padding:0 16px 14px"><button class="btn btn-s danger" style="width:100%" data-a="moveout-start" data-id="' + t.id + '" data-od-id="moveout-start">' + (state.lang==='zh'?'发起迁出':'Start move-out') + '</button></div>';
   } else if (t.status === 'move_out_notice') {
@@ -5792,14 +5794,14 @@ function viewTenant(id) {
     const s = t.settlement || {};
     actionBlock = '<div class="banner ok" style="margin:10px 16px 0">' + ic('check', 17) + '<div>' + (state.lang==='zh'?'已迁出 · 历史租客永久保留 · 应退 ' : 'Moved out — history kept · refund ') + money((t.deposit - (s.unpaidRent||0) - (s.utilities||0) - (s.repairs||0) - (s.other||0))) + '</div></div>';
   }
-  return shell('users', t.name, (state.lang==='zh'?'租客 · ':'Tenant · ') + t.unit, `
+  return shell('users', t.name, (state.lang==='zh'?'租客 · ':'Tenant · ') + (p ? p.unit : t.unit), `
     <div class="card" style="margin:14px 16px 0;display:flex;gap:12px;align-items:center">
       <div class="avatar" style="width:46px;height:46px;font-size:15px">${initials(t.name)}</div>
       <div style="flex:1"><div style="font-size:16px;font-weight:700">${t.name}</div><div class="meta">${t.phone} · ${t.email}</div></div>
       ${tenChip(t)}
     </div>
     <div class="dl" style="margin-top:10px">
-      <div class="dl-row"><span class="k">${state.lang==='zh'?'物业':'Property'}</span><span class="v"><button data-a="nav" data-href="#/property/${t.unit}" style="color:var(--accent)">${t.unit} →</button></span></div>
+      <div class="dl-row"><span class="k">${state.lang==='zh'?'物业':'Property'}</span><span class="v"><button data-a="nav" data-href="#/property/${p ? p.unit : t.unit}" style="color:var(--accent)">${p ? p.unit : t.unit} →</button></span></div>
       <div class="dl-row"><span class="k">${state.lang==='zh'?'入住':'Since'}</span><span class="v num">${fmtDate(t.since)}</span></div>
       <div class="dl-row"><span class="k">${state.lang==='zh'?'押金':'Deposit'}</span><span class="v num">${money(t.deposit)}</span></div>
       <div class="dl-row"><span class="k">${state.lang==='zh'?'备注':'Note'}</span><span class="v" style="font-weight:400">${(t.note && t.note.indexOf('system:') === 0) ? (state.lang==='zh'?'新租客':'New tenant') : (t.note || '—')}</span></div>
@@ -5808,7 +5810,7 @@ function viewTenant(id) {
     ${r ? '<div class="card" style="margin:10px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (state.lang==='zh'?'本月租金':'June rent') + '</b>' + rentChip(r) + '</div><div style="font-family:var(--font-display);font-size:24px;font-weight:700;margin-top:6px">' + money(r.amount) + '</div><button class="btn btn-p sm" style="margin-top:10px" data-a="nav" data-href="#/rent/' + r.id + '">' + (state.lang==='zh'?'查看租金明细':'View rent detail') + ' →</button></div>' : ''}
     ${relatedTasks.length ? sec(state.lang==='zh'?'相关任务':'Related tasks') + '<div class="list" style="margin-top:8px">' + relatedTasks.map(t2 => '<div class="row" data-a="nav" data-href="#/task/' + t2.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + taskTitle(t2) + '</b></div></div><div class="row-r">' + taskChip(t2) + ic('chev', 15) + '</div></div>').join('') + '</div>' : ''}
     ${sec(state.lang==='zh'?'合同文件':'Documents')}
-    <div style="display:flex;gap:8px;padding:0 16px;flex-wrap:wrap"><span class="attach">${ic('doc', 15)}Lease-${t.unit}.pdf</span><span class="attach">${ic('doc', 15)}Deposit-${t.unit}.pdf</span></div>
+    <div style="display:flex;gap:8px;padding:0 16px;flex-wrap:wrap"><span class="attach">${ic('doc', 15)}Lease-${p ? p.unit : t.unit}.pdf</span><span class="attach">${ic('doc', 15)}Deposit-${p ? p.unit : t.unit}.pdf</span></div>
     ${(t.history && t.history.length) ? sec(state.lang==='zh'?'生命周期历史':'Lifecycle history') + '<div class="card" style="margin:0 16px"><div class="tl">' + t.history.map(hl => '<div class="tl-i"><div class="tl-t">' + (hl && hl.code ? fmtEvent(hl) : (hl.t || '')) + '</div><div class="tl-d num">' + (hl.at || '') + '</div></div>').join('') + '</div></div>' : ''}
   `);
 }
@@ -7209,7 +7211,9 @@ const __odClickHandler = function(e) {
     let ft = state.tasks.find(x => x.type === 'follow_up' && x.related === ref && x.status !== 'done');
     if (!ft) {
       const tid = 'T-' + uid('task');
-      ft = { id: tid, type: 'follow_up', subject: '', object: { kind: 'rent', id: state.rents.find(r => r.unit === t.unit) ? state.rents.find(r => r.unit === t.unit).id : ref }, assignee: 'secretary', status: 'in_progress', priority: 'medium', due: TODAY, nextAction: '', nextActionCode: rawNote ? '' : 'FOLLOW_UP_TENANT', source: 'manual', related: ref, tl: [], reminder: { state: 'active', snoozeUntil: null, lastAt: null } };
+      /* P0-2 · 跟进对象 Rent 从 Current Active Lease 派生（不按 tenant.unit 猜） */
+      const curRentRef = (function() { const cl = tenantCurrentLease(t); if (cl) { const cr = currentRentForLease(cl.lease_id); if (cr) return cr.id; } const leg = state.rents.find(r => r.unit === t.unit); return leg ? leg.id : ref; })();
+      ft = { id: tid, type: 'follow_up', subject: '', object: { kind: 'rent', id: curRentRef }, assignee: 'secretary', status: 'in_progress', priority: 'medium', due: TODAY, nextAction: '', nextActionCode: rawNote ? '' : 'FOLLOW_UP_TENANT', source: 'manual', related: ref, tl: [], reminder: { state: 'active', snoozeUntil: null, lastAt: null } };
       state.tasks.unshift(ft);
     } else { ft.status = 'in_progress'; ft.nextAction = rawNote || ''; ft.nextActionCode = rawNote ? '' : 'FOLLOW_UP_TENANT'; }
     if (rawNote) { ft.tl.push({ at: TODAY, t: rawNote, d: 'FOLLOW-UP' }); } else { pushTl(ft.tl, 'FOLLOW_UP_CREATED', roleIs('owner') ? 'owner' : 'secretary', 'tenant', tenantId, { name: t.name }); }
