@@ -819,7 +819,7 @@ state.lang = state.locale;
 if (!state.media) state.media = [];
 if (!state.guidance) state.guidance = { stages: {}, counts: {} };
 state.seq = state.seq || {};
-['media','insp','settle','notice','evid','lease'].forEach(k => { state.seq[k] = state.seq[k] || 0; });
+['media','insp','settle','notice','evid','lease','prop','ten'].forEach(k => { state.seq[k] = state.seq[k] || 0; });
 if (!state.leases) state.leases = [];
 state.tenants.forEach(t => { if (!t.status) t.status = 'active'; if (!t.history) t.history = []; });
 state.payments.forEach(p => { if (!p.evidence) p.evidence = null; });
@@ -1163,6 +1163,103 @@ function open_lease(unit, tenant_id, start, end, rent, deposit, move_in_at) {
   const l = { lease_id: 'LS-' + fmtId4(uid('lease')), unit, property_id: unit, tenant_id, start_date: start || TODAY, end_date: end || '2027-06-19', monthly_rent: rent || (prop(unit) ? prop(unit).rent : 0), deposit: deposit || 0, status: 'active', move_in_at: move_in_at || TODAY, move_out_at: null, created_at: TODAY };
   state.leases.push(l);
   return l.lease_id;
+}
+/* ═══════════════════════════════════════════════════════════════════════════
+   PASAY-TASK-007 · PROPERTY / TENANT / LEASE BOOTSTRAP P0 · SINGLE TRUTH 派生层
+   occupancy / current tenant / monthly rent 只从 Active Lease 派生；
+   Property 上的 status / tenant / rent / ls / le / deposit 只是 reconcile 投影
+   （与 Lease truth 强制一致，禁止手工双写第二真相）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+function propLease(p) { return p ? active_lease(p.unit) : null; }
+function propOccupancy(p) { return propLease(p) ? 'occupied' : 'vacant'; }
+function propMonthlyRent(p) { const al = propLease(p); return al ? al.monthly_rent : 0; }
+function propCurrentTenant(p) { const al = propLease(p); return al ? (ten(al.tenant_id) || null) : null; }
+function propDeposit(p) { const al = propLease(p); return al ? al.deposit : 0; }
+function propLeaseStart(p) { const al = propLease(p); return al ? al.start_date : null; }
+function propLeaseEnd(p) { const al = propLease(p); return al ? al.end_date : null; }
+function propLeaseDueDay(p) { const al = propLease(p); return al ? (al.rent_due_day || 5) : null; }
+function propLeaseDrafts(p) { return p ? state.leases.filter(l => l.unit === p.unit && l.status === 'draft') : []; }
+/* 投影 reconcile：render / mutation 前把 Property 投影字段同步为 Lease truth（杜绝 split-brain）。
+   生命周期状态（move_out_pending / inspection / turnover）保留，不被覆盖。 */
+function wsReconcileOccupancy() {
+  if (!state.props) return;
+  state.props.forEach(p => {
+    const al = active_lease(p.unit);
+    if (al) {
+      p.tenant = al.tenant_id; p.rent = al.monthly_rent; p.deposit = al.deposit;
+      p.ls = al.start_date; p.le = al.end_date;
+      if (p.status === 'vacant') p.status = 'occupied';
+    } else if (p.status === 'occupied') {
+      p.status = 'vacant';
+    }
+  });
+}
+/* ── Lease Draft → Review → Activate（PASAY-TASK-007 核心主链） ──
+   Draft：不改变 occupancy / current tenant / rent truth（Rent 不把 Draft 当应收来源）。
+   Activate：10 项 preflight 原子通过后才形成 Lease=Active → Occupied / Current Tenant / Rent source。 */
+function wsCreateLeaseDraft(unit, tenantId, terms) {
+  const p = prop(unit); if (!p) return { ok: false, reason: 'property not found' };
+  const t = ten(tenantId); if (!t) return { ok: false, reason: 'tenant not found' };
+  if (!hasActiveMembership()) return { ok: false, reason: 'no active membership' };
+  if (propLease(p)) return { ok: false, reason: L('该物业已有生效租约 — 无法创建草稿','This property already has an active lease — cannot create a draft') };
+  const draft = {
+    lease_id: 'LS-' + fmtId4(uid('lease')), unit, property_id: unit, tenant_id: tenantId,
+    start_date: (terms && terms.start_date) || null, end_date: (terms && terms.end_date) || null,
+    monthly_rent: (terms && terms.monthly_rent) || 0, deposit: (terms && terms.deposit) || 0,
+    rent_due_day: (terms && terms.rent_due_day) || 5,
+    status: 'draft', move_in_at: null, move_out_at: null, created_at: TODAY,
+    created_by: wsCurrentUserId(), created_by_role: currentRole(),
+    contract_ref: (terms && terms.contract_ref) || null, notes: (terms && terms.notes) || null,
+    tl: [{ at: TODAY, t: L('创建租约草稿','Lease draft created'), d: 'DRAFT' }]
+  };
+  state.leases.push(draft);
+  save();
+  return { ok: true, lease: draft };
+}
+function wsUpdateLeaseDraft(leaseId, terms) {
+  const l = state.leases.find(x => x.lease_id === leaseId);
+  if (!l || l.status !== 'draft') return { ok: false, reason: 'draft not found or not editable' };
+  if (terms.start_date !== undefined) l.start_date = terms.start_date;
+  if (terms.end_date !== undefined) l.end_date = terms.end_date;
+  if (terms.monthly_rent !== undefined) l.monthly_rent = terms.monthly_rent;
+  if (terms.deposit !== undefined) l.deposit = terms.deposit;
+  if (terms.rent_due_day !== undefined) l.rent_due_day = terms.rent_due_day;
+  if (terms.contract_ref !== undefined) l.contract_ref = terms.contract_ref;
+  l.updated_at = TODAY;
+  l.tl.push({ at: TODAY, t: L('更新租约草稿','Lease draft updated'), d: 'DRAFT' });
+  save();
+  return { ok: true, lease: l };
+}
+function wsActivateLease(leaseId) {
+  /* 10 项 preflight（原子成功才 mutation） */
+  const l = state.leases.find(x => x.lease_id === leaseId);
+  if (!l) return { ok: false, reason: 'lease not found' };
+  if (l.status !== 'draft') return { ok: false, reason: L('该租约不是可激活的草稿','Lease is not an activatable draft (current: ' + l.status + ')') };
+  if (!hasActiveMembership()) return { ok: false, reason: L('无在职 Membership','no active membership') };
+  if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可激活租约','Only the Owner can activate a lease') };
+  const p = prop(l.unit); if (!p) return { ok: false, reason: 'property not found' };
+  const t = ten(l.tenant_id); if (!t) return { ok: false, reason: 'tenant not found' };
+  if (!l.start_date || !l.end_date || l.start_date > l.end_date) return { ok: false, reason: L('起止日期不合法','Invalid lease dates') };
+  if (!(l.monthly_rent > 0)) return { ok: false, reason: L('月租必须大于 0','Monthly rent must be positive') };
+  const due = l.rent_due_day || 5;
+  if (!(due >= 1 && due <= 28)) return { ok: false, reason: L('扣款日不合法（1–28）','Invalid rent due day (1–28)') };
+  const overlap = state.leases.find(x => x.unit === l.unit && x.status === 'active' && x.lease_id !== l.lease_id);
+  if (overlap) return { ok: false, reason: L('该物业已有生效租约 — 请先结束 / 续租当前租约再激活新租约','This property already has an active lease. End / renew the current lease before activating another one.') };
+  /* 原子激活 */
+  l.status = 'active'; l.move_in_at = l.start_date; l.activated_at = TODAY; l.activated_by = wsCurrentUserId();
+  l.tl.push({ at: TODAY, t: L('租约已激活 · 物业转为已出租','Lease activated — property occupied'), d: 'ACTIVE' });
+  /* 首月 Rent：合法来源 = Active Lease（单真相） */
+  if (!state.rents.some(r => r.lease_id === l.lease_id)) {
+    const period = (l.start_date || TODAY).slice(0, 7);
+    const dd = String(due).padStart(2, '0');
+    state.rents.push({
+      id: 'R-' + period + '-' + l.unit, unit: l.unit, period: period,
+      amount: l.monthly_rent, due: (l.start_date || TODAY).slice(0, 8) + dd,
+      status: 'upcoming', payments: [], lease_id: l.lease_id
+    });
+  }
+  save(); render();
+  return { ok: true, lease: l };
 }
 /* ✂ 删除 unsafe Rent migration：不可通过 Property 当前 tenant 猜历史 Rent 的 lease_id。
    缺 lease_id 的 Rent 保持 null/unknown，绝不错绑当前 Tenant。
@@ -6192,11 +6289,17 @@ function sheetAddPaymentMethod() {
     '<button class="btn btn-p block" data-a="submit-paymethod">' + (state.lang==='zh'?'保存':'Save') + '</button>');
 }
 function sheetAddProperty() {
-  openSheet(sheetHead(state.lang==='zh'?'新增物业':'Add property', state.lang==='zh'?'登记为空置单元':'registered as vacant') +
-    field('ap-unit', 'Unit', '<input id="ap-unit" class="input" placeholder="2010"/>') +
-    field('ap-type', state.lang==='zh'?'户型':'Type', '<input id="ap-type" class="input" placeholder="1BR · 40㎡"/>') +
-    field('ap-rent', state.lang==='zh'?'挂牌月租':'Asking rent (₱)', '<input id="ap-rent" class="input num" inputmode="numeric" placeholder="30000"/>') +
-    '<button class="btn btn-p block" data-a="submit-property">' + (state.lang==='zh'?'保存':'Save') + '</button>');
+  /* PASAY-TASK-007 · Add Property：必填 Unit / Tower / Address；可选 Type / Area。
+     禁止要求输入 property_id / workspace_id / merchant_id / chat_id / archive id / tenant / lease —— 全部系统产生。
+     不采集月租（月租属于 Lease truth，不属于 Property 第二财务真相）。 */
+  openSheet(sheetHead(state.lang==='zh'?'新增物业':'Add property', state.lang==='zh'?'登记为空置单元 · 系统生成 ID':'registered as vacant · system-generated ID') +
+    field('ap-unit', state.lang==='zh'?'单元 / 房号（必填）':'Unit (required)', '<input id="ap-unit" class="input" placeholder="2010"/>') +
+    field('ap-tower', state.lang==='zh'?'楼栋（必填）':'Building / Tower (required)', '<input id="ap-tower" class="input" placeholder="Tower A"/>') +
+    field('ap-addr', state.lang==='zh'?'地址（必填）':'Address (required)', '<input id="ap-addr" class="input" placeholder="Sunrise Residences, Pasay Blvd"/>') +
+    field('ap-type', state.lang==='zh'?'户型（可选）':'Unit type (optional)', '<input id="ap-type" class="input" placeholder="1BR · 40㎡"/>') +
+    field('ap-area', state.lang==='zh'?'面积㎡（可选）':'Floor area m² (optional)', '<input id="ap-area" class="input num" inputmode="numeric" placeholder="42"/>') +
+    '<div class="meta" style="margin-bottom:12px">' + (state.lang==='zh'?'创建后默认空置（Vacant）· 租客 / 租约 / 月租通过「租约流程」建立。':'Created as Vacant. Tenant / Lease / Monthly rent are established through the lease flow — never as separate property fields.') + '</div>' +
+    '<button class="btn btn-p block" data-a="submit-property" data-od-id="submit-property">' + (state.lang==='zh'?'保存物业':'Save property') + '</button>');
 }
 /* 007C · 模块化 Edit Property（不暴露给 Owner 几十字段的大表单；按业务模块编辑） */
 function sheetEditPropertyMenu(unitId) {
@@ -6259,17 +6362,17 @@ function sheetEditPropertyNotes(unitId) {
     '<button class="btn btn-p block" data-a="prop-edit-notes-save" data-unit="' + p.unit + '" style="margin-top:12px">' + (zh ? '保存' : 'Save') + '</button>');
 }
 function sheetAddTenant() {
-  const vacant = state.props.filter(p => p.status === 'vacant');
-  openSheet(sheetHead(state.lang==='zh'?'登记租客 · Move-in':'Add tenant · Move-in', state.lang==='zh'?'空置 / Ready 物业的主入口':'primary action for vacant / ready units') +
+  const vacant = state.props.filter(p => p.status === 'vacant' && !propLease(p));
+  openSheet(sheetHead(state.lang==='zh'?'登记租客':'Add tenant', state.lang==='zh'?'人员资料 + 租约草稿（不直接入住）':'profile + lease draft (does not occupy)') +
     field('at-name', state.lang==='zh'?'姓名':'Name', '<input id="at-name" class="input" placeholder="Maria Clara"/>') +
     field('at-phone', state.lang==='zh'?'电话':'Phone', '<input id="at-phone" class="input" placeholder="0917 555 0000"/>') +
-    field('at-unit', state.lang==='zh'?'入住单元（空置）':'Unit (vacant)', '<select id="at-unit" class="select">' + vacant.map(p => '<option>' + p.unit + ' · ' + money(p.rent) + '</option>').join('') + '</select>') +
-    field('at-deposit', state.lang==='zh'?'押金':'Deposit (₱)', '<input id="at-deposit" class="input num" inputmode="numeric"/>') +
-    field('at-rent', state.lang==='zh'?'月租':'Monthly rent (₱)', '<input id="at-rent" class="input num" inputmode="numeric"/>') +
-    field('at-ls', state.lang==='zh'?'租约起':'Lease start', '<input id="at-ls" class="input" value="' + TODAY + '"/>') +
-    field('at-le', state.lang==='zh'?'租约止':'Lease end', '<input id="at-le" class="input" value="2027-06-19"/>') +
-    '<div class="meta" style="margin-bottom:12px">' + (state.lang==='zh'?'完成后：物业 → 已出租 · 租客 → 在租 · 进入租金生命周期；入住照片与身份文件自动归档。':'After: property → Occupied, tenant → Active, rent lifecycle starts; move-in photos & ID archived.') + '</div>' +
-    '<button class="btn btn-p block" data-a="submit-tenant" data-od-id="submit-tenant">' + (state.lang==='zh'?'确认入住':'Confirm move-in') + '</button>');
+    field('at-unit', state.lang==='zh'?'单元（空置 / 无生效租约）':'Unit (vacant / no active lease)', '<select id="at-unit" class="select">' + (vacant.length ? vacant.map(p => '<option>' + p.unit + ' · ' + p.tower + '</option>').join('') : '<option value="">—</option>') + '</select>') +
+    field('at-deposit', state.lang==='zh'?'押金（租约条款）':'Deposit (lease term, ₱)', '<input id="at-deposit" class="input num" inputmode="numeric"/>') +
+    field('at-rent', state.lang==='zh'?'月租（租约条款）':'Monthly rent (lease term, ₱)', '<input id="at-rent" class="input num" inputmode="numeric"/>') +
+    field('at-ls', state.lang==='zh'?'租约起（草稿）':'Lease start (draft)', '<input id="at-ls" class="input" value="' + TODAY + '"/>') +
+    field('at-le', state.lang==='zh'?'租约止（草稿）':'Lease end (draft)', '<input id="at-le" class="input" value="2027-06-19"/>') +
+    '<div class="meta" style="margin-bottom:12px">' + (state.lang==='zh'?'保存后：租客资料已建立 + 租约草稿已创建，物业保持空置；Owner 在物业详情审核并激活租约后，才转为已出租并生成租金。':'After save: tenant profile is created and a lease DRAFT is created — the property stays Vacant. Once the Owner reviews & activates in the property detail, it becomes Occupied and rent starts.') + '</div>' +
+    '<button class="btn btn-p block" data-a="submit-tenant" data-od-id="submit-tenant">' + (state.lang==='zh'?'保存租客 · 创建租约草稿':'Save tenant · create lease draft') + '</button>');
 }
 /* ── PASAY-TASK-006 · P0-2 · ROLE SWITCH 不再是生产态产品能力 ──
    生产 UI（Settings / Avatar / More）不提供 Secretary↔Owner 切换；
@@ -6359,6 +6462,8 @@ function render() {
   syncOperationTasks();   // VNext Operation → Task projection（幂等）
   /* PASAY-TASK-006 · P0-4 · Setup Progress 每次 render 前按 Domain Truth reconcile（reload / mutation 后同样生效） */
   wsReconcileSetupSteps();
+  /* PASAY-TASK-007 · Occupancy / Current Tenant / Rent 投影 reconcile：Property 字段与 Active Lease truth 强制一致 */
+  wsReconcileOccupancy();
   const { path, q } = parseHash();
   const root = path[0] || 'home';
   /* 007A2 · P0-3 REMOVED REALLY MEANS NO ACCESS / PASAY-TASK-006 · P0-7 NO MEMBERSHIP = NO BUSINESS DATA：
@@ -6976,12 +7081,21 @@ const __odClickHandler = function(e) {
     return;
   }
   if (a === 'submit-property') {
-    const unit = $('#ap-unit').value.trim(); const type = $('#ap-type').value.trim() || '1BR · 40㎡'; const rent = +($('#ap-rent').value || 0);
-    if (!unit) { toast((state.lang==='zh'?'请填写房号':'unit required')); return; }
-    state.props.push({ unit, tower: 'Tower A', type, addr: 'Sunrise Residences, Pasay Blvd', tenant: null, status: 'vacant', rent, deposit: 0, ls: null, le: null, health: 70, img: 'unit-' + unit, desc: '', descriptionCode: 'NEW_VACANT_PROPERTY' });
+    /* PASAY-TASK-007 · Add Property：id 系统生成（PRP-xxxx）· 默认 Vacant · 无独立月租真相 */
+    const unit = $('#ap-unit').value.trim();
+    if (!unit) { toast((state.lang==='zh'?'请填写单元 / 房号':'unit required')); return; }
+    const tower = $('#ap-tower') ? $('#ap-tower').value.trim() : 'Tower A';
+    const addr = $('#ap-addr') ? $('#ap-addr').value.trim() : 'Sunrise Residences, Pasay Blvd';
+    const type = $('#ap-type') ? $('#ap-type').value.trim() : '1BR · 40㎡';
+    const area = $('#ap-area') ? $('#ap-area').value.trim() : '';
+    const id = 'PRP-' + fmtId4(uid('prop'));
+    state.props.push({ id, unit, tower, type, area, addr, tenant: null, status: 'vacant', rent: 0, deposit: 0, ls: null, le: null, health: 70, img: 'unit-' + unit, desc: '', descriptionCode: 'NEW_VACANT_PROPERTY', created_at: TODAY, updated_at: TODAY, askingRent: 0 });
+    if (!state.props.some(x => x.archive_message_url)) {
+      state.props.forEach((p, i) => { if (!p.archive_message_url) p.archive_message_url = 'https://t.me/c/' + WS_ARCHIVE_CHAT_ID + '/' + (101 + i); });
+    }
     addEvent('PROPERTY_CREATED', roleIs('owner') ? 'owner' : 'secretary', 'property', unit, { unit: unit });
     if (earn('first_property')) earnToast(BADGES.find(b => b.id === 'first_property'));
-    save(); closeSheet(); render(); toast((state.lang==='zh'?'物业 ':'Property ') + unit + (state.lang==='zh'?' 已登记':' registered') + ' ✓');
+    save(); closeSheet(); render(); toast((state.lang==='zh'?'物业 ':'Property ') + unit + (state.lang==='zh'?' 已登记（空置）':' registered (vacant)') + ' ✓');
     return;
   }
   if (a === 'submit-tenant') {
