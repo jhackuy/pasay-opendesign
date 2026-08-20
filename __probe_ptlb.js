@@ -1,62 +1,38 @@
-/* Probe PTLB gate to find which line crashes */
+/* Probe PTLB gate via gates-runner sandbox pattern */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const html = fs.readFileSync(path.resolve(__dirname, 'pasay-mini-app.html'), 'utf8');
-const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
-const code = scriptMatch[1];
+const code = html.slice(html.indexOf('<script>') + '<script>'.length, html.indexOf('</script>'));
 
-const sandbox = {};
-sandbox.console = console;
-sandbox.setTimeout = setTimeout;
-sandbox.queueMicrotask = queueMicrotask;
-sandbox.process = process;
-sandbox.URLSearchParams = URLSearchParams;
-sandbox.Date = Date;
-sandbox.Math = Math;
-sandbox.JSON = JSON;
-sandbox.Object = Object;
-sandbox.Array = Array;
-sandbox.Number = Number;
-sandbox.String = String;
-sandbox.Boolean = Boolean;
-sandbox.ArrayBuffer = ArrayBuffer;
-sandbox.Int8Array = Int8Array;
-sandbox.Uint8Array = Uint8Array;
-sandbox.Uint8ClampedArray = Uint8ClampedArray;
-sandbox.Int16Array = Int16Array;
-sandbox.Uint16Array = Uint16Array;
-sandbox.Int32Array = Int32Array;
-sandbox.Uint32Array = Uint32Array;
-sandbox.Float32Array = Float32Array;
-sandbox.Float64Array = Float64Array;
-sandbox.BigInt64Array = BigInt64Array;
-sandbox.BigUint64Array = BigUint64Array;
-sandbox.Map = Map;
-sandbox.Set = Set;
-sandbox.WeakMap = WeakMap;
-sandbox.WeakSet = WeakSet;
-sandbox.Promise = Promise;
-sandbox.Symbol = Symbol;
-sandbox.Error = Error;
-sandbox.TypeError = TypeError;
-sandbox.RangeError = RangeError;
-sandbox.SyntaxError = SyntaxError;
-sandbox.localStorage = { getItem: () => null, setItem: () => null, removeItem: () => null };
-sandbox.document = {
-  addEventListener: () => null,
-  getElementById: (id) => id === 'app' ? { innerHTML: '', setAttribute: () => null, classList: { add: () => null, remove: () => null, toggle: () => null } } : null,
-  querySelector: () => null,
-  querySelectorAll: () => null
+const _ls = (() => { const store = {}; return { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } }; })();
+const _noop = () => {};
+const _docStub = {
+  addEventListener: _noop,
+  createElement: () => ({ classList: { add: _noop, remove: _noop }, addEventListener: _noop, appendChild: _noop, remove: _noop, innerHTML: '', querySelectorAll: () => [], querySelector: () => null, dataset: {}, style: {}, children: [] }),
+  querySelector: () => ({ innerHTML: '', addEventListener: _noop, classList: { add: _noop, remove: _noop, toggle: _noop }, value: '', textContent: '', style: {}, dataset: {}, children: [], remove: _noop, closest: () => null }),
+  querySelectorAll: () => [],
+  body: { appendChild: _noop }
 };
-sandbox.$ = (sel) => sel === '#app' ? sandbox.document.getElementById('app') : null;
-sandbox.document.body = sandbox.document.getElementById('app');
-sandbox.window = sandbox;
-sandbox.window.addEventListener = () => null;
-sandbox.location = { hash: '' };
-vm.createContext(sandbox);
-vm.runInContext(code, sandbox);
+const sandbox = {
+  console, window: {}, document: _docStub, localStorage: _ls,
+  location: { hash: '' },
+  setTimeout, clearTimeout, setInterval, clearInterval,
+  Date, Object, Array, JSON, Math, String, Number, Boolean, RegExp, Error,
+  Promise, Map, Set, Symbol,
+  URLSearchParams: require('url').URLSearchParams
+};
+sandbox.global = sandbox; sandbox.self = sandbox;
+Object.assign(sandbox.window, { addEventListener: _noop, localStorage: _ls, __OD_INTEGRITY: false, rxSim: null });
+sandbox.rxSim = null;
 
+const ctx = vm.createContext(sandbox);
+try {
+  vm.runInContext(code, ctx, { filename: 'pasay-mini-app.html', timeout: 60000 });
+} catch (e) {
+  console.log('SCRIPT ERR:', e.message);
+  process.exit(1);
+}
 const gate = sandbox.__OD_GATE_PROPERTY_TENANT_LEASE_BOOTSTRAP_P0;
 if (!gate) { console.log('NO GATE EXPOSED'); process.exit(1); }
 try {
