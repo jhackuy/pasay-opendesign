@@ -1149,15 +1149,23 @@ function rentsForTenant(tenant_id) {
    只有 Owner 已确认的 Payment 才是到账；申报中的付款只进入 pending。 */
 function paymentsForObligation(obId) { return (state.paymentRecords || []).filter(p => p.rent_obligation_id === obId); }
 function paidAmtForObl(obId) { return paymentsForObligation(obId).filter(p => p.status === 'confirmed').reduce((a, p) => a + Number(p.amount || 0), 0); }
-/* PASAY-TASK-008 · P0 · 重写 paidAmt 为派生（override 旧实现） */
+/* PASAY-TASK-008 · P0 · 重写 paidAmt 为派生（override 旧实现）。
+   优先读 paymentRecords（新 Payment truth）；历史 seed / 008A 快照 Rent 的 legacy r.payments 数组
+   仅在无任何 paymentRecords 关联时回退兼容（保证既有 Move-out / 008A / 009A Gate 复用真实语义）。 */
 function paidAmt(r) {
   if (!r) return 0;
-  return paidAmtForObl(r.id);
+  const recs = paymentsForObligation(r.id);
+  if (recs.length) return recs.filter(p => p.status === 'confirmed').reduce((a, p) => a + Number(p.amount || 0), 0);
+  if (r.payments && r.payments.length) return r.payments.filter(p => p.status === 'confirmed').reduce((a, p) => a + Number(p.amount || 0), 0);
+  return 0;
 }
-/* PASAY-TASK-008 · P0 · pendAmt 兼容：unconfirmed payment 仍视为 pending（与既有 gate 兼容） */
+/* PASAY-TASK-008 · P0 · pendAmt 兼容：unconfirmed payment 仍视为 pending（与既有 gate 兼容，含 legacy r.payments） */
 function pendAmt(r) {
   if (!r) return 0;
-  return paymentsForObligation(r.id).filter(p => p.status === 'unconfirmed').reduce((a, p) => a + Number(p.amount || 0), 0);
+  const recs = paymentsForObligation(r.id);
+  if (recs.length) return recs.filter(p => p.status === 'unconfirmed').reduce((a, p) => a + Number(p.amount || 0), 0);
+  if (r.payments && r.payments.length) return r.payments.filter(p => p.status === 'unconfirmed').reduce((a, p) => a + Number(p.amount || 0), 0);
+  return 0;
 }
 function rentById(id) { return state.rents.find(r => r.id === id); }
 /* PASAY-TASK-008 · P0 · balance = max(amount_due - paid, 0) — 单真相派生 */
@@ -4712,7 +4720,8 @@ function viewRent(id) {
   const rtname = t ? t.name : L('未知','Unknown');
   const out = rentBalance(r);
   const paymentRows = paymentsForObligation(r.id);
-  const hasUnconfirmed = paymentRows.some(x => x.status === 'unconfirmed');
+  /* 兼容 legacy r.payments（未迁入 paymentRecords 时）：unconfirmed 同样视为待 Owner 确认 */
+  const hasUnconfirmed = paymentRows.some(x => x.status === 'unconfirmed') || ((!paymentRows.length) && (r.payments || []).some(x => x.status === 'unconfirmed'));
   const ownerOnly = roleIs('owner');
   const pays = paymentRows.slice().reverse().map(pay => '<div class="row" style="cursor:default"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + money(pay.amount) + '</b><span class="chip st-' + (pay.status === 'confirmed' ? 'ok' : 'pend') + '">' + (pay.status === 'confirmed' ? (state.lang==='zh'?'已确认':'Confirmed') : (state.lang==='zh'?'待确认':'Pending')) + '</span>' + (pay.evidence ? '<span class="tag">' + (state.lang==='zh'?'有凭证':'evidence') + '</span>' : '<span class="tag">' + (state.lang==='zh'?'无凭证':'no evidence') + '</span>') + '</div><div class="row-l2">' + fmtDate(pay.paid_at) + ' · ' + pay.method + ' · ' + pay.recorded_by + (pay.note ? ' · ' + pay.note : '') + '</div></div></div>').join('');
   let appr = '';
