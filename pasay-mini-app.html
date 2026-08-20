@@ -3842,7 +3842,7 @@ const BUSINESS_TYPES = ['approve_expense','pay_expense','confirm_rent','edit_res
 function primaryActionHtml(t) {
   if (t.status === 'done') return '<div class="banner ok" style="margin:10px 16px 0">' + ic('check', 17) + '<div>' + (state.lang==='zh'?'已完成':'Done') + '</div></div>';
   const ent = openTask(t.object);
-  const href = ent ? '#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + ent.target.id : null;
+  const href = ent ? '#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + entityRef(ent) : null;
   const zh = state.lang === 'zh';
   switch (t.type) {
     case 'approve_expense': return '<div style="display:flex;gap:8px;padding:14px 16px"><button class="btn btn-p" style="flex:1" data-a="nav" data-href="' + href + '">' + (zh?'去审批支出':'Approve expense') + ' →</button></div>';
@@ -5523,7 +5523,7 @@ function viewTask(id) {
       <div class="dl-row"><span class="k">${state.lang==='zh'?'截止':'Due'}</span><span class="v num">${fmtDate(t.due)}${t.status !== 'done' && t.due < TODAY ? ' <span class="chip st-crit">' + (state.lang==='zh'?'已逾期':'overdue') + '</span>' : ''}</span></div>
       <div class="dl-row"><span class="k">${state.lang==='zh'?'创建人':'Created by'}</span><span class="v">${t.source}</span></div>
     </div>
-    ${ent ? '<div class="card" style="margin:10px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (state.lang==='zh'?'关联对象':'Related') + '</b></div><div class="row" style="padding:10px 0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + ent.target.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px;font-family:var(--font-mono)">' + ent.target.id + '</b><span class="sub">' + (ent.kind === 'expense' ? ent.target.purpose : ent.kind === 'repair' ? ent.target.issue : ent.kind === 'property' ? ent.target.type : (state.lang==='zh'?'租金 ':'rent ') + money(ent.target.amount)) + '</span></div><div class="row-r">' + ic('chev', 15) + '</div></div></div>' : ''}
+    ${ent ? '<div class="card" style="margin:10px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (state.lang==='zh'?'关联对象':'Related') + '</b></div><div class="row" style="padding:10px 0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + entityRef(ent) + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px;font-family:var(--font-mono)">' + entityRef(ent) + '</b><span class="sub">' + (ent.kind === 'expense' ? ent.target.purpose : ent.kind === 'repair' ? ent.target.issue : ent.kind === 'property' ? ent.target.type : (state.lang==='zh'?'租金 ':'rent ') + money(ent.target.amount)) + '</span></div><div class="row-r">' + ic('chev', 15) + '</div></div></div>' : ''}
     ${sec(state.lang==='zh'?'任务时间线':'Task timeline')}
     <div class="card" style="margin:0 16px"><div class="tl">${t.tl.map(tlRow).join('')}</div></div>
     ${primaryActionHtml(t)}
@@ -6596,12 +6596,14 @@ const __odClickHandler = function(e) {
     save(); render(); return;
   }
   if (a === 'role-seg') {
+    /* PASAY-TASK-006 · P0-2 · test-only demo handler：只切换演示用户（currentUserId）。
+       state.meta.role 仅作为 demo locale 元数据写入，不参与任何业务权限 / 角色渲染 /
+       mutation 授权 —— authority 永远来自 ACTIVE Membership（Gate MEMBERSHIP_ROLE_TRUTH_P0 证明）。 */
     const r = el.dataset.r; state.meta.role = r;
-    /* 007A2 · demo role selector 只切换测试身份（currentUserId）；authority 永远来自 Membership */
     const pick = ws().members.find(m => m.status === 'active' && m.role === r) || ws().members.find(m => m.status === 'active');
     if (pick) state.currentUserId = pick.userId;
     if (!state.meta.langManual && !state.meta.localeManual) { state.lang = r === 'owner' ? 'zh' : 'en'; state.locale = r === 'owner' ? 'zh' : 'en'; }
-    save(); closeSheet(); render(); toast(state.lang==='zh'?'已切换为 ' + (r === 'owner' ? 'Owner' : 'Secretary') + ' 视角':'Switched to ' + (r === 'owner' ? 'Owner' : 'Secretary') + ' view'); return;
+    save(); closeSheet(); render(); toast(state.lang==='zh'?'已切换为 ' + (r === 'owner' ? 'Owner' : 'Secretary') + ' 视角（演示用户）':'Switched to ' + (r === 'owner' ? 'Owner' : 'Secretary') + ' view (demo user)'); return;
   }
   if (a === 'toggle-lang') { const to = state.lang === 'zh' ? 'en' : 'zh'; state.lang = to; state.locale = to; state.meta.locale = to; state.meta.localeManual = true; save(); render(); return; }
   if (a === 'pri-seg') { document.querySelectorAll('[data-a="pri-seg"]').forEach(b => b.classList.remove('on')); el.classList.add('on'); return; }
