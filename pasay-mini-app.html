@@ -4274,14 +4274,21 @@ function finSnapshot(q) {
   /* Month + Property 基准集（Property 过滤同时作用于 Rent 与 Expense） */
   const baseRents = allRents.filter(r => (r.period || '').indexOf(period) === 0 && (!unit || r.unit === unit));
   const baseExps = state.expenses.filter(e => (e.at || '').slice(0, 7) === period && (!unit || e.unit === unit));
-  /* Status 约束 */
+  /* Status 约束（PASAY-TASK-004-FIX3 · Blocker A：Rent-only / Expense-only 严格隔离）
+     overdue / partial / pending / paid → Expense 必须 []（Expense KPI 归零）；
+     exppending → Rent 必须 []（Rent KPI 与 Payment 归零）。 */
   let rents = baseRents;
   let exps = baseExps;
-  if (status === 'overdue') rents = baseRents.filter(r => r.status === 'overdue' || (r.status === 'partial' && r.due && daysSince(r.due) > 0));
-  else if (status === 'partial') rents = baseRents.filter(r => r.status === 'partial');
-  else if (status === 'pending') rents = baseRents.filter(r => r.status === 'pending');
-  else if (status === 'paid') rents = baseRents.filter(r => r.status === 'paid');
-  else if (status === 'exppending') exps = baseExps.filter(e => e.status === 'pending' || e.status === 'approved');
+  if (status === 'overdue' || status === 'partial' || status === 'pending' || status === 'paid') {
+    exps = [];
+    if (status === 'overdue') rents = baseRents.filter(r => r.status === 'overdue' || (r.status === 'partial' && r.due && daysSince(r.due) > 0));
+    else if (status === 'partial') rents = baseRents.filter(r => r.status === 'partial');
+    else if (status === 'pending') rents = baseRents.filter(r => r.status === 'pending');
+    else if (status === 'paid') rents = baseRents.filter(r => r.status === 'paid');
+  } else if (status === 'exppending') {
+    rents = [];
+    exps = baseExps.filter(e => e.status === 'pending' || e.status === 'approved');
+  }
   /* KPI（全部基于当前筛选后的集合） */
   const dueAmt = rents.reduce((a, r) => a + r.amount, 0);
   const paidAmtSum = rents.reduce((a, r) => a + paidAmt(r), 0);
@@ -4292,8 +4299,9 @@ function finSnapshot(q) {
   const payCount = rents.reduce((a, r) => a + (r.payments || []).filter(p => p.status === 'confirmed').length, 0);
   /* Property 选项基于 Property truth（state.props），不依赖“当月有没有 Rent” */
   const propOpts = ['', ...state.props.map(p => p.unit)];
-  /* Empty State Truth：当前筛选下无 Rent 且无 Expense（Payment 随 Rent 归零） */
-  const empty = baseRents.length === 0 && baseExps.length === 0;
+  /* Empty State Truth（PASAY-TASK-004-FIX3 · Blocker B）：基于最终筛选后的集合 rents + exps
+     （Payment 随 Rent；Rent 为 0 时相关 Payment 也为 0）。Status 无匹配时也必须 empty=true。 */
+  const empty = rents.length === 0 && exps.length === 0;
   return { period, unit, status, rents, exps, dueAmt, paidAmtSum, overdueAmt, expPaid, expPending, payCount, overdue, propOpts, empty };
 }
 function viewFinance(q) {
@@ -4341,9 +4349,9 @@ function viewFinance(q) {
     <div class="list" style="margin-top:6px">${overdueRows || '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('check', 16) + '<div class="row-l1" style="font-size:13px">' + (zh ? '当前筛选下没有逾期' : 'Nothing overdue under current filters') + '</div></div></div>'}</div>
     ${sec(zh ? '凭证与记录' : 'EVIDENCE & RECORDS')}
     <div class="list" style="margin-top:6px">
-      <div class="row" data-a="nav" data-href="#/payments" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '付款凭证' : 'Payment evidence') + '</b></div><div class="row-l2">' + (zh ? '已确认付款 ' + f.payCount + ' 笔 · 受当前筛选约束' : f.payCount + ' confirmed payments under current filters') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>
-      <div class="row" data-a="nav" data-href="#/rents" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '全部租金' : 'All rents') + '</b></div><div class="row-l2">' + (zh ? '按状态筛选与钻取' : 'filter & drill-down by status') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>
-      <div class="row" data-a="nav" data-href="#/exps" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '全部支出' : 'All expenses') + '</b></div><div class="row-l2">' + (zh ? '审批 / 付款 / 凭证' : 'approval / payment / evidence') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>
+      <div class="row" data-a="nav" data-href="#/payments" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">${zh ? '付款凭证' : 'Payment evidence'}</b></div><div class="row-l2">${zh ? '已确认付款 ' + f.payCount + ' 笔 · 受当前筛选约束' : f.payCount + ' confirmed payments under current filters'}</div></div><div class="row-r">${ic('chev', 15)}</div></div>
+      <div class="row" data-a="nav" data-href="#/rents" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">${zh ? '租金记录' : 'Rent records'}</b></div><div class="row-l2">${zh ? '按状态筛选与钻取' : 'filter & drill-down by status'}</div></div><div class="row-r">${ic('chev', 15)}</div></div>
+      <div class="row" data-a="nav" data-href="#/exps" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">${zh ? '支出记录' : 'Expense records'}</b></div><div class="row-l2">${zh ? '审批 / 付款 / 凭证' : 'approval / payment / evidence'}</div></div><div class="row-r">${ic('chev', 15)}</div></div>
     </div>
   `, { root: true });
 }
