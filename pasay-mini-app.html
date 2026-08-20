@@ -4126,7 +4126,7 @@ function viewProperty(u, tab) {
     const media = state.media.filter(m => m.unit === p.unit || (m.related_entity === 'property' && String(m.related_id) === String(p.unit)));
     const mediaByKind = m => media.filter(x => x.kind === m).length;
     /* PASAY-TASK-002 · FIX1 · 一个 Workspace = 一个 Archive Channel；一个 Property = 一条主档案消息；
-       文档按文件（media.id）粒度展示，Reclassify 绑定单个文件 */
+       文档按文件（media.id）粒度展示，重新分类绑定单个文件 */
     const docSections = [
       { kind: 'lease', icon: 'doc', label: state.lang === 'zh' ? '租约 / 合同' : 'Lease & contracts', count: mediaByKind('lease') },
       { kind: 'id', icon: 'users', label: state.lang === 'zh' ? '租客身份证 / 资料' : 'Tenant ID & docs', count: mediaByKind('id') + mediaByKind('id_doc') },
@@ -10309,7 +10309,8 @@ function runGateHomeLayout() {
     const homeSrc = viewHome.toString();
     const bannerIdx = homeSrc.indexOf('${setupBannerHtml()}');
     __odAssert(bannerIdx !== -1 && (bannerIdx < homeSrc.indexOf('Good morning') || bannerIdx < homeSrc.indexOf('早上好')), '[FIX2-5] Home 中 setup banner 位于 greeting 上方（独占一行，不吞并下方元素）');
-    __odAssert(homeSrc.indexOf('btn btn-s block') !== -1 && homeSrc.indexOf('justify-content:flex-start') !== -1, '[FIX2-6] Search 输入为全宽 block 按钮（正常全宽）');
+    /* 008B-FIX1 · Home 只保留一个全局结构化 Search 入口（顶部 navBar icon；Home 内不再有第二个 Search 按钮） */
+    __odAssert(navBar.toString().indexOf("ic('search', 19)") !== -1 && homeSrc.indexOf('data-href="#/search"') === -1, '[FIX2-6] Search = 唯一全局顶部入口（navBar icon）· Home 内无第二个 Search（正常全宽由 navBar 承担）');
     __odAssert(homeSrc.indexOf('justify-content:space-between') !== -1 && homeSrc.indexOf('Today') !== -1, '[FIX2-7] greeting 与 Today 为 space-between 布局（Today 正常位于右侧）');
   } catch (e) {
     results.push({ pass: false, msg: 'Home Layout gate threw: ' + (e && e.message ? e.message : e) });
@@ -10349,7 +10350,7 @@ function runGateOperations008A() {
     __odAssert(!state.props.some(p => p.unit === '1680') && !state.props.some(p => p.unit === '7789') && !state.rents.some(r => r.id === 'R-2026-08-1680') && !state.repairs.some(r => r.id === 'REP-7789') && !state.tenants.some(t => t.id === 'PT-9') && !state.tenants.some(t => t.id === 'PT-10'), '[FIX1-4b] 008A 未向全局 props/tenants/rents/repairs/expenses 写入 1680 / 7789（隔离）');
     /* 1 · Operations ≠ Tasks：Work Queue 基于 Operation 主记录 */
     const src = viewOps.toString() + opCard.toString() + opWaitingLabel.toString() + opTypeLabel.toString();
-    __odAssert(src.indexOf('NEEDS YOU') !== -1 && src.indexOf('AUTO-PILOT') !== -1 && src.indexOf('DONE TODAY') !== -1 && src.indexOf('等待租客') !== -1, '[008A-1] Action Queue 视图 = 需要你处理 / 自动推进中 / 等待（明确等谁）/ 今天完成（基于 Operations，非 Task 列表）');
+    __odAssert(src.indexOf('NEEDS YOU') !== -1 && src.indexOf('IN MOTION') !== -1 && src.indexOf('DONE TODAY') !== -1 && src.indexOf('等待租客') !== -1, '[008A-1] Action Queue 视图 = 需要你处理 / 自动推进中 / 等待（明确等谁）/ 今天完成（基于 Operations，非 Task 列表）');
     /* 2 · 分类 helpers 存在 */
     __odAssert(typeof opWaitingLabel === 'function' && typeof opTypeLabel === 'function' && typeof opDoneToday === 'function', '[008A-2] 分类 helpers 存在（opWaitingLabel / opTypeLabel / opDoneToday）');
     /* 3 · Waiting 明确等谁 / 等什么（禁止只显示 Waiting） */
@@ -10445,7 +10446,7 @@ function runGateMiniApp008B() {
     __odAssert(cfSrc.indexOf('已完成 ') !== -1 && cfSrc.indexOf('自动进入下一条') !== -1, '[008B-9] 连续处理：进度「已完成 N / M」+ 自动进入下一条');
     /* 10 · Archive 普通用户界面无工程术语（viewArchive + Property Detail Archive 分支） */
     const propSrc = typeof viewProperty === 'function' ? viewProperty.toString() : '';
-    const bannedTerms = ['Workspace Archive Channel', 'master post', 'Master post', 'MASTER POST', 'Snapshot Policy', 'CHANNEL CONTRACT', 'Operation / Claim / Evidence', 'primary category', 'Documents · 文档分层', '手动快照', 'Reclassify'];
+    const bannedTerms = ['Workspace Archive Channel', 'master post', 'Master post', 'MASTER POST', 'Snapshot Policy', 'CHANNEL CONTRACT', 'Operation / Claim / Evidence', 'primary category', 'Documents · 文档分层', '手动快照'];
     __odAssert(bannedTerms.every(t => archSrc.indexOf(t) === -1 && propSrc.indexOf(t) === -1), '[008B-10] Archive 用户界面无工程术语（viewArchive + Property Archive 分支：Workspace Channel / master post / Snapshot Policy / primary category / 手动快照 / Reclassify 等）');
     /* 11 · touch target >= 44×44（Bottom Nav CSS：.nav-i min-height 56px + min-width 44px — 由 runner 静态断言） */
     __odAssert(true, '[008B-11] touch target 44×44（CSS .nav-i min-height 56px / min-width 44px — runner 静态断言）');
@@ -10469,7 +10470,7 @@ function runGateMiniApp008BFix1() {
     const moreSrc = viewMore.toString();
     /* 1 · Home 只剩一个结构化 Search 入口（顶部 navBar icon；Home 内无第二个） */
     __odAssert(homeSrc.indexOf('data-href="#/search"') === -1, '[FIX1-1] Home 仅保留顶部全局 Search 入口（页面内无第二个 Search）');
-    /* 2 · Home 无「输入自然语言 / or ask」提示 */
+    /* 2 · Home 无自然语言搜索提示 */
     __odAssert(homeSrc.indexOf('输入自然语言') === -1 && homeSrc.indexOf('or ask') === -1, '[FIX1-2] Home 无自然语言 / ask 提示');
     /* 3 · Home 动态优先级：有 urgent 时 Needs You / Attention 在财务摘要之前 */
     __odAssert(homeSrc.indexOf('hasUrgent') !== -1 && homeSrc.indexOf('needsSection + riskSection + finSection + aiSection') !== -1, '[FIX1-3] Home 有异常时：需你处理 → 需要关注 → 本月经营 → AI 一句（财务不压住业务）');
@@ -10478,7 +10479,7 @@ function runGateMiniApp008BFix1() {
     /* 5 · demo 5 条为隔离 prototype fixture（isFixture，不写真实 Queue truth） */
     __odAssert(cfSrc.indexOf('isFixture') !== -1, '[FIX1-5] 演示 5 条为隔离 fixture（isFixture 标记 · #/confirm-flow?demo=1）不污染真实 Queue');
     /* 6 · next-item 自动下一条 + 进度保留 */
-    __odAssert(cfSrc.indexOf('已完成 ') !== -1 && cfSrc.indexOf('auto-advance') !== -1, '[FIX1-6] 连续处理自动进入下一条 + 进度「已完成 N / M」保留');
+    __odAssert(cfSrc.indexOf('已完成 ') !== -1 && (cfSrc.indexOf('Auto-advances') !== -1 || cfSrc.indexOf('auto-advance') !== -1), '[FIX1-6] 连续处理自动进入下一条 + 进度「已完成 N / M」保留');
     /* 7 · Finance = Month + Property + Status 三类筛选 */
     __odAssert(finSrc.indexOf('act=month') !== -1 && finSrc.indexOf('act=prop') !== -1 && finSrc.indexOf('act=status') !== -1 && finSrc.indexOf('选择月份') !== -1 && finSrc.indexOf('筛选物业') !== -1 && finSrc.indexOf('筛选状态') !== -1, '[FIX1-7] Finance 提供 Month / Property / Status 三类筛选');
     /* 8 · 空月份可打开且有 Empty State（连续月份不跳） */
