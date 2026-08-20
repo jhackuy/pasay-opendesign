@@ -1092,6 +1092,26 @@ try {
   }
 }
 
+/* ─────────────── Run Rent Collection Truth P0 Gate (PASAY-TASK-008) ─────────────── */
+{
+  const gateRentCollection = ctx.window.__OD_GATE_RENT_COLLECTION_TRUTH_P0;
+  if (typeof gateRentCollection === 'function') {
+    try {
+      const r = gateRentCollection();
+      console.log('\n═══════ Rent Collection Truth P0 Gate (PASAY-TASK-008 · obligation / payment / lifecycle / operation) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('RENT_COLLECTION_TRUTH_P0', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('RENT_COLLECTION_TRUTH_P0 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('RENT_COLLECTION_TRUTH_P0 gate not exposed on window (__OD_GATE_RENT_COLLECTION_TRUTH_P0 = ' + typeof gateRentCollection + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);

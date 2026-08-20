@@ -12070,6 +12070,79 @@ function runGatePropertyTenantLeaseBootstrapP0() {
   return { gate: 'PROPERTY_TENANT_LEASE_BOOTSTRAP_P0', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_PROPERTY_TENANT_LEASE_BOOTSTRAP_P0 = runGatePropertyTenantLeaseBootstrapP0;
+/* ═══ PASAY-TASK-008 · RENT_COLLECTION_TRUTH_P0 ═══
+   真实 state + mutation 验证：obligation 唯一、Lease 金额权威、Payment 求和、五态、
+   Partial 同 Operation、Paid 关闭、权限与跨 lease 隔离。 */
+function runGateRentCollectionTruthP0() {
+  const results = [], A = (ok, msg) => results.push({ pass:!!ok, msg });
+  try {
+    const fresh = () => { state = seed(); state.leases = []; __isFreshSeed = true; ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); wsResetFresh(); wsCreateWorkspace('Rent Truth Co', 'rent-owner'); };
+    const owner = () => { state.currentUserId = ws().members.find(m => m.role === 'owner' && m.status === 'active').userId; };
+    const secretary = () => { const i = wsGenerateInvite('secretary', 'Rent Sec'); wsAcceptInvite(i.id, 'rent-sec'); state.currentUserId = 'rent-sec'; };
+    fresh(); owner();
+    const pr = wsAddProperty({ unit:'2901', tower:'Rent Tower', addr:'Pasay', type:'1BR' });
+    const dr = wsCreateTenantWithDraft({ name:'Rent Truth Tenant', unit:'2901', rent:25000, ls:'2026-06-01', le:'2027-05-31', due:5, propertyId:pr.prop.id });
+    const act = wsActivateLease(dr.lease.lease_id), ob = state.rents.find(r => r.lease_id === dr.lease.lease_id && r.period === '2026-06');
+    A(act.ok && !!ob, '[RC-1] Active Lease 激活生成首月 obligation');
+    A(ob.amount_due === 25000 && ob.amount === 25000, '[RC-2] amount_due 唯一来自 Lease（legacy amount 仅投影）');
+    const once = rentEnsureMonthlyObligation(dr.lease.lease_id, '2026-06'), twice = rentEnsureMonthlyObligation(dr.lease.lease_id, '2026-06');
+    A(!once.created && !twice.created && state.rents.filter(r => r.lease_id === dr.lease.lease_id && r.period === '2026-06').length === 1, '[RC-3] lease_id + period 唯一且幂等');
+    A(rentEnsureMonthlyObligation('missing', '2026-06').ok === false, '[RC-4] missing Lease 不产生 obligation');
+    dr.lease.status = 'closed'; A(rentEnsureMonthlyObligation(dr.lease.lease_id, '2026-07').ok === false, '[RC-5] Closed Lease 不产生未来 obligation'); dr.lease.status = 'active';
+    A(rentStatus(ob, '2026-06-01') === 'upcoming', '[RC-6] Upcoming 由 today < due 派生');
+    A(rentStatus(ob, '2026-06-05') === 'due', '[RC-7] Due 由 today = due 派生');
+    A(rentStatus(ob, '2026-06-06') === 'overdue', '[RC-8] Overdue 由 today > due 派生');
+    secretary(); const p1 = rentRecordPayment(ob.id, 10000, 'secretary', { method:'GCash' });
+    A(p1.ok && paidAmt(ob) === 0 && pendAmt(ob) === 10000 && rentBalance(ob) === 25000, '[RC-9] 未确认 Payment 不计入 paid / balance');
+    owner(); const c1 = rentConfirmAllPending(ob.id);
+    A(c1.ok && paidAmt(ob) === 10000 && rentBalance(ob) === 15000 && rentStatus(ob, '2026-06-06') === 'partial', '[RC-10] confirmed Payment sum 驱动 Partial / balance');
+    const op1 = rentStartOperation(ob.id), op2 = rentStartOperation(ob.id);
+    A(op1.ok && !op2.created && op1.operation.id === op2.operation.id, '[RC-11] 同一 obligation 只启动一个 Rent Operation');
+    A(op1.operation.esc !== 'CLOSED' && op1.operation.next_action_code === 'collect_remaining', '[RC-12] Partial 保持同一 Operation 并续收尾款');
+    secretary(); rentRecordPayment(ob.id, 15000, 'secretary', { method:'Cash' }); owner(); rentConfirmAllPending(ob.id); const close = rentOperationCloseIfPaid(op1.operation);
+    A(paidAmt(ob) === 25000 && rentBalance(ob) === 0 && rentStatus(ob) === 'paid', '[RC-13] Payment sum 收齐后派生 Paid');
+    A(close.changed && op1.operation.esc === 'CLOSED' && op1.operation.close_outcome === 'COLLECTED', '[RC-14] Paid 关闭既有 Operation');
+    const stale = rentOperationReconcile(op1.operation, TODAY);
+    A(stale.stale === undefined || stale.changed === false, '[RC-15] 已关闭 Operation 不会被 stale reconcile 重新打开');
+    const confirmed = paymentsForObligation(ob.id).filter(p => p.status === 'confirmed');
+    A(confirmed.length === 2 && confirmed.reduce((n,p) => n + p.amount, 0) === paidAmt(ob), '[RC-16] amount_paid 只由 Payment confirmed sum 派生');
+    const rev = rentReversePayment(confirmed[0].id, 'test');
+    A(rev.ok && paidAmt(ob) === 15000 && rentBalance(ob) === 10000 && rentStatus(ob) === 'partial', '[RC-17] reverse 保留记录并重派生余额/Partial');
+    A(paymentsForObligation(ob.id).some(p => p.status === 'reversed'), '[RC-18] reverse 不删除 Payment history');
+    const old = JSON.stringify({ rents:state.rents, payments:state.paymentRecords });
+    const inv = wsGenerateInvite('secretary', 'Removed rent sec'); wsAcceptInvite(inv.id, 'rent-removed'); wsRemoveMember(inv.id); state.currentUserId = 'rent-removed';
+    A(rentRecordPayment(ob.id, 1, 'secretary').ok === false, '[RC-19] Removed Member 无法登记付款');
+    A(JSON.stringify({ rents:state.rents, payments:state.paymentRecords }) === old, '[RC-20] Removed mutation = zero');
+    fresh(); owner(); const pa = wsAddProperty({unit:'2902',tower:'A',addr:'A',type:'1BR'}), pb = wsAddProperty({unit:'2902',tower:'B',addr:'B',type:'1BR'});
+    const la = wsCreateTenantWithDraft({name:'A',unit:'2902',rent:11000,ls:'2026-06-01',le:'2027-05-31',propertyId:pa.prop.id}), lb = wsCreateTenantWithDraft({name:'B',unit:'2902',rent:12000,ls:'2026-06-01',le:'2027-05-31',propertyId:pb.prop.id});
+    wsActivateLease(la.lease.lease_id); wsActivateLease(lb.lease.lease_id);
+    const oa = state.rents.find(r => r.lease_id === la.lease.lease_id), ob2 = state.rents.find(r => r.lease_id === lb.lease.lease_id);
+    A(oa.id !== ob2.id && oa.property_id === pa.prop.id && ob2.property_id === pb.prop.id, '[RC-21] 同 unit 不同 Property 的 obligation 完全隔离');
+    A(rentProperty(oa).id === pa.prop.id && rentProperty(ob2).id === pb.prop.id, '[RC-22] Rent Detail 只解析自身 Property');
+    A(finSnapshot(new URLSearchParams('p=2026-06')).rents.every(r => r.amount_due !== undefined), '[RC-23] Finance 同源读取 amount_due');
+    A(viewRent(oa.id).indexOf('undefined') === -1 && viewProperty('2902','fin').indexOf('undefined') === -1 && viewHome().indexOf('undefined') === -1, '[RC-24] Rent / Property / Home 渲染无 undefined');
+    /* 25 个不可变性 / 派生一致性检查，和上面的真实 mutation 合计 49 条。 */
+    [
+      [oa.lease_id === la.lease.lease_id, 'RC-25 lease A relation'], [ob2.lease_id === lb.lease.lease_id, 'RC-26 lease B relation'],
+      [oa.period === '2026-06', 'RC-27 A period'], [ob2.period === '2026-06', 'RC-28 B period'],
+      [oa.amount_due === 11000, 'RC-29 A Lease amount'], [ob2.amount_due === 12000, 'RC-30 B Lease amount'],
+      [rentBalance(oa) === 11000, 'RC-31 A initial balance'], [rentBalance(ob2) === 12000, 'RC-32 B initial balance'],
+      [paidAmt(oa) === 0, 'RC-33 A initial paid'], [paidAmt(ob2) === 0, 'RC-34 B initial paid'],
+      [paymentsForObligation(oa.id).length === 0, 'RC-35 A Payment isolation'], [paymentsForObligation(ob2.id).length === 0, 'RC-36 B Payment isolation'],
+      [rentStatus(oa, '2026-06-05') === 'due', 'RC-37 A due lifecycle'], [rentStatus(ob2, '2026-06-06') === 'overdue', 'RC-38 B overdue lifecycle'],
+      [rentEnsureMonthlyObligation(la.lease.lease_id, '2026-06').obligation.id === oa.id, 'RC-39 A idempotent identity'],
+      [rentEnsureMonthlyObligation(lb.lease.lease_id, '2026-06').obligation.id === ob2.id, 'RC-40 B idempotent identity'],
+      [state.rents.filter(r => r.lease_id === la.lease.lease_id && r.period === '2026-06').length === 1, 'RC-41 A unique'],
+      [state.rents.filter(r => r.lease_id === lb.lease.lease_id && r.period === '2026-06').length === 1, 'RC-42 B unique'],
+      [rentProperty(oa).tower === 'A', 'RC-43 A property label'], [rentProperty(ob2).tower === 'B', 'RC-44 B property label'],
+      [tenantForRent(oa).id === la.tenant.id, 'RC-45 A tenant relation'], [tenantForRent(ob2).id === lb.tenant.id, 'RC-46 B tenant relation'],
+      [currentRentForLease(la.lease.lease_id).id === oa.id, 'RC-47 A current rent'], [currentRentForLease(lb.lease.lease_id).id === ob2.id, 'RC-48 B current rent'],
+      [finSnapshot(new URLSearchParams('p=2026-06')).dueAmt >= 23000, 'RC-49 finance due aggregates obligations']
+    ].forEach(x => A(x[0], '[' + x[1] + ']'));
+  } catch (e) { results.push({ pass:false, msg:'RENT_COLLECTION_TRUTH_P0 gate threw: ' + (e && e.message ? e.message : e) }); }
+  return { gate:'RENT_COLLECTION_TRUTH_P0', pass:results.every(r => r.pass), total:results.length, passed:results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_RENT_COLLECTION_TRUTH_P0 = runGateRentCollectionTruthP0;
 /* PASAY-TASK-005 · 009A · Browser Visual Gate（真实 DOM QA：render 到 #app · scrollWidth / rect / leak · 390/430）
    在 OpenDesign Preview / 真实浏览器执行（Node 无布局引擎，不在此运行；由 Node runner 校验暴露）。 */
 window.__OD_RUN_BROWSER_QA = function() {
