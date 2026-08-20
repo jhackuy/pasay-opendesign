@@ -12290,16 +12290,14 @@ function runGateRepairOperationP0() {
       rx('rx-confirm-info', opR); rx('rx-arrange-tech', opR); rx('rx-sim-quote', opR);   /* → await_quote_approval */
       const qA = (opR.quotes||[])[0];
       A(!!qA && qA.status === 'pending', '[RP-6] 收到报价（pending）· Repair 未关闭');
-      /* Owner 拒绝（via child expense reject → parentOp requote） */
-      const child = opR.currentQuoteExpense ? state.operations.find(x => x.kind === 'settle_expense' && x.domain && x.domain.expense_id === opR.currentQuoteExpense) : null;
-      if (child) { rejectExpenseFromOperation(child, 'owner', 'too expensive', 'NOT_PAID'); }
-      A(opR.esc !== 'CLOSED' && (opR.next_action_code === 'arrange_technician' || opR.next_action_code === 'await_quote_approval'), '[RP-7] Reject quote → Repair 保持 open · 进入 Requote');
+      /* Owner 拒绝（via rx-reject-quote → parent quotes[0].status='rejected' + child reject → requote） */
+      rx('rx-reject-quote', opR);
+      A(opR.esc !== 'CLOSED' && (opR.next_action_code === 'arrange_technician' || opR.next_action_code === 'await_quote_approval') && (opR.quotes||[]).some(q => q.status === 'rejected'), '[RP-7] Reject quote → Repair 保持 open · 进入 Requote');
       /* 新报价 v2（requote · 历史 quote 保留） */
       const quotesB4 = (opR.quotes||[]).length;
       rx('rx-arrange-tech', opR); rx('rx-sim-quote', opR);   /* requote: 重新 arrange 后报价 */
       const quotesAfter = (opR.quotes||[]).length;
       A(quotesAfter === quotesB4 + 1 && (opR.quotes||[]).some(q => q.status === 'rejected') && (opR.quotes||[]).filter(q => q.status === 'pending').length >= 1, '[RP-8..9] 新 Quote 不覆盖 Rejected 历史 → 可 Requote（多报价共存）');
-      try { console.log('[RP-DBG] reject path: qA.status=' + qA.status + ' quotes=' + JSON.stringify((opR.quotes||[]).map(q => q.status))); } catch(e2) {}
     } else {
       A(okR1, '[RP-6..9] seed 无 OP-R1 repair op（fixture 缺 —— 标记，主链由 7789 覆盖）');
     }
@@ -12315,19 +12313,20 @@ function runGateRepairOperationP0() {
     const qq = (function(){ const o=secOp; o.quotes=o.quotes||[]; const v=(o.quotes.length||0)+1; const c=createExpenseRecord({unit:'7789',category:'Repair',purpose:'7789 repair quote v'+v,amount:3200,by:'Sec Contractor',at:TODAY,relatedRepair:'REP-7789',tl:[{at:TODAY,t:'报价',d:'QUOTE'} ] }); o.quotes.push({expenseId:c.id,amount:3200,version:v,status:'pending',at:TODAY,provider:'Sec Contractor'}); o.quote_amount=3200; return o.quotes.slice(-1)[0]; })();
     A(!!qq && qq.status === 'pending', '[RP-10] Secretary 可登记报价（独立 quote 事实）');
 
-    /* 12 · Owner 可 approve 有效报价（经 child expense approve → parentOp；approval ≠ payment/complete） */
-    fresh(); owner(); ensureOps008aScenarios();
-    const opO = state.operations.find(o => o.id === 'OP-REP-7789');
-    if (!opO) { A(opO, '[RP-12..15] 7789 repair op 未就绪（fixture 缺）'); } else {
-      opO.quotes = opO.quotes || [];
-      const rpO = opRepair(opO);
-      const qApproved = (function(){ const o=opO; o.quotes=o.quotes||[]; const c=createExpenseRecord({unit:'7789',category:'Repair',purpose:'7789 quote',amount:3200,by:'Tech',at:TODAY,relatedRepair:'REP-7789',tl:[{at:TODAY,t:'报价',d:'QUOTE'} ] }); o.quotes.push({expenseId:c.id,amount:3200,version:1,status:'pending',at:TODAY,provider:'Tech'}); o.currentQuoteExpense=c.id; o.quote_amount=3200; return o.quotes[0]; })();
-      const childO = state.operations.find(x => x.kind === 'settle_expense' && x.domain && x.domain.expense_id === qApproved.expenseId);
-      if (childO) { approveExpenseFromOperation(childO, 'owner'); }
-      A(qApproved.status === 'approved' && opO.esc !== 'CLOSED' && rpO.status !== 'completed', '[RP-12] Owner 可批准有效报价（Approval ≠ Payment ≠ Repair Complete）');
+    /* 12 · Owner 可批准有效报价（经 rx-approve-quote → child expense approved → parent await_technician_visit；approval ≠ payment/complete） */
+    fresh(); owner();
+    const opO2 = state.operations.find(o => o.id === 'OP-R1');
+    if (opO2) {
+      opO2.quotes = opO2.quotes || [];
+      rx('rx-confirm-info', opO2); rx('rx-arrange-tech', opO2); rx('rx-sim-quote', opO2);   /* quotes pending + child expense */
+      const rpO2 = opRepair(opO2);
+      const qApproved = (opO2.quotes||[]).slice(-1)[0];
+      rx('rx-approve-quote', opO2);
+      A(qApproved && qApproved.status === 'approved' && opO2.esc !== 'CLOSED' && rpO2.status !== 'completed', '[RP-12] Owner 可批准有效报价（Approval ≠ Payment ≠ Repair Complete）');
+      A(opO2.esc === 'WAITING_EXTERNAL' && opO2.next_action_code === 'await_technician_visit', '[RP-12b] Approve 后 → 等待上门（Repair 仍 open · 未 Complete/Closed）');
       /* 13-15 · Task/Approved/Expense 不关闭未解决 Repair */
-      A(rpO.status !== 'completed' && opO.esc !== 'CLOSED', '[RP-13..15] Task done / Quote approved / Expense 关联 → Repair 仍 open（未 Verify 不得关闭）');
-    }
+      A(rpO2.status !== 'completed' && opO2.esc !== 'CLOSED', '[RP-13..15] Task done / Quote approved / Expense 关联 → Repair 仍 open（未 Verify 不得关闭）');
+    } else { A(opO2, '[RP-12..15] OP-R1 repair op 未就绪（fixture 缺）'); }
 
     /* 16-17 · Completion → Verification · Failed 保持 open */
     fresh(); owner(); ensureOps008aScenarios();
@@ -12348,7 +12347,7 @@ function runGateRepairOperationP0() {
       rxSim('rx-verify-complete', opV);
       A(opV.esc === 'CLOSED' && opV.close_outcome === 'COMPLETED', '[RP-18] 真正核验通过 → Repair Closed（证据齐全）');
       /* 19 · Archive / Evidence 可追溯 */
-      A(opV.esc === 'CLOSED' && state.repairs.some(r => r.id === opRepair(opV).id), '[RP-19] Repair 历史保留可追溯（CLOSED 后 repair 对象仍在）');
+      A(opV.esc === 'CLOSED' && !!opRepair(opV) && (opV.completionEvidence || []).some(e => e.status === 'verified'), '[RP-19] Repair 历史与完成证据保留可追溯（CLOSED 后 repair + evidence 仍在）');
     }
 
     /* 20 · Bottom Nav / Telegram 冻结（agent 独立验证 · 此处源码断言） */
