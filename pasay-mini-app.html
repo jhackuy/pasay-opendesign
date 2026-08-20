@@ -10146,7 +10146,7 @@ function runGateOperations008A() {
     __odAssert(opTlSorted(fakeTl).map(x => x.at).join(',') === '2026-08-12,2026-08-14,2026-08-15', '[FIX1-7] Activity Timeline 乱序输入 → chronological 输出（排序稳定）');
     const s1680 = opTlSorted(r1680).map(x => x.at);
     __odAssert(s1680.indexOf('2026-08-15') > s1680.indexOf('2026-08-12'), '[FIX1-7b] 1680 timeline 渲染为 chronological（08-15 创建事件在 08-12 之后）');
-    __odAssert(viewOps.toString().indexOf('opTlSorted') === -1 ? true : true, '[FIX1-6] Telegram 3×2 Freeze 由 TelegramExactMenuTruth Gate（11/11）在链上保障 · 008A 未触碰菜单');
+    __odAssert(opNextIsMine.toString().indexOf('state.meta.role') === -1 && opActionHtml.toString().indexOf('state.meta.role') === -1 && repairActionHtml.toString().indexOf('state.meta.role') === -1, '[FIX1-6] Act Now / Human Action 源码不再依赖 state.meta.role（全部走 wsEffectiveRole · Membership authority）');
   } catch (e) {
     results.push({ pass: false, msg: '008A gate threw: ' + (e && e.message ? e.message : e) });
   }
