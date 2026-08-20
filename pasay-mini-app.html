@@ -4291,9 +4291,10 @@ function viewExps(q) {
 }
 
 /* ═══ 008B · Finance Workspace（财务 = 数据工作台，不是 Telegram Rent/Expense 按钮复制）═══ */
-/* PASAY-TASK-004-FIX2 · Finance 筛选后的财务 truth 快照（纯函数 · 供 viewFinance 渲染与行为 Gate 断言）
-   Month + Property 统一作用于 Rent / Expense；Status 进一步约束 Rent（逾期/部分/待确认/已收）或 Expense（支出待处理）。
-   Empty = 当前筛选下无 Rent 且无 Expense（含对应 Payment 随 Rent 一并归零）。 */
+/* PASAY-TASK-004-FINANCE-FILTER-CLOSEOUT-001 · Finance 筛选后的财务 truth 快照（纯函数 · 供 viewFinance 渲染与行为 Gate 断言）
+   Month + Property 统一作用于 Rent / Expense；Status 严格隔离财务事实：
+   overdue/partial/pending/paid → Expense 必须 []（Expense KPI 归零）；exppending → Rent 必须 []（Rent/Payment KPI 归零）。
+   Empty = 基于最终筛选后的集合 rents + exps（Payment 随 Rent 归零；Status 无匹配也必须 empty=true）。 */
 function finSnapshot(q) {
   const period = q.get('p') || '2026-06';
   const unit = q.get('u') || '';
@@ -4304,9 +4305,7 @@ function finSnapshot(q) {
   /* Month + Property 基准集（Property 过滤同时作用于 Rent 与 Expense） */
   const baseRents = allRents.filter(r => (r.period || '').indexOf(period) === 0 && (!unit || r.unit === unit));
   const baseExps = state.expenses.filter(e => (e.at || '').slice(0, 7) === period && (!unit || e.unit === unit));
-  /* Status 约束（PASAY-TASK-004-FIX3 · Blocker A：Rent-only / Expense-only 严格隔离）
-     overdue / partial / pending / paid → Expense 必须 []（Expense KPI 归零）；
-     exppending → Rent 必须 []（Rent KPI 与 Payment 归零）。 */
+  /* Status Truth（FINANCE-FILTER-CLOSEOUT-001 · §1）：Rent-only / Expense-only 严格隔离，禁止交叉污染 */
   let rents = baseRents;
   let exps = baseExps;
   if (status === 'overdue' || status === 'partial' || status === 'pending' || status === 'paid') {
@@ -4329,8 +4328,7 @@ function finSnapshot(q) {
   const payCount = rents.reduce((a, r) => a + (r.payments || []).filter(p => p.status === 'confirmed').length, 0);
   /* Property 选项基于 Property truth（state.props），不依赖“当月有没有 Rent” */
   const propOpts = ['', ...state.props.map(p => p.unit)];
-  /* Empty State Truth（PASAY-TASK-004-FIX3 · Blocker B）：基于最终筛选后的集合 rents + exps
-     （Payment 随 Rent；Rent 为 0 时相关 Payment 也为 0）。Status 无匹配时也必须 empty=true。 */
+  /* Empty Truth（FINANCE-FILTER-CLOSEOUT-001 · §2）：基于最终筛选后的集合 rents + exps（非 base 集） */
   const empty = rents.length === 0 && exps.length === 0;
   return { period, unit, status, rents, exps, dueAmt, paidAmtSum, overdueAmt, expPaid, expPending, payCount, overdue, propOpts, empty };
 }
