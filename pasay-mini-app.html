@@ -3948,6 +3948,7 @@ function viewProperty(u, tab) {
           <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${p.unit}</b><span class="tag">${p.type}</span>${propChip(p)}${propertyStatusDot(p)}</div>
           <div class="meta" style="margin-top:4px">${p.addr}</div>
           <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6">${descLabel(p.desc, p.descriptionCode)}</p>
+          <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-s sm" data-a="prop-edit" data-unit="${p.unit}" data-od-id="prop-edit-open">${ic('wrench', 14)}${state.lang==='zh'?'编辑物业（按模块）':'Edit Property (by module)'}</button></div>
         </div>
       </div>
       ${p.status === 'occupied' && r ? '<div class="card" style="margin:10px 16px 0"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">' + (state.lang==='zh'?'当前租客':'Current tenant') + '</b></div><div class="row" style="padding:10px 0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/tenant/' + t.id + '"><div class="avatar">' + initials(t.name) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + t.name + '</b></div><div class="row-l2">' + t.phone + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div><div class="dl" style="margin:0"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'月租':'Monthly rent') + '</span><span class="v money">' + money(p.rent) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'押金':'Deposit') + '</span><span class="v num">' + money(p.deposit) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'租约':'Lease') + '</span><span class="v num">' + fmtDate(p.ls) + ' → ' + fmtDate(p.le) + '</span></div></div></div>' : '<div class="card" style="margin:10px 16px 0"><div class="row-l1"><b style="font-size:13.5px">' + (state.lang==='zh'?'空置 · 可出租':'Vacant · ready to lease') + '</b></div><div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'已完成 Turnover · 挂牌月租 ':'Turnover done · asking ') + money(p.rent) + '</div></div>'}
@@ -6022,6 +6023,49 @@ const __odClickHandler = function(e) {
   if (a === 'toggle-pay') { const p = state.payments.find(x => x.id === el.dataset.id); if (p) { p.active = !p.active; save(); render(); } return; }
   if (a === 'add-prop') { sheetAddProperty(); return; }
   if (a === 'add-tenant') { sheetAddTenant(); return; }
+  /* 007C · 模块化 Edit Property（每模块一个 sheet，Owner 不接触 DB 字段名） */
+  if (a === 'prop-edit') { sheetEditPropertyMenu(el.dataset.unit); return; }
+  if (a === 'prop-edit-basic') { sheetEditPropertyBasic(el.dataset.unit); return; }
+  if (a === 'prop-edit-tenant') { toast(state.lang==='zh' ? '请在租客详情页编辑（顶部菜单）' : 'Open the tenant page to edit (use the avatar menu)'); return; }
+  if (a === 'prop-edit-rent') { sheetEditPropertyRent(el.dataset.unit); return; }
+  if (a === 'prop-edit-lease') { sheetEditPropertyLease(el.dataset.unit); return; }
+  if (a === 'prop-edit-contact') { sheetEditPropertyContact(el.dataset.unit); return; }
+  if (a === 'prop-edit-notes') { sheetEditPropertyNotes(el.dataset.unit); return; }
+  if (a === 'prop-edit-basic-save' || a === 'prop-edit-rent-save' || a === 'prop-edit-lease-save' || a === 'prop-edit-contact-save' || a === 'prop-edit-notes-save') {
+    const u = el.dataset.unit;
+    const p = prop(u); if (p) {
+      if (a === 'prop-edit-basic-save') {
+        if ($('eb-tower')) p.tower = $('eb-tower').value || p.tower;
+        if ($('eb-type')) p.type = $('eb-type').value || p.type;
+        if ($('eb-addr')) p.addr = $('eb-addr').value || p.addr;
+      } else if (a === 'prop-edit-rent-save') {
+        const r = parseInt($('er-rent') ? $('er-rent').value : p.rent, 10); if (r > 0) p.rent = r;
+        const d = parseInt($('er-deposit') ? $('er-deposit').value : p.deposit, 10); if (d > 0) p.deposit = d;
+      } else if (a === 'prop-edit-lease-save') {
+        if ($('el-ls')) p.ls = $('el-ls').value || p.ls;
+        if ($('el-le')) p.le = $('el-le').value || p.le;
+      } else if (a === 'prop-edit-contact-save') {
+        if ($('ec-admin')) p.admin = $('ec-admin').value;
+        if ($('ec-phone')) p.adminPhone = $('ec-phone').value;
+        if ($('ec-emerg')) p.emergency = $('ec-emerg').value;
+      } else if (a === 'prop-edit-notes-save') {
+        if ($('en-notes')) p.notes = $('en-notes').value;
+      }
+      save(); closeSheet();
+      toast(state.lang==='zh' ? '已保存 · ' + u : 'Saved · ' + u);
+      render();
+    }
+    return;
+  }
+  if (a === 'archive-snapshot') {
+    const u = el.dataset.unit;
+    if (u) {
+      const p = prop(u);
+      toast((state.lang==='zh' ? '已请求为 ' + u + ' 生成最新 Snapshot（演示）' : 'Re-snapshot requested for ' + u + ' (demo)'));
+      if (state.activity) state.activity.push({ at: TODAY, t: (state.lang==='zh' ? '重发频道档案 Snapshot · ' + u : 'Re-snapshot channel archive · ' + u) + ' (' + (p ? (t ? t.name : 'Vacant') : '') + ')' });
+    }
+    return;
+  }
   if (a === 'add-payment-method') { sheetAddPaymentMethod(); return; }
   if (a === 'inspect') { openSheet(sheetHead(state.lang==='zh'?'查房':'Unit inspection') + field('in-unit', state.lang==='zh'?'单元':'Unit', '<select id="in-unit" class="select">' + state.props.map(p => '<option>' + p.unit + '</option>').join('') + '</select>') + field('in-note', state.lang==='zh'?'检查备注':'Notes', '<textarea id="in-note" class="textarea" placeholder="'+(state.lang==='zh'?'水电表读数、设施状况…':'e.g. meter readings, fixture condition…')+'"></textarea>') + '<button class="btn btn-p block" data-a="submit-inspect">' + (state.lang==='zh'?'提交查房记录':'Submit inspection') + '</button>'); return; }
   if (a === 'submit-inspect') { const u = $('#in-unit').value; const n = $('#in-note').value; addEvent('INSPECTION_NOTE', roleIs('owner') ? 'owner' : 'secretary', 'property', u, { unit: u, note: n || '' }); state.tasks.unshift({ id: 'T-' + uid('task'), type: 'inspection', subject: '', object: { kind: 'property', id: u }, assignee: 'secretary', status: 'done', priority: 'low', due: TODAY, nextAction: null, source: 'manual', related: u, tl: [{ code: 'INSPECTION_NOTE', actor: roleIs('owner') ? 'owner' : 'secretary', entity_type: 'property', entity_id: u, metadata: { unit: u }, at: TODAY }] }); save(); closeSheet(); render(); toast((state.lang==='zh'?'查房记录已提交':'Inspection recorded') + ' ✓'); return; }
