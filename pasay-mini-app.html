@@ -1121,6 +1121,14 @@ function rentsForTenant(tenant_id) {
 /* P0.1 统一 helper：Rent 所属 Tenant 必须经 lease，禁止 Property.currentTenant */
 function leaseForRent(r) { return r && r.lease_id ? state.leases.find(l => l.lease_id === r.lease_id) : null; }
 function tenantForRent(r) { const l = leaseForRent(r); return l ? ten(l.tenant_id) : null; }
+/* F3-4 · Rent → Property 权威解析：rent.property_id → propById，或经 lease.property_id → propById；禁止 prop(r.unit) 猜 */
+function rentProperty(r) {
+  if (!r) return null;
+  if (r.property_id) { const p1 = propById(r.property_id); if (p1) return p1; }
+  const l = leaseForRent(r);
+  if (l && l.property_id) { const p2 = propById(l.property_id); if (p2) return p2; }
+  return null;
+}
 const exp = id => state.expenses.find(e => e.id === id);
 const rep = id => state.repairs.find(r => r.id === id);
 const task = id => state.tasks.find(t => t.id === id);
@@ -1242,7 +1250,8 @@ function wsReconcileOccupancy() {
 function tenantCurrentLease(t) { return t ? (state.leases.find(l => l.tenant_id === t.id && l.status === 'active') || null) : null; }
 function tenantCurrentProperty(t) {
   const l = tenantCurrentLease(t);
-  if (l) return propById(l.property_id) || prop(l.unit) || null;
+  /* F3-2 · Current Property 只从 Active Lease 的 property_id 派生（无 unit fallback） */
+  if (l) return propById(l.property_id) || null;
   return null;
 }
 /* ── PASAY-TASK-007 · 纯业务函数（handler 与 Gate 共用同一语义） ──
@@ -1300,8 +1309,9 @@ function wsCreateLeaseDraft(unit, tenantId, terms, propId) {
   if (!p) return { ok: false, reason: 'property not found' };
   const t = ten(tenantId); if (!t) return { ok: false, reason: 'tenant not found' };
   if (!hasActiveMembership()) return { ok: false, reason: 'no active membership' };
+  /* F3-3 · propertyId/unit 禁止 split-brain：unit 一律从 Property 自动派生（不信调用者传入的 unit 作为关系事实） */
   const draft = {
-    lease_id: 'LS-' + fmtId4(uid('lease')), unit, property_id: p.id, tenant_id: tenantId,
+    lease_id: 'LS-' + fmtId4(uid('lease')), unit: p.unit, property_id: p.id, tenant_id: tenantId,
     start_date: (terms && terms.start_date) || null, end_date: (terms && terms.end_date) || null,
     monthly_rent: (terms && terms.monthly_rent) || 0, deposit: (terms && terms.deposit) || 0,
     rent_due_day: (terms && terms.rent_due_day !== undefined && terms.rent_due_day !== null) ? terms.rent_due_day : 5,
@@ -1335,7 +1345,7 @@ function wsActivateLease(leaseId) {
   if (l.status !== 'draft') return { ok: false, reason: L('该租约不是可激活的草稿','Lease is not an activatable draft (current: ' + l.status + ')') };
   if (!hasActiveMembership()) return { ok: false, reason: L('无在职 Membership','no active membership') };
   if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可激活租约','Only the Owner can activate a lease') };
-  const p = prop(l.property_id) || prop(l.unit); if (!p) return { ok: false, reason: 'property not found' };
+  const p = l.property_id ? propById(l.property_id) : null; if (!p) return { ok: false, reason: 'property not found' };
   const t = ten(l.tenant_id); if (!t) return { ok: false, reason: 'tenant not found' };
   if (!l.start_date || !l.end_date || l.start_date > l.end_date) return { ok: false, reason: L('起止日期不合法','Invalid lease dates') };
   if (!(l.monthly_rent > 0)) return { ok: false, reason: L('月租必须大于 0','Monthly rent must be positive') };
@@ -4486,7 +4496,7 @@ function viewRents(q) {
   let list = state.rents.slice();
   if (f !== 'all') list = list.filter(r => r.status === f);
   const rows = list.map(r => {
-    const p = prop(r.unit), t = tenantForRent(r);
+    const p = rentProperty(r), t = tenantForRent(r);
     const tname = t ? t.name : L('未知','Unknown');
     const out = Math.max(r.amount - paidAmt(r) - pendAmt(r), 0);
     return '<div class="row" data-a="nav" data-href="#/rent/' + r.id + '" data-od-id="rent-row-' + r.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + r.unit + '</span><b style="font-size:14px">' + money(r.amount) + '</b></div><div class="row-l2"><span class="who">' + tname + '</span><span class="dot"></span><span>' + (state.lang==='zh'?'到期 ':'due ') + fmtDate(r.due) + '</span></div></div><div class="row-r">' + rentChip(r) + (out > 0 ? '<span class="money neg" style="font-size:12.5px">' + money(out) + '</span>' : '') + ic('chev', 15) + '</div></div>';
