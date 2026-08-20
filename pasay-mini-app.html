@@ -594,7 +594,7 @@ function setupBannerHtml() {
   const w = ws();
   if (w.status === 'ready' && w.setupSteps.every(s => s.done)) return '';
   const next = w.setupSteps.find(s => !s.done);
-  return '<div class="banner info" style="margin:12px 16px 0" data-od-id="home-setup-progress">' + ic('flag', 17) + '<div><b>' + L('完成工作区设置','Finish workspace setup') + '</b><div style="margin-top:2px">' + L('下一步：','Next: ') + (next ? setupStepLabel(next.id) : L('完成设置','Finalize')) + ' <button data-a="nav" data-href="#/setup" style="text-decoration:underline">' + L('去完成','Continue') + ' →</button></div></div>';
+  return '<div class="banner info" style="margin:12px 16px 0" data-od-id="home-setup-progress">' + ic('flag', 17) + '<div><b>' + L('完成工作区设置','Finish workspace setup') + '</b><div style="margin-top:2px">' + L('下一步：','Next: ') + (next ? setupStepLabel(next.id) : L('完成设置','Finalize')) + ' <button data-a="nav" data-href="#/setup" style="text-decoration:underline">' + L('去完成','Continue') + ' →</button></div></div></div>';
 }
 
 /* ═══════════════ 图标（描线 SVG，非 emoji） ═══════════════ */
