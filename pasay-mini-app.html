@@ -854,6 +854,25 @@ if (!state.media.some(x => x.id === 'repair-photo-01')) {
   });
 }
 state.rents.forEach(r => { if (!r.lease_id) r.lease_id = null; r.payments.forEach(p => { if (!p.evidence) p.evidence = null; }); });
+/* PASAY-TASK-008 · P0 Payment Truth：state.paymentRecords[] 是 Payment 单一真相；r.payments 在 normalize 时一次性迁入（幂等）。
+   新 Payment 一律写 state.paymentRecords，paidAmt/balance/status 全部从 paymentRecords 派生，r.payments 字段保留但不读写。 */
+if (!Array.isArray(state.paymentRecords)) state.paymentRecords = [];
+state.rents.forEach(r => {
+  if (!r.lease_id) return;
+  const migKey = '__mig_' + r.id;
+  if (r[migKey]) return;
+  (r.payments || []).forEach(p => {
+    const prId = p.id || ('PMR-' + r.id + '-' + (state.paymentRecords.filter(x => x.rent_obligation_id === r.id).length + 1));
+    if (state.paymentRecords.some(x => x.id === prId)) return;
+    state.paymentRecords.push({
+      id: prId, rent_obligation_id: r.id, lease_id: r.lease_id, property_id: r.property_id || null,
+      amount: Number(p.amount) || 0, paid_at: p.date || p.paid_at || TODAY, method: p.method || 'unknown',
+      status: (p.status === 'unconfirmed' || p.status === 'confirmed') ? p.status : 'confirmed',
+      recorded_by: p.by || 'secretary', note: p.note || '', source: 'legacy_migration', created_at: TODAY
+    });
+  });
+  r[migKey] = true;
+});
 state.activity.forEach(a => { if (!a.code) a.code = null; });
 /* ── VNext Operations：惰性建立 1805 收租 Operation（幂等），业务真相仍由 Rent 单一数据源驱动 ── */
 if (!state.operations) state.operations = [];
@@ -1118,6 +1137,131 @@ function rentsForTenant(tenant_id) {
   const lids = state.leases.filter(l => l.tenant_id === tenant_id).map(l => l.lease_id);
   return state.rents.filter(x => x.lease_id && lids.indexOf(x.lease_id) !== -1);
 }
+/* ═════ PASAY-TASK-008 · RENT COLLECTION TRUTH P0 · SINGLE TRUTH 派生层 ═════
+   Rent Obligation → Payment 单一真相：
+   · state.paymentRecords[] 是 Payment 事实
+   · paid / balance / lifecycle 全部派生，不允许任意改 r.payments 绕开
+   · lease_id + billing_period 唯一
+   · unit 仅为 display / legacy / 搜索辅助，绝非 Rent relation key
+   · Draft Lease 不产生 Rent；Ended Lease 不生成未来 Rent
+   · 新 Payment 一律经 rentRecordPayment；reversal 改 status='reversed' 保持 history 完整 */
+/* PASAY-TASK-008 · P0 · paymentRecords 一致性查询 + 派生 */
+function paymentsForObligation(obId) { return state.paymentRecords.filter(p => p.rent_obligation_id === obId); }
+function paidAmtForObl(obId) { return paymentsForObligation(obId).filter(p => p.status !== 'reversed').reduce((a, p) => a + Number(p.amount || 0), 0); }
+/* PASAY-TASK-008 · P0 · 重写 paidAmt 为派生（override 旧实现） */
+function paidAmt(r) {
+  if (!r) return 0;
+  return paidAmtForObl(r.id);
+}
+/* PASAY-TASK-008 · P0 · pendAmt 兼容：unconfirmed payment 仍视为 pending（与既有 gate 兼容） */
+function pendAmt(r) {
+  if (!r) return 0;
+  return paymentsForObligation(r.id).filter(p => p.status === 'unconfirmed').reduce((a, p) => a + Number(p.amount || 0), 0);
+}
+function rentById(id) { return state.rents.find(r => r.id === id); }
+/* PASAY-TASK-008 · P0 · balance = max(amount_due - paid, 0) — 单真相派生 */
+function rentBalance(ob) { if (!ob) return 0; return Math.max(Number(ob.amount || 0) - paidAmt(ob), 0); }
+/* PASAY-TASK-008 · P0 · Lifecycle 派生（业务语言 5 态 + 内部更细）：Paid balance=0；Overdue today>due && balance>0；Due today==due && balance>0；Upcoming today<due && balance>0；Partial 是指标非状态 */
+function _todayDays(iso) { return Math.round((new Date(TODAY) - new Date(iso)) / 86400000); }
+function rentStatus(ob, today) {
+  if (!ob) return 'upcoming';
+  const bal = rentBalance(ob);
+  const td = today || TODAY;
+  if (bal <= 0) return 'paid';
+  const d = ob.due || ((ob.period || '').slice(0, 7) + '-05');
+  const diff = _todayDays(d, td);
+  if (diff > 0) return 'overdue';
+  if (diff === 0) return 'due';
+  return 'upcoming';
+}
+/* PASAY-TASK-008 · P0 · 同 lease_id + billing_period 唯一；idempotent（返回已存在或新建）。Draft/Closed Lease 拒绝。 */
+function rentEnsureMonthlyObligation(leaseId, billingPeriod) {
+  const l = state.leases.find(x => x.lease_id === leaseId);
+  if (!l) return { ok: false, reason: 'lease not found' };
+  if (l.status !== 'active') return { ok: false, reason: L('Active Lease 才能产生 Rent Obligation','Only an active lease can produce a Rent obligation') };
+  const period = billingPeriod || (l.start_date || TODAY).slice(0, 7);
+  const existing = state.rents.find(r => r.lease_id === leaseId && r.period === period);
+  if (existing) return { ok: true, obligation: existing, created: false };
+  const due_day = (l.rent_due_day !== undefined && l.rent_due_day !== null) ? l.rent_due_day : 5;
+  const dd = String(due_day).padStart(2, '0');
+  const due = period + '-' + dd;
+  const id = 'R-' + period + '-' + (l.property_id || l.unit) + '-' + (state.rents.filter(r => r.lease_id === leaseId && r.period === period).length ? String(state.rents.filter(r => r.lease_id === leaseId && r.period === period).length + 1) : '01');
+  const ob = {
+    id, lease_id: leaseId, property_id: l.property_id || null, unit: l.unit,
+    period, amount: Number(l.monthly_rent) || 0, due,
+    status: rentStatus({ amount: l.monthly_rent, due, period }, TODAY),
+    payments: [],
+    created_at: TODAY, created_by: wsCurrentUserId()
+  };
+  state.rents.push(ob);
+  return { ok: true, obligation: ob, created: true };
+}
+/* PASAY-TASK-008 · P0 · Payment 写入（Secretary 录入 → unconfirmed；Owner 确认 → confirmed）。统一入口，所有 submit-payment / confirm-rent 经此 */
+function rentRecordPayment(obId, amount, by, opts) {
+  const ob = rentById(obId);
+  if (!ob) return { ok: false, reason: 'obligation not found' };
+  const l = state.leases.find(x => x.lease_id === ob.lease_id);
+  if (!l) return { ok: false, reason: 'lease not found' };
+  if (!(amount > 0)) return { ok: false, reason: L('付款金额必须大于 0','Payment amount must be positive') };
+  const role = currentRole();
+  /* authority：Secretary 可写入 unconfirmed；Owner 可直接 confirmed（前置确认）。其余角色拒绝。 */
+  let status = 'unconfirmed';
+  if (by === 'owner' || role === 'owner') status = 'confirmed';
+  const pmt = {
+    id: 'PMR-' + uid('payrec') + '-' + Date.now().toString(36).slice(-4),
+    rent_obligation_id: ob.id, lease_id: l.lease_id, property_id: l.property_id || null,
+    amount: Number(amount), paid_at: (opts && opts.paid_at) || TODAY,
+    method: (opts && opts.method) || 'unknown', recorded_by: by || (role === 'owner' ? 'owner' : 'secretary'),
+    note: (opts && opts.note) || '', status, source: 'pasay', created_at: TODAY
+  };
+  state.paymentRecords.push(pmt);
+  /* 同步 r.status 派生（gate 兼容） */
+  ob.status = rentStatus(ob, TODAY);
+  return { ok: true, payment: pmt, obligation: ob };
+}
+/* PASAY-TASK-008 · P0 · Owner 确认所有 unconfirmed payments（confirm-rent 统一入口） */
+function rentConfirmAllPending(obId) {
+  const ob = rentById(obId);
+  if (!ob) return { ok: false, reason: 'obligation not found' };
+  if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可确认','Owner only') };
+  state.paymentRecords.forEach(p => { if (p.rent_obligation_id === obId && p.status === 'unconfirmed') p.status = 'confirmed'; });
+  ob.status = rentStatus(ob, TODAY);
+  return { ok: true, obligation: ob };
+}
+/* PASAY-TASK-008 · P0 · 退回首笔 unconfirmed（reject-rent 兼容旧语义） */
+function rentRejectAllPending(obId) {
+  const ob = rentById(obId);
+  if (!ob) return { ok: false, reason: 'obligation not found' };
+  if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可退回','Owner only') };
+  state.paymentRecords = state.paymentRecords.filter(p => !(p.rent_obligation_id === obId && p.status === 'unconfirmed'));
+  ob.status = rentStatus(ob, TODAY);
+  return { ok: true, obligation: ob };
+}
+/* PASAY-TASK-008 · P0 · 逆向：status='reversed'（保留 history） */
+function rentReversePayment(pmrId, reason) {
+  const p = state.paymentRecords.find(x => x.id === pmrId);
+  if (!p) return { ok: false, reason: 'payment record not found' };
+  if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可逆向','Owner only') };
+  if (p.status === 'reversed') return { ok: false, reason: 'already reversed' };
+  p.status = 'reversed'; p.reversed_at = TODAY; p.reversed_by = wsCurrentUserId(); p.reversal_reason = reason || '';
+  const ob = rentById(p.rent_obligation_id); if (ob) ob.status = rentStatus(ob, TODAY);
+  return { ok: true, payment: p, obligation: ob };
+}
+/* PASAY-TASK-008 · P0 · Rent Operation 衔接：Paid 后关闭 Operation + 不再投影催租 Task；Partial 后 Operation 不关闭，下一动作金额 = remaining */
+function rentOperationCloseIfPaid(op) {
+  if (!op || !op.domain || !op.domain.rent_id) return { changed: false };
+  const ob = rentById(op.domain.rent_id);
+  if (!ob) return { changed: false };
+  const bal = rentBalance(ob);
+  if (bal <= 0 && op.esc !== 'CLOSED') {
+    op.esc = 'CLOSED'; op.close_outcome = 'COLLECTED';
+    op.tl.push({ at: TODAY, t: L('Rent 收齐，事项关闭','Rent collected in full — operation closed') });
+    return { changed: true, balance: 0 };
+  }
+  return { changed: false, balance: bal };
+}
+/* PASAY-TASK-008 · P0 · 状态派生刷新（写入 r.status 让既有 FIX2/FIX3 gate 兼容） */
+function rentRefreshStatus(ob) { if (ob) ob.status = rentStatus(ob, TODAY); }
 /* P0.1 统一 helper：Rent 所属 Tenant 必须经 lease，禁止 Property.currentTenant */
 function leaseForRent(r) { return r && r.lease_id ? state.leases.find(l => l.lease_id === r.lease_id) : null; }
 function tenantForRent(r) { const l = leaseForRent(r); return l ? ten(l.tenant_id) : null; }
@@ -1133,8 +1277,7 @@ function rentProperty(r) {
 const exp = id => state.expenses.find(e => e.id === id);
 const rep = id => state.repairs.find(r => r.id === id);
 const task = id => state.tasks.find(t => t.id === id);
-const paidAmt = r => r.payments.filter(p => p.status === 'confirmed').reduce((a, p) => a + p.amount, 0);
-const pendAmt = r => r.payments.filter(p => p.status === 'unconfirmed').reduce((a, p) => a + p.amount, 0);
+/* paidAmt / pendAmt 已迁移到 PASAY-TASK-008 派生层（见上 r.payments 不再被读写） */
 const openRepairs = u => state.repairs.filter(r => r.unit === u && ['reported','assigned','in_progress','waiting_parts'].includes(r.status));
 const repairsFor = u => state.repairs.filter(r => r.unit === u);
 const expensesFor = u => state.expenses.filter(e => e.unit === u);
@@ -1358,16 +1501,8 @@ function wsActivateLease(leaseId) {
   /* 原子激活 */
   l.status = 'active'; l.move_in_at = l.start_date; l.activated_at = TODAY; l.activated_by = wsCurrentUserId();
   l.tl.push({ at: TODAY, t: L('租约已激活 · 物业转为已出租','Lease activated — property occupied'), d: 'ACTIVE' });
-  /* 首月 Rent：合法来源 = Active Lease（单真相）· F2-3 · Rent 关系 PRP 化（property_id + lease_id · id 含 PRP 防同 unit 碰撞） */
-  if (!state.rents.some(r => r.lease_id === l.lease_id)) {
-    const period = (l.start_date || TODAY).slice(0, 7);
-    const dd = String(due).padStart(2, '0');
-    state.rents.push({
-      id: 'R-' + period + '-' + (l.property_id || l.unit), unit: l.unit, property_id: l.property_id, period: period,
-      amount: l.monthly_rent, due: (l.start_date || TODAY).slice(0, 8) + dd,
-      status: 'upcoming', payments: [], lease_id: l.lease_id
-    });
-  }
+  /* PASAY-TASK-008 · P0 · 首月 Rent 由 rentEnsureMonthlyObligation 单一入口产生（idempotent · lease_id+period 唯一） */
+  rentEnsureMonthlyObligation(l.lease_id, (l.start_date || TODAY).slice(0, 7));
   save(); render();
   return { ok: true, lease: l };
 }
