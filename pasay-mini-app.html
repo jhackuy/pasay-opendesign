@@ -1279,7 +1279,7 @@ function wsActivateLease(leaseId) {
   const t = ten(l.tenant_id); if (!t) return { ok: false, reason: 'tenant not found' };
   if (!l.start_date || !l.end_date || l.start_date > l.end_date) return { ok: false, reason: L('起止日期不合法','Invalid lease dates') };
   if (!(l.monthly_rent > 0)) return { ok: false, reason: L('月租必须大于 0','Monthly rent must be positive') };
-  const due = l.rent_due_day || 5;
+  const due = (l.rent_due_day !== undefined && l.rent_due_day !== null) ? l.rent_due_day : 5;
   if (!(due >= 1 && due <= 28)) return { ok: false, reason: L('扣款日不合法（1–28）','Invalid rent due day (1–28)') };
   const overlap = state.leases.find(x => x.unit === l.unit && x.status === 'active' && x.lease_id !== l.lease_id);
   if (overlap) return { ok: false, reason: L('该物业已有生效租约 — 请先结束 / 续租当前租约再激活新租约','This property already has an active lease. End / renew the current lease before activating another one.') };
@@ -6354,7 +6354,7 @@ function sheetAddPaymentMethod() {
 }
 function sheetAddProperty() {
   /* PASAY-TASK-007 · Add Property：必填 Unit / Tower / Address；可选 Type / Area。
-     禁止要求输入 property_id / workspace_id / merchant_id / chat_id / archive id / tenant / lease —— 全部系统产生。
+     禁止要求输入任何内部 ID（property / workspace / merchant / chat / archive / tenant / lease）—— 全部系统产生。
      不采集月租（月租属于 Lease truth，不属于 Property 第二财务真相）。 */
   openSheet(sheetHead(state.lang==='zh'?'新增物业':'Add property', state.lang==='zh'?'登记为空置单元 · 系统生成 ID':'registered as vacant · system-generated ID') +
     field('ap-unit', state.lang==='zh'?'单元 / 房号（必填）':'Unit (required)', '<input id="ap-unit" class="input" placeholder="2010"/>') +
@@ -11489,10 +11489,12 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     const t17 = wsCreateTenantWithDraft({ name: 'T17', unit: U, rent: 10000, ls: '2026-09-01', le: '2027-08-31', due: 0 });
     __odAssert(wsActivateLease(t17.lease.lease_id).ok === false, '[PTLB-17] 激活要求合法扣款日（0 → reject）');
 
-    /* ═══ Activate 成功 + 派生 truth ═══ */
+    /* ═══ Activate 成功 + 派生 truth + Duplicate Active Lease Attack ═══ */
     envOwner();
     wsAddProperty({ unit: U, tower: 'Shore Residences Tower C', addr: 'Shore', type: '2BR · 60㎡' });
     const tA = wsCreateTenantWithDraft({ name: 'Christopher Dela Cruz', phone: '0917 555 0999', unit: U, rent: 128500, deposit: 257000, ls: '2026-09-01', le: '2027-08-31', due: 5 });
+    const tB = wsCreateTenantWithDraft({ name: 'Second Tenant', unit: U, rent: 90000, ls: '2026-10-01', le: '2027-09-30' });   /* 激活前第二 Draft 可创建 */
+    __odAssert(tB.ok === true && tB.lease.status === 'draft' && active_lease(U) === null && propOccupancy(P(U)) === 'vacant', '[PTLB-18b] 激活前第二 Draft 存在但不占用物业（occupancy 仍 Vacant）');
     const act = wsActivateLease(tA.lease.lease_id);
     __odAssert(act.ok === true && active_lease(U).lease_id === tA.lease.lease_id, '[PTLB-26] Owner 可激活有效租约（Activate ok · Lease Active）');
     wsReconcileOccupancy();
@@ -11502,8 +11504,7 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     const rentA = state.rents.find(r => r.lease_id === tA.lease.lease_id);
     __odAssert(!!rentA && rentA.amount === 128500 && rentA.unit === U && rentA.due.indexOf('2026-09-') === 0, '[PTLB-22b] 激活生成首月 Rent（amount/unit/due 来自 Lease 单真相）');
     __odAssert(active_lease(U) && state.leases.filter(l => l.unit === U && l.status === 'active').length === 1, '[PTLB-18] 同一 Property Active Lease <= 1（仅 1 份生效）');
-    /* 第二 Draft 攻击：激活后再次激活同物业另一 draft → blocked + 业务语言 */
-    const tB = wsCreateTenantWithDraft({ name: 'Second Tenant', unit: U, rent: 90000, ls: '2026-10-01', le: '2027-09-30' });
+    /* 第二 Draft 攻击：已有 Active Lease 后尝试激活另一 draft → blocked + 业务语言 */
     const act2 = wsActivateLease(tB.lease.lease_id);
     __odAssert(act2.ok === false && /active lease|生效租约/.test(act2.reason || ''), '[PTLB-19] 第二 Active Lease 激活被拒绝（业务语言：已有生效租约 · 不静默覆盖）');
     __odAssert(tB.lease.status === 'draft' && propOccupancy(P(U)) === 'occupied', '[PTLB-19b] 拒绝后 second draft 仍 draft · occupancy 不变');

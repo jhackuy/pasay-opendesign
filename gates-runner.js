@@ -1072,6 +1072,26 @@ try {
   }
 }
 
+/* ─────────────── Run Property/Tenant/Lease Bootstrap P0 Gate (PASAY-TASK-007) ─────────────── */
+{
+  const gatePTL = ctx.window.__OD_GATE_PROPERTY_TENANT_LEASE_BOOTSTRAP_P0;
+  if (typeof gatePTL === 'function') {
+    try {
+      const r = gatePTL();
+      console.log('\n═══════ Property/Tenant/Lease Bootstrap P0 Gate (PASAY-TASK-007 · first property operationalization / single truth / draft→activate) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('PROPERTY_TENANT_LEASE_BOOTSTRAP_P0', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('PROPERTY_TENANT_LEASE_BOOTSTRAP_P0 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('PROPERTY_TENANT_LEASE_BOOTSTRAP_P0 gate not exposed on window (__OD_GATE_PROPERTY_TENANT_LEASE_BOOTSTRAP_P0 = ' + typeof gatePTL + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
