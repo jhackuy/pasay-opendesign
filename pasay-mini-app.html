@@ -8237,6 +8237,11 @@ function runLeaseGateD() {
   const results = [];
   try {
     const op1 = __odSetupLeaseGates();
+    /* PASAY-TASK-003-FIX1 · Membership authority：该 task 属于 secretary，
+       以 Membership=Secretary 视角渲染 action card（不得依赖 state.meta.role） */
+    const _w = ws();
+    const _secM = _w && _w.members ? _w.members.find(m => m.status === 'active' && m.role === 'secretary') : null;
+    if (_secM) state.currentUserId = _secM.userId;
     const proj = state.tasks.find(t => t.tzOp === 'LEASE-OP-1' && t.status !== 'done' && t.status !== 'superseded');
     __odAssert(!!proj, '[LD] Secretary contact task 已投影', results);
     __odAssert(proj.assignee === 'secretary', '[LD] Who：assignee === "secretary"', results);
