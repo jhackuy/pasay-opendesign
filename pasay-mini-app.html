@@ -6512,7 +6512,7 @@ const __odClickHandler = function(e) {
     const m = state.media.find(x => x.id === el.dataset.id); if (!m) return;
     m.archive_reference = 'channel/archive/' + (el.dataset.unit || m.related_id);
     m.kind = 'historical';
-    save(); render(); toast((state.lang==='zh'?'已归档到 Property Archive Channel':'Archived to channel'));
+    save(); render(); toast((state.lang==='zh'?'已归档到本房主档案消息':'Archived to master post'));
     return;
   }
   if (a === 'add-payment-evidence') { sheetPaymentEvidence(el.dataset.id); return; }
