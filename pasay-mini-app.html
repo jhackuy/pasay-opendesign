@@ -4006,29 +4006,38 @@ function viewHome() {
 
 /* ── Properties ── */
 function viewProps(q) {
-  const f = q.get('f') || 'all';
-  const filters = [['all', tr('all')], ['occupied', tr('occupied')], ['vacant', tr('vacant')], ['overdue', L('逾期','Overdue')], ['repair', L('维修中','Repairing')]];
+  const zh = state.lang === 'zh';
+  const f = q.get('f') || 'all';          /* occupancy：all / occupied / vacant */
+  const x = q.get('x') || '';             /* 异常维度：overdue / repair / lease_soon / moveout / other */
+  const occTabs = [['all', tr('all')], ['occupied', tr('occupied')], ['vacant', tr('vacant')]];
+  const xFilters = [
+    ['overdue', zh ? '租金逾期' : 'Rent overdue'],
+    ['repair', zh ? '维修中' : 'Repair in progress'],
+    ['lease_soon', zh ? '租约即将到期' : 'Lease expiring soon'],
+    ['moveout', zh ? '搬出中' : 'Moving out'],
+    ['other', zh ? '其他异常' : 'Other issues']
+  ];
   let list = state.props.slice();
   if (f === 'occupied') list = list.filter(p => p.status === 'occupied');
   if (f === 'vacant') list = list.filter(p => p.status === 'vacant');
-  if (f === 'overdue') list = list.filter(p => { const r = rentByUnit(p.unit); return r && r.status === 'overdue'; });
-  if (f === 'repair') list = list.filter(p => openRepairs(p.unit).length > 0);
+  if (x === 'overdue') list = list.filter(p => { const r = rentByUnit(p.unit); return r && r.status === 'overdue'; });
+  if (x === 'repair') list = list.filter(p => openRepairs(p.unit).length > 0);
+  if (x === 'lease_soon') list = list.filter(p => p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30);
+  if (x === 'moveout') list = list.filter(p => ['move_out_pending', 'inspection', 'turnover'].includes(p.status));
+  if (x === 'other') list = list.filter(p => p.status === 'vacant' && p.photos && p.photos.length === 0);
   const rows = list.map(p => {
     const t = p.tenant ? ten(p.tenant) : null;
-    const r = rentByUnit(p.unit);
-    const opr = openRepairs(p.unit);
-    /* 007C · 行内副标题压缩：异常展开（直接说人话），正常显示租客 / 物业类型
-       健康度 chip 移至 .row-r，避免占用主内容；副标题统一为 propertyRowSub 业务化语言 */
+    /* 008B · Asset Directory Row 信息上限：Unit / 1 行辅助 / Tenant / 一个最重要状态或异常 */
     const subStatus = propertyRowSub(p);
-    const chips = propertyStatusDot(p) + (r ? rentChip(r) : '') + (opr.length ? '<span class="chip st-warn">' + (state.lang === 'zh' ? '维修 ' : 'Fix ') + opr.length + '</span>' : '');
-    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span></div><div class="row-l2"><span class="who">' + (t ? t.name : (state.lang === 'zh' ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (subStatus ? '<span class="dot"></span><span class="num" style="color:var(--crit);font-weight:600">' + subStatus + '</span>' : '') + '</div></div><div class="row-r" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">' + chips + ic('chev', 15) + '</div></div>';
+    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span></div><div class="row-l2"><span class="who">' + (t ? t.name : (zh ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (subStatus ? '<span class="dot"></span><span class="num" style="font-weight:600">' + subStatus + '</span>' : '') + '</div></div><div class="row-r">' + propertyStatusDot(p) + ic('chev', 15) + '</div></div>';
   }).join('');
+  const xName = xFilters.find(z => z[0] === x);
   return shell('building', tr('nav_props'), totalOccupied() + ' / ' + state.props.length + ' ' + L('已出租','occupied'), `
-    <div class="filters" data-od-id="props-filters">${filters.map(x => '<button class="fchip' + (f === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/props">' + x[1] + '</button>').join('')}</div>
-    <div class="count-line">${list.length} ${state.lang === 'zh' ? '套物业' : 'properties'}</div>
-    <div class="list" style="margin-top:8px">${rows || emptyState('building', state.lang === 'zh' ? '没有符合条件的物业' : 'No matching properties', '')}</div>
-    <button class="fab" data-a="add-prop" aria-label="${tr('add')}">${ic('plus')}</button>
-  `);
+    <div class="filters" data-od-id="props-filters">${occTabs.map(xx => '<button class="fchip' + (f === xx[0] && !x ? ' on' : '') + '" data-a="filter" data-f="' + xx[0] + '" data-base="#/props">' + xx[1] + '</button>').join('')}<button class="fchip' + (x ? ' on' : '') + '" data-a="props-filter" data-od-id="props-filter-btn">' + (x ? (xName ? xName[1] : x) : (zh ? '筛选' : 'Filter')) + '</button></div>
+    ${x ? '<div class="count-line" style="color:var(--crit)">' + (zh ? '异常筛选：' : 'Filter: ') + (xName ? xName[1] : x) + ' · ' + list.length + ' ' + (zh ? '套' : 'units') + ' <button style="text-decoration:underline" data-a="filter" data-k="x" data-f="" data-base="#/props">' + (zh ? '清除' : 'clear') + '</button></div>' : '<div class="count-line">' + list.length + ' ' + (zh ? '套物业' : 'properties') + '</div>'}
+    <div class="list" style="margin-top:8px">${rows || emptyState('building', zh ? '没有符合条件的物业' : 'No matching properties', '')}</div>
+    ${roleIs('owner') ? '<div style="padding:14px 16px 0"><button class="btn btn-s block" data-a="add-prop" data-od-id="add-prop-explicit" style="justify-content:flex-start">' + ic('plus', 15) + ' ' + (zh ? '新增物业' : 'Add property') + '</button></div>' : ''}
+  `, { root: true });
 }
 function totalOccupied() { return state.props.filter(p => p.status === 'occupied').length; }
 
@@ -6077,6 +6086,14 @@ const __odClickHandler = function(e) {
   if (WS_ACCESS_ACTIONS[a] && !wsRequireAccess()) return;
   if (a === 'nav') { location.hash = el.dataset.href; return; }
   if (a === 'filter') { const base = el.dataset.base; const f = el.dataset.f; const k = el.dataset.k; const q = new URLSearchParams(base.split('?')[1] || ''); q.set(k || 'f', f); location.hash = base.split('?')[0] + '?' + q.toString(); return; }
+  if (a === 'props-filter') {
+    const zh = state.lang === 'zh';
+    const opts = [['overdue', zh ? '租金逾期' : 'Rent overdue'], ['repair', zh ? '维修中' : 'Repair in progress'], ['lease_soon', zh ? '租约即将到期' : 'Lease expiring soon'], ['moveout', zh ? '搬出中' : 'Moving out'], ['other', zh ? '其他异常' : 'Other issues']];
+    openSheet(sheetHead(zh ? '筛选物业 · 异常' : 'Filter properties · issues', zh ? '按真实业务异常筛选' : 'filter by real business issues') +
+      opts.map(o => '<div class="row" data-a="filter" data-k="x" data-f="' + o[0] + '" data-base="#/props" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + o[1] + '</b></div><div class="row-r">' + ic('chev', 14) + '</div></div>').join('') +
+      '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+    return;
+  }
   if (a === 'close-sheet') { closeSheet(); return; }
   if (a === 'close-modal') { const m = e.target.closest('.modal-wrap'); if (m) m.remove(); return; }
   if (a === 'open-telegram') { location.hash = '#/telegram'; return; }
