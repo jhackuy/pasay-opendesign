@@ -849,6 +849,68 @@ function ensureVNextSeed(){
   }
 }
 ensureVNextSeed();
+/* ═══ 008A · Operations Work Queue · Required Scenarios（幂等 seed）═══
+   Rent 1680：八月租金 ₱28,000 · 已收 ₱10,000 · 剩余 ₱18,000（partial · AI 跟进 / 等待租客尾款）
+   Repair 7789：厨房水槽漏水 → Repair Operation（Reported → Quote → Owner approval → …） */
+function ensureOps008aScenarios(){
+  if (!state.props.some(p => p.unit === '1680')) {
+    state.props.push({ unit:'1680', tower:'Tower B', type:'1BR · 40㎡', addr:'Sunrise Residences, Pasay Blvd', tenant:'PT-9', status:'occupied', rent:28000, deposit:56000, ls:'2026-02-01', le:'2027-01-31', health:62, img:'unit-1680', desc:'八月租金部分支付，AI 跟进尾款。', archive_message_url:'https://t.me/c/1234567890/901', photos:[], moveOut:null });
+  }
+  if (!state.tenants.some(t => t.id === 'PT-9')) {
+    state.tenants.push({ id:'PT-9', name:'Diego Cruz', phone:'0917 555 0180', email:'diego.c@gmail.com', unit:'1680', since:'2026-02-01', deposit:56000, note:'八月租金已付部分，尾款跟进中。', status:'active', history:[] });
+  }
+  if (!state.rents.some(r => r.id === 'R-2026-08-1680')) {
+    state.rents.push({ id:'R-2026-08-1680', unit:'1680', period:'2026-08', amount:28000, due:'2026-08-05', status:'partial', payments:[{ id:'P-1680-1', amount:10000, date:'2026-08-12', method:'GCash', by:'Tenant', status:'confirmed', note:'部分付款 ₱10,000' }], lease_id:null });
+  }
+  if (!state.operations.some(o => o.id === 'OP-RENT-1680')) {
+    const op = {
+      id:'OP-RENT-1680', kind:'collect_rent',
+      objective:(state.lang==='zh'?'收回 1680 八月租金 ₱28,000（已收 ₱10,000 · 剩余 ₱18,000）':'Collect 1680 August rent ₱28,000 (₱10,000 received · ₱18,000 remaining)'),
+      domain:{ rent_id:'R-2026-08-1680', unit:'1680', tenant_id:'PT-9' },
+      esc:'WAITING_EXTERNAL', next_actor:'tenant-external', next_action_code:'wait_payment',
+      expected_result:(state.lang==='zh'?'租客支付剩余 ₱18,000，或返回其他合法付款安排':'Tenant pays remaining ₱18,000 or returns another authorized arrangement'),
+      wake_at:'2026-08-25', priority:'high', escalation_level:0, blocked_reason:null,
+      close_outcome:null, close_reason:null, claims:[], legacyTasks:[], migratedFrom:null,
+      demoStage:'partial', simdate:null, tl:[]
+    };
+    op.tl.push({ at:'2026-08-15', t:(state.lang==='zh'?'AI 创建 1680 八月收租事项':'AI opened 1680 August rent collection') });
+    op.tl.push({ at:'2026-08-12', t:(state.lang==='zh'?'租客支付 ₱10,000（GCash）· 已入账':'Tenant paid ₱10,000 (GCash) · received') });
+    op.tl.push({ at:'2026-08-12', t:(state.lang==='zh'?'剩余 ₱18,000 · AI 持续跟进 / 等待租客尾款':'₱18,000 remaining · AI following up / waiting on tenant balance') });
+    state.operations.push(op);
+  }
+  if (!state.props.some(p => p.unit === '7789')) {
+    state.props.push({ unit:'7789', tower:'Tower B', type:'2BR · 55㎡', addr:'Sunrise Residences, Pasay Blvd', tenant:'PT-10', status:'occupied', rent:25000, deposit:50000, ls:'2026-03-01', le:'2027-02-28', health:70, img:'unit-7789', desc:'厨房水槽漏水维修推进中。', archive_message_url:'https://t.me/c/1234567890/902', photos:[], moveOut:null });
+  }
+  if (!state.tenants.some(t => t.id === 'PT-10')) {
+    state.tenants.push({ id:'PT-10', name:'Elena Marquez', phone:'0917 555 0177', email:'elena.m@gmail.com', unit:'7789', since:'2026-03-01', deposit:50000, note:'厨房水槽漏水，维修推进中。', status:'active', history:[] });
+  }
+  if (!state.repairs.some(r => r.id === 'REP-7789')) {
+    state.repairs.push({ id:'REP-7789', unit:'7789', issue:'Leaking sink', desc:'厨房水槽持续漏水，需更换水槽与下水组件。', priority:'high', status:'quoted', assignee:'Mario · Caretaker', photos:null, by:'Tenant', at:'2026-08-18', relatedExpenses:[], nextAction:'Owner 审批报价后安排维修', tl:[{ at:'2026-08-18 09:00', t:'租客报修 7789 厨房水槽漏水', d:'REPORTED' }, { at:'2026-08-19 10:00', t:'Secretary 检查并取得报价 ₱3,200', d:'QUOTED' }] });
+  }
+  if (!state.expenses.some(e => e.id === 'EXP-7789')) {
+    state.expenses.push({ id:'EXP-7789', unit:'7789', category:'Repair', purpose:'Kitchen sink replacement — 7789', amount:3200, by:'Secretary', at:'2026-08-19', status:'pending', paidVia:null, receipt:null, relatedRepair:'REP-7789', tl:[{ at:'2026-08-19 10:05', t:'Secretary 创建维修报价支出', d:'PENDING' }] });
+  }
+  if (!state.operations.some(o => o.id === 'OP-REP-7789')) {
+    const op = {
+      id:'OP-REP-7789', kind:'repair',
+      objective:(state.lang==='zh'?'处理 7789 厨房水槽漏水维修（报价已收到 → Owner 审批 → 安排 → 证据 → 核验 → 关闭）':'Resolve 7789 kitchen sink leak (quote received → Owner approval → schedule → evidence → verify → closed)'),
+      domain:{ repair_id:'REP-7789', unit:'7789' },
+      esc:'WAITING_HUMAN', next_actor:'owner', next_action_code:'approve_quote',
+      expected_result:(state.lang==='zh'?'Owner 审批报价 ₱3,200 或要求调整':'Owner approves ₱3,200 quote or requests changes'),
+      quote_amount:3200,
+      wake_at:null, priority:'high', escalation_level:0, blocked_reason:null,
+      close_outcome:null, close_reason:null, claims:[], legacyTasks:[], migratedFrom:null,
+      quotes:[{ expenseId:'EXP-7789', amount:3200, version:1 }],
+      completionClaims:[], completionEvidence:[], completionResults:[],
+      demoStage:'quote_received', simdate:null, tl:[]
+    };
+    op.tl.push({ at:'2026-08-18', t:(state.lang==='zh'?'租客报修 7789 厨房水槽漏水':'Tenant reported 7789 leaking sink') });
+    op.tl.push({ at:'2026-08-19', t:(state.lang==='zh'?'Secretary 检查并取得报价 ₱3,200':'Secretary inspected & received ₱3,200 quote') });
+    op.tl.push({ at:'2026-08-19', t:(state.lang==='zh'?'等待 Owner 审批报价':'Waiting for Owner to review quote') });
+    state.operations.push(op);
+  }
+}
+ensureOps008aScenarios();
 /* ═══ VNext Expense Operation（EXP-0007 · June building water bill ₱1,800）═══
    第二条标准 Operation：把一笔 Expense 从 pending 推进到合法业务结果（批准→付款→验证→Domain PAID）。
    Domain Truth 仍是 Expense 对象；Operation 是工作容器。 */
@@ -2140,7 +2202,7 @@ function repairOpCard(o) {
   else if (o.esc === 'WAITING_EXTERNAL') badge = '<span class="chip st-neu">' + (zh?'等待外部':'Waiting external') + '</span>';
   else badge = '<span class="chip st-pend">' + (zh?'AI 处理中':'AI working') + '</span>';
   return '<div class="row-stack" data-a="nav" data-href="#/op/' + o.id + '" data-od-id="op-card-' + o.id + '">' +
-    '<div class="op-card-h"><b>' + u + ' · ' + (zh?'空调':'Aircon') + '</b>' + badge + '</div>' +
+    '<div class="op-card-h"><span class="tag" style="margin-right:6px">' + opTypeLabel(o) + '</span><b>' + u + ' · ' + (zh?'维修':'Repair') + '</b>' + badge + '</div>' +
     '<div class="op-card-sub">' + ttl + '</div>' +
     '<div class="op-card-sit">' + repairOpSituation(o) + '</div>' +
     '<div class="op-card-next"><b>' + (zh?'下一步：':'Next: ') + '</b>' + repairOpNext(o) + '</div>' +
@@ -4533,11 +4595,15 @@ function opCard(o) {
     else if (o.next_actor === 'secretary') badge = '<span class="chip st-neu">' + (state.lang==='zh'?'等待 Secretary':'Waiting on Secretary') + '</span>';
     else badge = '<span class="chip st-neu">' + (state.lang==='zh'?'等待处理':'Waiting on action') + '</span>';
   }
-  else if (o.esc === 'WAITING_EXTERNAL') badge = '<span class="chip st-neu">' + (state.lang==='zh'?'等待外部':'Waiting external') + '</span>';
+  else if (o.esc === 'WAITING_EXTERNAL') badge = '<span class="chip st-neu">' + (o.next_actor === 'tenant-external' || o.next_actor === 'tenant' ? (state.lang==='zh'?'等待租客':'Waiting for tenant') : (state.lang==='zh'?'等待外部':'Waiting external')) + '</span>';
   else badge = '<span class="chip st-pend">' + (state.lang==='zh'?'AI 处理中':'AI working') + '</span>';
+  const typeTag = '<span class="tag" style="margin-right:6px">' + opTypeLabel(o) + '</span>';
+  const dueTxt = (r && r.due && r.status === 'overdue') ? ' · ' + (state.lang==='zh'?'逾期 ':'overdue ') + daysSince(r.due) + (state.lang==='zh'?' 天':'d') : '';
+  const partialTxt = (r && r.status === 'partial') ? ' · ' + (state.lang==='zh'?'部分支付 · 已收 ':'partially paid · ') + money(opReceived(o)) + (state.lang==='zh'?' / ':' / ') + money(opObjective(o)) : '';
+  const periodTxt = (r && r.period) ? r.period.replace('-', '.') + (state.lang==='zh'?' 租金 · ':' rent · ') : (state.lang==='zh'?'待收 ':'outstanding ');
   return '<div class="row-stack" data-a="nav" data-href="#/op/' + o.id + '" data-od-id="op-card-' + o.id + '">' +
-    '<div class="op-card-h"><b>' + nm + ' · ' + unit + '</b>' + badge + '</div>' +
-    '<div class="op-card-sub">' + (state.lang==='zh'?'六月租金 · 还欠 ':'June rent · ') + left + '</div>' +
+    '<div class="op-card-h">' + typeTag + '<b>' + nm + ' · ' + unit + '</b>' + badge + '</div>' +
+    '<div class="op-card-sub">' + periodTxt + left + partialTxt + dueTxt + '</div>' +
     '<div class="op-card-sit">' + opSituationCopy(o) + '</div>' +
     '<div class="op-card-next"><b>' + (state.lang==='zh'?'下一步：':'Next: ') + '</b>' + nextLine(o) + '</div>' +
   '</div>';
@@ -4549,27 +4615,57 @@ function nextLine(o) {
   const act = o.next_actor && o.next_actor !== 'tenant-external' ? (o.next_actor === 'owner' ? 'Owner' : 'Secretary') : null;
   return c + (o.wake_at ? ' · ' + (state.lang==='zh'?'下次自动检查 ':'auto-check ') + fmtDate(o.wake_at) : '');
 }
+/* 008A · Operation Type 标签（用户语言） */
+function opTypeLabel(o) {
+  const zh = state.lang === 'zh';
+  if (o.kind === 'collect_rent') return zh ? '收租' : 'Rent';
+  if (o.kind === 'settle_expense') return zh ? '支出' : 'Expense';
+  if (o.kind === 'repair') return zh ? '维修' : 'Repair';
+  if (o.kind === 'lease_renewal') return zh ? '续租' : 'Lease Renewal';
+  if (o.kind === 'move_out') return zh ? '迁出' : 'Move-out';
+  return o.kind || '';
+}
+/* 008A · Waiting Contract：禁止只显示 Waiting，必须明确等谁 / 等什么 */
+function opWaitingLabel(o) {
+  const zh = state.lang === 'zh';
+  const a = o.next_actor;
+  if (a === 'tenant-external' || a === 'tenant') return zh ? '等待租客' : 'Waiting for tenant';
+  if (a === 'owner') return zh ? '等待 Owner 决策' : 'Waiting for Owner decision';
+  if (a === 'secretary') return zh ? '等待 Secretary' : 'Waiting for Secretary';
+  if (a === 'contractor' || a === 'technician') return zh ? '等待承包商' : 'Waiting for contractor';
+  if (a === 'bank' || a === 'provider') return zh ? '等待付款方' : 'Waiting for payment';
+  if (a === 'system') return zh ? '等待外部结果' : 'Waiting for external result';
+  if (o.next_action_code && /evidence|receipt|verify/i.test(o.next_action_code)) return zh ? '等待凭证' : 'Waiting for evidence';
+  return zh ? '等待外部' : 'Waiting';
+}
+/* 008A · Done Today：仅今日关闭的 Operation 进入今日完成组 */
+function opDoneToday(o) {
+  if (o.esc !== 'CLOSED') return false;
+  const d = o.closed_at || (o.tl && o.tl.length ? o.tl[o.tl.length - 1].at : '');
+  return typeof d === 'string' && d.indexOf(TODAY) === 0;
+}
 function viewOps() {
   const ops = state.operations.slice();
   const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
-  /* Issue#3 · Operations Center 用户视图分类：Needs You / In Progress / Waiting / Risks / Completed */
-  const needs = ops.filter(opNextIsMine);
-  const inProgress = ops.filter(o => o.esc === 'ACTIVE' || o.esc === 'VERIFYING');
-  const waiting = ops.filter(o => o.esc === 'WAITING_EXTERNAL');
-  const waitingOther = ops.filter(o => o.esc === 'WAITING_HUMAN' && o.next_actor !== me);
-  const risks = ops.filter(o => o.esc === 'BLOCKED');
-  const completed = ops.filter(o => o.esc === 'CLOSED');
+  /* 008A · Operations Work Queue：Act Now / AI Working / Waiting（明确等谁）/ Needs Attention / Done Today */
+  const actNow = ops.filter(opNextIsMine);
+  const aiWorking = ops.filter(o => (o.esc === 'ACTIVE' || o.esc === 'VERIFYING') && !opNextIsMine(o));
+  const waiting = ops.filter(o => o.esc === 'WAITING_EXTERNAL' || (o.esc === 'WAITING_HUMAN' && o.next_actor !== me));
+  const attention = ops.filter(o => o.esc === 'BLOCKED');
+  const doneToday = ops.filter(opDoneToday);
+  const waitingGroups = {};
+  waiting.forEach(o => { const k = opWaitingLabel(o); (waitingGroups[k] = waitingGroups[k] || []).push(o); });
   const block = g => '<div class="list" style="margin-top:6px">' + g.map(opCard).join('') + '</div>';
   const secWrap = (t, g, extra) => (g.length ? sec(t, extra) + block(g) : '');
-  const count = needs.length + inProgress.length + waiting.length + waitingOther.length + risks.length;
-  return shell('ops', tr('nav_ops'), count + (state.lang==='zh'?' 个进行中事项':' live operations'), `
-    <div class="count-line" style="padding-top:14px">${state.lang==='zh'?'AI 负责把事项推进到真实业务结果 · 无需理解内部状态机':'AI drives each matter to a real business result — no need to learn state machines'}</div>
-    ${secWrap(state.lang==='zh'?'需要我处理':'NEEDS YOU', needs)}
-    ${secWrap(state.lang==='zh'?'AI 推进中':'IN PROGRESS', inProgress)}
-    ${secWrap(state.lang==='zh'?'等待外部结果':'WAITING', waiting)}
-    ${secWrap(state.lang==='zh' ? (me==='owner' ? '等待 Secretary 处理' : '等待 Owner 处理') : (me==='owner' ? 'Waiting on Secretary' : 'Waiting on Owner'), waitingOther)}
-    ${secWrap(state.lang==='zh'?'需要关注 · 卡住':'RISKS', risks)}
-    ${secWrap(state.lang==='zh'?'最近完成':'COMPLETED', completed)}
+  const waitingHtml = Object.keys(waitingGroups).map(k => secWrap(k, waitingGroups[k], '<span class="meta">' + waitingGroups[k].length + '</span>')).join('');
+  const live = actNow.length + aiWorking.length + waiting.length + attention.length;
+  return shell('ops', tr('nav_ops'), live + (state.lang==='zh'?' 个进行中事项 · Work Queue':' live operations · work queue'), `
+    <div class="count-line" style="padding-top:14px">${state.lang==='zh'?'Operation 是推进真实业务结果的主记录 · Task 只是需要真人执行时的投影':'Operations drive real business results — Tasks are only projections when a human is needed'}</div>
+    ${secWrap(state.lang==='zh'?'现在必须处理 · Act Now':'ACT NOW', actNow, '<span class="meta">' + actNow.length + '</span>')}
+    ${secWrap(state.lang==='zh'?'AI 推进中 · In Progress':'AI WORKING', aiWorking, '<span class="meta">' + aiWorking.length + '</span>')}
+    ${waitingHtml || ''}
+    ${secWrap(state.lang==='zh'?'需要关注 · Needs Attention':'NEEDS ATTENTION', attention, '<span class="meta">' + attention.length + '</span>')}
+    ${secWrap(state.lang==='zh'?'今日完成 · Done Today':'DONE TODAY', doneToday, '<span class="meta">' + doneToday.length + '</span>')}
     ${ops.length ? '' : emptyState('tasks', state.lang==='zh'?'暂无进行中的事项':'No live operations', state.lang==='zh'?'AI 会在出现异常时自动创建并推进事项。':'AI creates & drives an operation when an anomaly appears.')}
   `);
 }
@@ -4611,22 +4707,35 @@ function viewOp(id) {
 
   const demo = opDemoHtml(o);
 
+  /* 008A · Related Task：Task = Operation 的执行投影（同一时刻只暴露当前必要 Task） */
+  const relatedTask = state.tasks.find(t => (t.tzOp === o.id) || (t.related && t.related === (o.domain && o.domain.rent_id)) || ((o.legacyTasks || []).indexOf(t.id) !== -1));
+  const relatedTaskBlock = relatedTask
+    ? sec(zh ? '关联任务 · 执行投影' : 'RELATED TASK · PROJECTION') +
+      '<div class="card" style="margin:0 16px"><div class="row" style="padding:0;border-bottom:0;cursor:pointer" data-a="nav" data-href="#/tasks"><div class="row-main"><div class="row-l1"><b style="font-size:13px">' + (relatedTask.subject || relatedTask.type) + '</b><span class="chip ' + (relatedTask.status === 'done' ? 'st-ok' : 'st-warn') + '">' + (relatedTask.status === 'done' ? (zh?'已完成':'done') : (zh?'待处理':'open')) + '</span></div><div class="row-l2">' + (zh ? '任务完成不代表 Operation 结束 · 业务结果由 Operation 决定' : 'Task done ≠ Operation closed · result is decided by the operation') + '</div></div></div></div>'
+    : '';
+  /* 008A · Waiting 明确：等谁 / 等什么（禁止只显示 Waiting） */
+  const waitingBlock = (o.esc === 'WAITING_EXTERNAL' || (o.esc === 'WAITING_HUMAN' && o.next_actor !== (state.meta && state.meta.role ? state.meta.role : 'secretary')))
+    ? sec(zh ? '等待中' : 'WAITING') + '<div class="card" style="margin:0 16px;border-color:color-mix(in oklch, var(--accent) 30%, var(--border))"><div style="font-size:13px;line-height:1.6">' + opWaitingLabel(o) + (o.wake_at ? ' · ' + (zh?'下次自动检查 ':'auto-check ') + fmtDate(o.wake_at) : '') + ' — ' + opNextCopy(o) + '</div></div>'
+    : '';
+
   return shell('ops', tr('nav_ops'), nm + ' · ' + unit, `
     <div class="card" style="margin:14px 16px 0">
-      <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${nm} · ${unit}</b>${escChip(o)}</div>
-      <div style="font-size:13.5px;color:var(--muted);margin-top:4px">${zh?'六月租金 待收':'June rent outstanding'}</div>
+      <div class="row-l1" style="align-items:center;gap:8px"><span class="tag" style="margin-right:2px">${opTypeLabel(o)}</span><b style="font-size:17px">${nm} · ${unit}</b>${escChip(o)}</div>
+      <div style="font-size:13.5px;color:var(--muted);margin-top:4px">${r && r.period ? r.period.replace('-', '.') + (zh ? ' 租金' : ' rent') : (zh ? '租金' : 'rent')} · ${r && r.status === 'partial' ? (zh ? '部分支付 · 已收 ' : 'partially paid · ') + recv : (zh ? '待收' : 'outstanding')}</div>
       <div style="font-family:var(--font-display);font-size:34px;font-weight:700;letter-spacing:-0.02em;margin-top:6px">${left} <span class="meta" style="font-size:14px;font-weight:600">${zh?'未收':'remaining'} · ${obj}</span></div>
     </div>
+    ${waitingBlock}
     ${sec(zh?'当前情况':'Current situation')}
     <div class="card" style="margin:0 16px"><div style="font-size:13.5px;line-height:1.6">${opSituationCopy(o)}</div></div>
     ${sec(zh?'AI 下一步':'AI next step')}
     <div class="card" style="margin:0 16px;border-color:color-mix(in oklch, var(--accent) 35%, var(--border));background:var(--accent-soft)"><div style="font-size:13px;line-height:1.6">${opNextCopy(o)}</div>${o.wake_at && !wait ? '' : ''}</div>
     ${humanAction}
+    ${relatedTaskBlock}
     ${sec(zh?'关联':'Related')}
     ${related}
     ${sec(zh?'付款申报 / 凭证':'Claims & evidence')}
     ${evidence}
-    ${sec(zh?'时间线':'Timeline')}
+    ${sec(zh?'时间线 · Activity':'TIMELINE · ACTIVITY')}
     ${timeline}
     ${demo}
   `);
@@ -4730,7 +4839,7 @@ function viewRepairOp(o) {
 
   return shell('ops', tr('nav_ops'), ttl, `
     <div class="card" style="margin:14px 16px 0">
-      <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${u} · ${zh?'空调':'Aircon'}</b>${escChip(o)}${rp?repChip(rp):''}</div>
+      <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${u} · ${zh?'维修':'Repair'}</b>${escChip(o)}${rp?repChip(rp):''}</div>
       <div style="font-size:13.5px;color:var(--muted);margin-top:4px">${ttl}</div>
     </div>
     ${sec(zh?'当前情况':'Current situation')}
