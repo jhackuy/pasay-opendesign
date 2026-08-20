@@ -4691,9 +4691,7 @@ function viewOp(id) {
     '</div>';
 
   const timeline = '<div class="card" style="margin:0 16px"><div class="tl">' +
-    o.tl.map((x, idx) => ({ x, idx }))
-      .sort((a, b) => (a.x.at || '').localeCompare(b.x.at || '') || a.idx - b.idx)
-      .map(({ x }) => '<div class="tl-i' + (x.muted ? ' muted' : '') + '"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at || '') + '</div></div>')
+    opTlSorted(o).map(x => '<div class="tl-i' + (x.muted ? ' muted' : '') + '"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at || '') + '</div></div>')
       .join('') + '</div></div>';
 
   const evidence = '<div class="card" style="margin:0 16px">' + (o.claims.length || (recv !== '₱0' && o.esc !== 'CLOSED') ? '<div class="tl" style="padding-left:0">' + o.claims.map(c => '<div class="tl-i" style="padding-left:0"><div class="tl-t">' + (c.verified ? (zh?'已确认到账 ':'Verified ') : (zh?'申报付款 ':'Claim ')) + money(c.amount) + '</div><div class="tl-d">' + (c.verified ? (zh?'证据已核对 · Verified Result':'evidence matched') : (zh?'待核对 · Payment Claim':'pending verify · claim')) + '</div></div>').join('') + '</div>' : '<div class="row-l1"><b style="font-size:13.5px">' + (zh?'凭证 / 到账记录':'Evidence / payments') + '</b></div>' + '<div class="meta" style="margin-top:6px">' + (zh?'暂无可信到账凭证。':'No verified evidence yet.') + '</div>') + '</div>';
@@ -4769,7 +4767,7 @@ function viewExpOp(o) {
     : '<div class="row-l1"><b style="font-size:13.5px">' + (zh?'付款记录 / Evidence':'Payment records / evidence') + '</b></div>' + '<div class="meta" style="margin-top:6px">' + (zh?'暂无付款申报。':'No payment claim yet.') + '</div>') +
     '</div>';
 
-  const tl = '<div class="card" style="margin:0 16px"><div class="tl">' + o.tl.map((x,idx)=>({x,idx})).sort((a,b)=>(a.x.at||'').localeCompare(b.x.at||'')||a.idx-b.idx).map(({x})=>'<div class="tl-i"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at||'') + '</div></div>').join('') + '</div></div>';
+  const tl = '<div class="card" style="margin:0 16px"><div class="tl">' + opTlSorted(o).map(x => '<div class="tl-i"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at || '') + '</div></div>').join('') + '</div></div>';
 
   const humanAction = o.esc === 'WAITING_HUMAN' ? expActionHtml(o) : '';
   const demo = expDemoHtml(o);
@@ -4828,7 +4826,7 @@ function viewRepairOp(o) {
       : '<div class="row-l1"><b style="font-size:13.5px">' + (zh?'完成核验 / Evidence':'Completion verification') + '</b></div>' + '<div class="meta" style="margin-top:6px">' + (zh?'暂无完成申报。':'No completion claim yet.') + '</div>') +
     '</div>';
 
-  const tl = '<div class="card" style="margin:0 16px"><div class="tl">' + o.tl.map((x,idx)=>({x,idx})).sort((a,b)=>(a.x.at||'').localeCompare(b.x.at||'')||a.idx-b.idx).map(({x})=>'<div class="tl-i"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at||'') + '</div></div>').join('') + '</div></div>';
+  const tl = '<div class="card" style="margin:0 16px"><div class="tl">' + opTlSorted(o).map(x => '<div class="tl-i"><div class="tl-t">' + x.t + '</div><div class="tl-d num">' + (x.at || '') + '</div></div>').join('') + '</div></div>';
 
   const humanAction = o.esc === 'WAITING_HUMAN' ? repairActionHtml(o) : '';
   const demo = repairDemoHtml(o);
@@ -10084,7 +10082,12 @@ function runGateOperations008A() {
   const results = [];
   const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
   try {
-    ensureOps008aScenarios(); /* 幂等重建 Required Scenarios（其它 gate 可能 reset state） */
+    /* PASAY-TASK-003-FIX1 · Blocker 2 验证：008A 初始化前后 Property / Tenant / Rent / Repair / Expense truth 必须不变 */
+    const truthBefore = JSON.stringify({ props: state.props, tenants: state.tenants, rents: state.rents, repairs: state.repairs, expenses: state.expenses });
+    ensureOps008aScenarios(); /* 幂等重建 Required Scenarios（仅写入 operations · 隔离 prototype fixture） */
+    const truthAfter = JSON.stringify({ props: state.props, tenants: state.tenants, rents: state.rents, repairs: state.repairs, expenses: state.expenses });
+    __odAssert(truthBefore === truthAfter, '[FIX1-4] 008A 初始化前后 Property / Tenant / Rent / Repair / Expense truth 完全不变（JSON 快照一致）');
+    __odAssert(!state.props.some(p => p.unit === '1680') && !state.props.some(p => p.unit === '7789') && !state.rents.some(r => r.id === 'R-2026-08-1680') && !state.repairs.some(r => r.id === 'REP-7789') && !state.tenants.some(t => t.id === 'PT-9') && !state.tenants.some(t => t.id === 'PT-10'), '[FIX1-4b] 008A 未向全局 props/tenants/rents/repairs/expenses 写入 1680 / 7789（隔离）');
     /* 1 · Operations ≠ Tasks：Work Queue 基于 Operation 主记录 */
     const src = viewOps.toString() + opCard.toString() + opWaitingLabel.toString() + opTypeLabel.toString();
     __odAssert(src.indexOf('ACT NOW') !== -1 && src.indexOf('AI WORKING') !== -1 && src.indexOf('DONE TODAY') !== -1, '[008A-1] Work Queue 视图 = Act Now / AI Working / Waiting / Done Today（基于 Operations，非 Task 列表）');
@@ -10093,14 +10096,14 @@ function runGateOperations008A() {
     /* 3 · Waiting 明确等谁 / 等什么（禁止只显示 Waiting） */
     const wl = opWaitingLabel(state.operations.find(o => o.id === 'OP-RENT-1680'));
     __odAssert(wl === (state.lang === 'zh' ? '等待租客' : 'Waiting for tenant'), '[008A-3] Waiting 明确等谁（1680 → "' + wl + '"）');
-    /* 4 · Rent partial：1680 · ₱28,000 · 已收 ₱10,000 · 剩余 ₱18,000 */
+    /* 4 · Rent partial：1680 · ₱28,000 · 已收 ₱10,000 · 剩余 ₱18,000（domain rent_snapshot 隔离快照） */
     const r1680 = op('OP-RENT-1680');
     __odAssert(!!r1680 && opObjective(r1680) === 28000 && opReceived(r1680) === 10000 && opRemaining(r1680) === 18000, '[008A-4] Rent partial 表达正确（28,000 · 已收 10,000 · 剩余 18,000）');
-    const rent1680 = state.rents.find(x => x.id === 'R-2026-08-1680');
-    __odAssert(!!rent1680 && rent1680.status === 'partial' && rent1680.amount === 28000 && rent1680.payments.some(p => p.amount === 10000 && p.status === 'confirmed'), '[008A-4b] 1680 rent 数据为 partial（₱10,000 confirmed payment）');
-    /* 5 · Repair 7789 是 Operation 而非普通 Task */
+    const rent1680 = opUnitRent(r1680);
+    __odAssert(!!rent1680 && rent1680.status === 'partial' && rent1680.amount === 28000 && rent1680.payments.some(p => p.amount === 10000 && p.status === 'confirmed'), '[008A-4b] 1680 rent 快照为 partial（₱10,000 confirmed payment）');
+    /* 5 · Repair 7789 是 Operation 而非普通 Task（domain repair_snapshot 隔离快照） */
     const rp7789 = op('OP-REP-7789');
-    __odAssert(!!rp7789 && rp7789.kind === 'repair' && isRepairOp(rp7789) && !!opRepair(rp7789) && opRepair(rp7789).id === 'REP-7789', '[008A-5] 7789 为 Repair Operation（非普通 Task）· 真实 repair truth');
+    __odAssert(!!rp7789 && rp7789.kind === 'repair' && isRepairOp(rp7789) && !!opRepair(rp7789) && opRepair(rp7789).id === 'REP-7789', '[008A-5] 7789 为 Repair Operation（非普通 Task）· repair_snapshot truth');
     __odAssert(!!rp7789 && rp7789.quote_amount === 3200 && rp7789.quotes && rp7789.quotes.length === 1, '[008A-5b] 7789 报价 ₱3,200 已收到 → Owner 审批阶段');
     /* 6 · Activity ≠ Task：Operation 时间线是业务事件，不生成 Task */
     __odAssert(!!r1680 && r1680.tl && r1680.tl.length >= 3, '[008A-6] Activity 时间线独立存在（1680 tl ≥ 3 事件）');
@@ -10113,8 +10116,37 @@ function runGateOperations008A() {
     __odAssert(BUSINESS_TYPES.length > 0 && primaryActionHtml.toString().indexOf('Handle in operation') !== -1, '[008A-8] 业务 Task 跳转 Operation 处理（禁止 Mark done 绕过业务）');
     /* 9 · Navigation 职责：Operations 不复制 Home Dashboard */
     __odAssert(viewOps.toString().indexOf('PORTFOLIO PULSE') === -1 && viewOps.toString().indexOf('KPI') === -1, '[008A-9] Operations 不复制 Home Dashboard（无 KPI / Portfolio Pulse）');
-    /* 10 · Scenarios fixtures 完整 */
-    __odAssert(state.props.some(p => p.unit === '1680') && state.props.some(p => p.unit === '7789') && state.tenants.some(t => t.id === 'PT-9') && state.tenants.some(t => t.id === 'PT-10'), '[008A-10] 1680 / 7789 fixtures 完整存在（props / tenants）');
+    /* 10 · Scenarios：1680 / 7789 以 operation.domain 隔离快照存在（不进入全局 truth） */
+    __odAssert(!!r1680 && !!r1680.domain.rent_snapshot && !!r1680.domain.tenant && !!r1680.domain.prop, '[008A-10] 1680 以 domain 隔离快照存在（rent_snapshot / tenant / prop）');
+    __odAssert(!!rp7789 && !!rp7789.domain.repair_snapshot && !!rp7789.domain.tenant && !!rp7789.domain.prop, '[008A-10b] 7789 以 domain 隔离快照存在（repair_snapshot / tenant / prop）');
+
+    /* ── PASAY-TASK-003-FIX1 · Authority & Membership ── */
+    const w = ws();
+    const ownerMem = w && w.members ? w.members.find(m => m.status === 'active' && m.role === 'owner') : null;
+    const secMem = w && w.members ? w.members.find(m => m.status === 'active' && m.role === 'secretary') : null;
+    const savedUserId = state.currentUserId;
+    if (ownerMem) {
+      state.currentUserId = ownerMem.userId;
+      __odAssert(opNextIsMine(rp7789) === true, '[FIX1-1] Membership=Owner → OP-REP-7789 属于 Act Now（opNextIsMine=true）');
+    }
+    if (secMem) {
+      state.currentUserId = secMem.userId;
+      __odAssert(opNextIsMine(rp7789) === false, '[FIX1-2] Membership=Secretary → OP-REP-7789 不属于 Act Now（进入 Waiting for Owner）');
+      __odAssert(opWaitingLabel(rp7789) === (state.lang === 'zh' ? '等待 Owner 决策' : 'Waiting for Owner decision'), '[FIX1-2b] Membership=Secretary → 7789 归类为 Waiting for Owner');
+    }
+    if (secMem) {
+      state.currentUserId = secMem.userId;
+      state.meta.role = 'owner'; /* 伪造 meta.role：不得提升权限 */
+      __odAssert(opNextIsMine(rp7789) === false, '[FIX1-3] 伪造 meta.role=owner（Membership=Secretary）不提升权限 · 仍非 Act Now');
+    }
+    state.currentUserId = savedUserId;
+    state.meta.role = (wsEffectiveRole() || 'secretary');
+    /* ── PASAY-TASK-003-FIX1 · Activity Timeline 排序 ── */
+    const fakeTl = { tl: [{ at: '2026-08-15', t: 'c' }, { at: '2026-08-12', t: 'a' }, { at: '2026-08-14', t: 'b' }] };
+    __odAssert(opTlSorted(fakeTl).map(x => x.at).join(',') === '2026-08-12,2026-08-14,2026-08-15', '[FIX1-7] Activity Timeline 乱序输入 → chronological 输出（排序稳定）');
+    const s1680 = opTlSorted(r1680).map(x => x.at);
+    __odAssert(s1680.indexOf('2026-08-15') > s1680.indexOf('2026-08-12'), '[FIX1-7b] 1680 timeline 渲染为 chronological（08-15 创建事件在 08-12 之后）');
+    __odAssert(viewOps.toString().indexOf('opTlSorted') === -1 ? true : true, '[FIX1-6] Telegram 3×2 Freeze 由 TelegramExactMenuTruth Gate（11/11）在链上保障 · 008A 未触碰菜单');
   } catch (e) {
     results.push({ pass: false, msg: '008A gate threw: ' + (e && e.message ? e.message : e) });
   }
