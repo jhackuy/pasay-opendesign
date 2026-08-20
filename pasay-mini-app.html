@@ -60,7 +60,7 @@ p, h1, h2, h3, h4, h5 { margin: 0; text-wrap: pretty; }
 .pad { padding: var(--s4); }
 
 /* ─── bottom nav ─────────────────────────────────────── */
-.nav { flex-shrink: 0; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--border); background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
+.nav { flex-shrink: 0; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--border); background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
 .nav-i { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 8px; min-height: 56px; color: var(--muted); }
 .nav-i svg { width: 22px; height: 22px; }
 .nav-i .nl { font-size: 10px; font-weight: 550; letter-spacing: 0.01em; }
@@ -633,17 +633,19 @@ const IC = {
   link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5 14.5 9.5"/><path d="M7 17 5.5 18.5a4 4 0 0 1-5.7-5.7L6 6.5a4 4 0 0 1 5.7 0L13 7.8"/><path d="M17 7l1.5-1.5a4 4 0 0 1 5.7 5.7L18 17.5a4 4 0 0 1-5.7 0L11 16.2"/></svg>',
   qr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M13.5 13.5h3.5v3.5h-3.5z"/><path d="M17 17h3.5v3.5H17z"/><path d="M13.5 20.5V17"/></svg>',
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
-  swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h13"/><path d="M16 21l4-4-4-4"/><path d="M20 17H7"/></svg>'
+  swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h13"/><path d="M16 21l4-4-4-4"/><path d="M20 17H7"/></svg>',
+  archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="4.5" rx="1.5"/><path d="M5 9v10.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>',
+  ops: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>'
 };
 const ic = (n, s) => '<span style="display:inline-flex">' + IC[n].replace('<svg ', '<svg style="width:' + (s || 20) + 'px;height:' + (s || 20) + 'px" ') + '</span>';
 
 /* ═══════════════ i18n（Mini App UI 依语言显示；状态标签恒双语） ═══════════════ */
 const T = {
-  zh: { nav_home:'首页', nav_props:'物业', nav_tasks:'任务', nav_ops:'事项', nav_rent:'租金', nav_exp:'支出',
+  zh: { nav_home:'首页', nav_props:'物业', nav_tasks:'任务', nav_ops:'事项', nav_rent:'租金', nav_exp:'支出', nav_archive:'档案',
     add:'新增', save:'保存', submit:'提交', cancel:'取消', confirm:'确认', reject:'拒绝', approve:'批准', pay:'付款', done:'完成', back:'返回',
     rent:'租金', expense:'支出', repair:'维修', task:'任务', search:'搜索', settings:'设置', export:'导出', all:'全部',
     vacant:'空置', occupied:'已出租', health:'健康度', today:'今日', more:'更多', reset:'重置演示数据' },
-  en: { nav_home:'Home', nav_props:'Properties', nav_tasks:'Tasks', nav_ops:'Operations', nav_rent:'Rent', nav_exp:'Expenses',
+  en: { nav_home:'Home', nav_props:'Properties', nav_tasks:'Tasks', nav_ops:'Operations', nav_rent:'Rent', nav_exp:'Expenses', nav_archive:'Archive',
     add:'Add', save:'Save', submit:'Submit', cancel:'Cancel', confirm:'Confirm', reject:'Reject', approve:'Approve', pay:'Pay', done:'Done', back:'Back',
     rent:'Rent', expense:'Expense', repair:'Repair', task:'Task', search:'Search', settings:'Settings', export:'Export', all:'All',
     vacant:'Vacant', occupied:'Occupied', health:'Health', today:'Today', more:'More', reset:'Reset demo data' }
@@ -1433,6 +1435,22 @@ const TEN_ST = {
 };
 function propChip(p) { return chip(PROP_ST, p.status); }
 function tenChip(t) { return chip(TEN_ST, t.status); }
+/* Issue#3 · Properties 健康度不再是主要产品语言；改为 🟢/🟡/🔴 + 问题原因副信息 */
+function propertyStatusDot(p) {
+  const zh = state.lang === 'zh';
+  const r = rentByUnit(p.unit);
+  const overdue = r && r.status === 'overdue';
+  const partial = r && r.status === 'partial';
+  const openRep = openRepairs(p.unit).length > 0;
+  const expiring = p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30;
+  if (overdue) return '<span class="chip" style="background:color-mix(in oklch, var(--crit) 14%, transparent);color:var(--crit);border-color:color-mix(in oklch, var(--crit) 30%, var(--border))">🔴 ' + (zh ? '租金逾期' : 'Rent overdue') + '</span>';
+  if (openRep && partial) return '<span class="chip" style="background:color-mix(in oklch, var(--warn) 14%, transparent);color:var(--warn);border-color:color-mix(in oklch, var(--warn) 30%, var(--border))">🟡 ' + (zh ? '维修 + 尾款' : 'Repair + balance') + '</span>';
+  if (openRep) return '<span class="chip" style="background:color-mix(in oklch, var(--warn) 14%, transparent);color:var(--warn);border-color:color-mix(in oklch, var(--warn) 30%, var(--border))">🟡 ' + (zh ? '维修待处理' : 'Repair pending') + '</span>';
+  if (partial) return '<span class="chip" style="background:color-mix(in oklch, var(--warn) 14%, transparent);color:var(--warn);border-color:color-mix(in oklch, var(--warn) 30%, var(--border))">🟡 ' + (zh ? '尾款未清' : 'Balance pending') + '</span>';
+  if (expiring) return '<span class="chip" style="background:color-mix(in oklch, var(--pend) 14%, transparent);color:var(--pend);border-color:color-mix(in oklch, var(--pend) 30%, var(--border))">🟡 ' + (zh ? '租约 30 天内到期' : 'Lease expiring') + '</span>';
+  if (p.status === 'vacant') return '<span class="chip" style="background:color-mix(in oklch, var(--muted) 14%, transparent);color:var(--muted);border-color:var(--border)">⚪ ' + (zh ? '空置' : 'Vacant') + '</span>';
+  return '<span class="chip st-ok">🟢 ' + (zh ? 'OK' : 'OK') + '</span>';
+}
 
 /* 系统生成的 nextAction 持久化为 nextActionCode，展示层按 locale 渲染；用户自由文本 nextAction 保持原样 */
 const NEXT_ACTION_I18N = {
@@ -1920,6 +1938,21 @@ function isRepairOp(o) { return !!o && o.kind === 'repair'; }
 function opRepair(o) { return o && o.domain && o.domain.repair_id ? state.repairs.find(x => x.id === o.domain.repair_id) : null; }
 function opRepairUnit(o) { const rp = opRepair(o); return rp ? rp.unit : (o.domain ? o.domain.unit : ''); }
 function opRepairTitle(o) { const rp = opRepair(o); const u = opRepairUnit(o); return (rp ? rp.issue : '') || (state.lang==='zh' ? ('维修 ' + u) : ('Repair ' + u)); }
+/* Issue#3 · Home 不暴露状态机原始字段：业务化标签 */
+function opOpKindLabel(o) {
+  const zh = state.lang === 'zh';
+  if (o.kind === 'repair') return zh ? '维修' : 'Repair';
+  if (o.kind === 'settle_expense') return zh ? '支出付款' : 'Expense payment';
+  if (o.kind === 'lease_renewal') return zh ? '续租' : 'Lease renewal';
+  if (o.kind === 'move_out') return zh ? '退租结算' : 'Move-out';
+  return zh ? '事项' : 'Operation';
+}
+function opAiNextLabel(o) {
+  const zh = state.lang === 'zh';
+  if (o.esc === 'WAITING_EXTERNAL') return zh ? 'AI 正在等外部反馈 · 无需你行动' : 'AI is waiting on external — no action needed';
+  if (o.esc === 'ACTIVE') return zh ? 'AI 自动推进中 · 无需你行动' : 'AI is auto-driving — no action needed';
+  return zh ? 'AI 监控中' : 'AI is monitoring';
+}
 /* Repair 当前情况投影 */
 function repairOpSituation(o) {
   const zh = state.lang === 'zh'; const u = opRepairUnit(o); const ttl = opRepairTitle(o);
@@ -3463,7 +3496,7 @@ function viewLeaseOp(o) {
   const humanAction = o.esc === 'WAITING_HUMAN' ? leaseActionHtml(o) : '';
   const demo = leaseDemoHtml(o);
 
-  return shell('tasks', tr('nav_ops'), (zh ? '续租 ' : 'Renew ') + nm + ' · ' + unit, `
+  return shell('ops', tr('nav_ops'), (zh ? '续租 ' : 'Renew ') + nm + ' · ' + unit, `
     <div class="card" style="margin:14px 16px 0">
       <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${nm} · ${unit}</b>${escChip(o)}</div>
       <div style="font-size:13.5px;color:var(--muted);margin-top:4px">${zh ? '续租 · 现租金 ' : 'Renewal · current rent '}${curRent} · ${zh ? '租约 ' : 'lease expires '}${expiry}</div>
@@ -3622,7 +3655,9 @@ function navBar(title, sub, opts) {
   '</div></header>';
 }
 function bottomNav(active) {
-  const items = [ ['home', tr('nav_home'), '#/home'], ['building', tr('nav_props'), '#/props'], ['tasks', tr('nav_ops'), '#/ops'], ['cash', tr('nav_rent'), '#/rents'], ['card', tr('nav_exp'), '#/exps'] ];
+  /* 006B/Issue#3 · Mini App 一级底栏固定为 4 项：Home / Properties / Operations / Archive
+     Rent / Expense 业务能力完整保留但退出一级导航（详见 viewRents / viewExps 与入口处理） */
+  const items = [ ['home', tr('nav_home'), '#/home'], ['building', tr('nav_props'), '#/props'], ['ops', tr('nav_ops'), '#/ops'], ['archive', tr('nav_archive'), '#/archive'] ];
   return '<nav class="nav" data-od-id="bottom-nav">' + items.map(i => '<button class="nav-i' + (i[0] === active ? ' on' : '') + '" data-a="nav" data-href="' + i[2] + '" data-od-id="nav-' + i[0] + '">' + ic(i[0]) + '<span class="nl">' + i[1] + '</span></button>').join('') + '</nav>';
 }
 function shell(active, title, sub, body) { return navBar(title, sub) + '<main class="main" data-od-id="screen-' + active + '">' + body + '</main>' + bottomNav(active); }
@@ -3630,6 +3665,8 @@ function sec(t, a) { return '<div class="sec"><span class="sec-t">' + t + '</spa
 function emptyState(icon, t, p, action) { return '<div class="empty">' + ic(icon, 30) + '<b>' + t + '</b><p>' + p + '</p>' + (action || '') + '</div>'; }
 
 /* ── Home / Today ── */
+/* Issue#3 / 006B · Home 重构为：Needs You / AI Working / Risks 三段 + Normal State。
+   禁止堆统计大屏（PORTFOLIO PULSE / KPI 网格 / LEARNING growth）。 */
 function viewHome() {
   const today = TODAY.split('-').slice(1).reverse().join('/');
   const wd = state.lang === 'zh' ? ['周日','周一','周二','周三','周四','周五','周六'][new Date(TODAY).getDay()] : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(TODAY).getDay()];
@@ -3653,103 +3690,106 @@ function viewHome() {
   const expToPay = state.expenses.filter(e => e.status === 'approved').reduce((a, e) => a + e.amount, 0);
   /* ── Today：Task Engine 驱动 + 去重（同一相关对象只出现一次；已迁移进 Operation 的不再作为独立待办） ── */
   const activeTasks = state.tasks.filter(t => t.status !== 'done' && !t.migratedAction);
-  const dedupe = list => { const seen = {}; return list.filter(t => { const k = t.related || t.type; if (seen[k]) return false; seen[k] = 1; return true; }); };
-  const qlist = dedupe(activeTasks.filter(t => roleIs('owner') ? t.assignee === 'owner' : t.assignee === 'secretary'));
-  const todayRows = qlist.map(t => {
-    const ent = openTask(t.object);
-    const href = ent ? '#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + ent.target.id : '#/task/' + t.id;
-    const sub = ent ? (ent.kind === 'expense' ? ent.target.purpose : ent.kind === 'repair' ? ent.target.issue : ent.kind === 'property' ? ent.target.type : (state.lang === 'zh' ? '租金 ' : 'rent ') + money(ent.target.amount)) : t.nextAction;
-    return '<div class="row" data-a="nav" data-href="' + href + '" data-od-id="today-task-' + t.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + taskTitle(t) + '</b></div><div class="row-l2"><span class="who">' + (t.assignee === 'owner' ? 'Owner' : 'Secretary') + ' · ' + sub + '</span></div></div><div class="row-r">' + priChip(t.priority) + taskChip(t) + ic('chev', 15) + '</div></div>';
-  }).join('');
-  /* ── Important Exception：逾期降级（Secretary 已处理 / Snooze / Quiet 不再强提醒），并关联 Operation ── */
-  const exceptionRows = overdueRents.map(r => {
-    const t = activeTasks.find(x => x.related === r.id);
-    const opr = opForRent(r.id);
-    const tname = (tenantForRent(r) ? tenantForRent(r).name : L('未知','Unknown'));
-    const base = r.unit + ' · ' + tname + ' · ' + (state.lang === 'zh' ? '租金逾期 ' : 'rent overdue ') + (r.due ? daysSince(r.due) : 0) + (state.lang === 'zh' ? ' 天' : 'd');
-    const href = opr ? '#/op/' + opr.id : (t ? '#/task/' + t.id : '#/rents?f=overdue');
-    if (opr && (opr.esc === 'WAITING_EXTERNAL' || opr.esc === 'ACTIVE')) return { level: 'neu', icon: 'clock', text: base + ' · ' + (state.lang==='zh'?'AI 正在跟 · 无需你行动':'AI tracking — no action needed'), href };
-    if (t && t.status === 'in_progress') return { level: 'warn', icon: 'clock', text: base + ' · ' + (state.lang === 'zh' ? 'Secretary 处理中' : 'Secretary handling'), href };
-    return { level: 'crit', icon: 'alert', text: base, href };
-  }).filter(Boolean);
-  const excRows = exceptionRows.map(x => '<div class="banner ' + x.level + '" style="margin:0 16px 8px" data-od-id="home-exception">' + ic(x.icon, 17) + '<div>' + x.text + ' <button data-a="nav" data-href="' + x.href + '" style="text-decoration:underline">' + (state.lang === 'zh' ? '查看' : 'view') + ' →</button></div></div>').join('');
-  /* ── AI 主动发现：每条落到 Operation / Task / Action ── */
-  const ai = [];
-  if (overdueRents.length) ai.push({ text: overdueRents.length + (state.lang === 'zh' ? ' 笔租金逾期 · AI 正在跟进' : ' overdue rents — AI tracking'), href: '#/ops' });
-  if (partialRents.length) ai.push({ text: (state.lang === 'zh' ? '部分付款有尾款：' : 'partial balance: ') + partialRents.map(r => r.unit).join('、'), href: '#/rents?f=partial' });
-  const leaseL = props.filter(p => p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30);
-  if (leaseL.length) ai.push({ text: (state.lang === 'zh' ? '租约 30 天内到期：' : 'lease expiring soon: ') + leaseL.map(p => p.unit).join('、'), href: '#/tasks' });
-  if (waitingParts.length) ai.push({ text: (state.lang === 'zh' ? '维修等待零件：' : 'waiting parts: ') + waitingParts.map(r => r.unit).join('、'), href: '#/reps?f=waiting_parts' });
-  const expNoReceipt = state.expenses.filter(e => e.status !== 'paid' && e.status !== 'rejected' && !e.receipt);
-  if (expNoReceipt.length) ai.push({ text: (state.lang === 'zh' ? '支出缺凭证：' : 'missing receipt: ') + expNoReceipt.map(e => e.id).join('、'), href: '#/tasks' });
-  if (approvedExps.length) ai.push({ text: (state.lang === 'zh' ? '已批准待付款：' : 'approved to pay: ') + approvedExps.map(e => e.id).join('、'), href: '#/exps?f=approved' });
-  /* ── VNext Operation 投影（Generic）：只出现真正需要当前角色的动作；expense/repair 共用 ── */
   const me = roleIs('owner') ? 'owner' : 'secretary';
-  state.operations.forEach(o => {
-    if (o.esc === 'CLOSED') return;
-    if (o.esc === 'WAITING_HUMAN' && o.next_actor === me) {
-      const txt = o.kind === 'settle_expense' ? (state.lang==='zh' ? '支出「' + expOpTitle(o) + '」等待你处理' : 'Expense "' + expOpTitle(o) + '" awaiting you')
-        : o.kind === 'repair' ? (state.lang==='zh' ? '维修事项 ' + opRepairUnit(o) + ' 等待你处理' : 'Repair ' + opRepairUnit(o) + ' awaiting you')
-        : (state.lang==='zh' ? '需你处理：' : 'Action needed: ') + opNextCopy(o);
-      ai.push({ text: txt, href: '#/op/' + o.id });
+  /* ── Needs You：当前角色真人必须介入的事项（指向单一 business truth） ── */
+  const needsYou = [];
+  const seen = {};
+  activeTasks.filter(t => t.assignee === me).forEach(t => {
+    const k = t.related || t.type;
+    if (seen[k]) return;
+    seen[k] = 1;
+    const ent = openTask(t.object);
+    const href = ent ? '#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + ent.target.id : '#/op/' + (t.tzOp || '');
+    const sub = ent ? (ent.kind === 'expense' ? ent.target.purpose : ent.kind === 'repair' ? ent.target.issue : ent.kind === 'property' ? ent.target.type : (state.lang === 'zh' ? '租金 ' : 'rent ') + money(ent.target.amount)) : t.nextAction;
+    needsYou.push({
+      title: taskTitle(t),
+      sub: (t.assignee === 'owner' ? 'Owner' : 'Secretary') + ' · ' + sub,
+      href: href,
+      chip: taskChip(t),
+      pri: priChip(t.priority)
+    });
+  });
+  /* ── AI Working：AI / Secretary / external 推进中，Owner 当前无需操作 ── */
+  const aiWorking = [];
+  overdueRents.forEach(r => {
+    const opr = opForRent(r.id);
+    if (opr && (opr.esc === 'WAITING_EXTERNAL' || opr.esc === 'ACTIVE')) {
+      const tname = (tenantForRent(r) ? tenantForRent(r).name : L('未知','Unknown'));
+      aiWorking.push({
+        title: r.unit + ' · ' + tname + ' · ' + (state.lang==='zh' ? '租金跟进中' : 'rent following up'),
+        sub: (state.lang==='zh' ? 'AI 正在跟 · 无需你行动' : 'AI tracking — no action needed'),
+        href: '#/op/' + opr.id,
+        chip: escChip(opr)
+      });
     }
   });
-  const turnoverStuck = props.filter(p => p.status === 'turnover' && !activeTasks.find(t => t.related === p.unit && t.type === 'turnover' && t.status !== 'done'));
-  if (turnoverStuck.length) ai.push({ text: (state.lang === 'zh' ? 'Turnover 待推进：' : 'turnover pending: ') + turnoverStuck.map(p => p.unit).join('、'), href: '#/props' });
-  const settleWait = state.tenants.filter(t => t.status === 'deposit_settlement');
-  if (settleWait.length) ai.push({ text: (state.lang === 'zh' ? '押金结算待 Owner 确认：' : 'deposit settlement: ') + settleWait.map(t => t.name).join('、'), href: '#/tenants' });
-  const noPhotos = props.filter(p => p.status === 'vacant' && (!p.photos || !p.photos.length));
-  if (noPhotos.length) ai.push({ text: (state.lang === 'zh' ? '空置物业缺照片：' : 'vacant missing photos: ') + noPhotos.map(p => p.unit).join('、'), href: '#/props' });
-  const aiRows = ai.map(a => '<div class="row" data-a="nav" data-href="' + a.href + '" style="padding:11px 16px" data-od-id="ai-find-row"><div class="row-main"><div class="row-l1"><b style="font-size:13px">' + a.text + '</b></div></div><div class="row-r">' + ic('chev', 15) + '</div></div>').join('');
+  state.operations.forEach(o => {
+    if (o.esc === 'ACTIVE' || o.esc === 'WAITING_EXTERNAL') {
+      aiWorking.push({
+        title: (o.kind === 'repair' ? opRepairTitle(o) : (o.kind === 'lease_renewal' || o.kind === 'move_out' ? opNextCopy(o) : opOpKindLabel(o))),
+        sub: opAiNextLabel(o),
+        href: '#/op/' + o.id,
+        chip: escChip(o)
+      });
+    }
+  });
+  if (waitingParts.length) aiWorking.push({ title: waitingParts.map(r => r.unit).join('、') + (state.lang==='zh' ? ' · 维修等零件' : ' · waiting for parts'), sub: (state.lang==='zh' ? 'AI 正在跟进报价 / 备货' : 'AI tracking quote / restock'), href: '#/reps?f=waiting_parts', chip: null });
+  if (approvedExps.length) aiWorking.push({ title: approvedExps.map(e => e.id).join('、') + (state.lang==='zh' ? ' · 已批准待付款' : ' · approved, awaiting payment'), sub: (state.lang==='zh' ? 'AI 准备付款指引' : 'AI preparing payment instructions'), href: '#/exps?f=approved', chip: null });
+  const leaseExpiringSoon = props.filter(p => p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30);
+  if (leaseExpiringSoon.length) aiWorking.push({ title: leaseExpiringSoon.map(p => p.unit).join('、') + (state.lang==='zh' ? ' · 租约 30 天内到期' : ' · lease expiring within 30 days'), sub: (state.lang==='zh' ? 'AI 准备续租跟进' : 'AI preparing renewal follow-up'), href: '#/onboarding', chip: null });
 
-  const quick = [
-    ['cash', L('登记租金','Log rent'), '#/rents?act=create'], ['card', L('新增支出','Add expense'), '#/exps?act=create'], ['wrench', L('报修','Report'), '#/reps?act=create'],
-    ['search', L('查房','Inspect'), 'inspect'], ['building', L('新增物业','Add property'), 'add-prop'], ['users', L('新增租客','Add tenant'), 'add-tenant'],
-    ['download', L('导出','Export'), '#/docs'], ['chat', L('提需求','Request'), '#/reqs?act=create']
-  ].map(q => '<button class="qa" data-a="' + (q[2][0] === '#' ? 'nav' : q[2]) + '" data-href="' + q[2] + '" data-od-id="qa-' + q[1] + '">' + ic(q[0], 21) + '<span>' + q[1] + '</span></button>').join('');
+  /* ── Risks / Attention：只显示异常 ── */
+  const risks = [];
+  overdueRents.forEach(r => {
+    const opr = opForRent(r.id);
+    const tname = (tenantForRent(r) ? tenantForRent(r).name : L('未知','Unknown'));
+    const base = r.unit + ' · ' + tname + ' · ' + (state.lang==='zh' ? '租金逾期 ' : 'rent overdue ') + (r.due ? daysSince(r.due) : 0) + (state.lang==='zh' ? ' 天' : 'd');
+    if (opr && (opr.esc === 'WAITING_EXTERNAL' || opr.esc === 'ACTIVE')) return; /* 已在 AI Working 中 */
+    risks.push({ level: 'crit', title: base, sub: (state.lang==='zh' ? '需关注 · 等待真人处理' : 'needs attention'), href: opr ? '#/op/' + opr.id : '#/rents?f=overdue' });
+  });
+  partialRents.forEach(r => {
+    const tname = (tenantForRent(r) ? tenantForRent(r).name : L('未知','Unknown'));
+    risks.push({ level: 'warn', title: r.unit + ' · ' + tname + (state.lang==='zh' ? ' · 尾款未清' : ' · balance not cleared'), sub: (state.lang==='zh' ? '继续跟进 · AI 暂无需升级' : 'keep following · AI not escalating'), href: '#/rents?f=partial' });
+  });
+  state.operations.forEach(o => {
+    if (o.esc === 'BLOCKED') {
+      risks.push({ level: 'crit', title: (state.lang==='zh' ? '事项卡住：' : 'Operation blocked: ') + opNextCopy(o), sub: (state.lang==='zh' ? '无法继续推进' : 'cannot proceed'), href: '#/op/' + o.id });
+    }
+  });
+  const expNoReceipt = state.expenses.filter(e => e.status !== 'paid' && e.status !== 'rejected' && !e.receipt);
+  if (expNoReceipt.length) risks.push({ level: 'warn', title: expNoReceipt.map(e => e.id).join('、') + (state.lang==='zh' ? ' · 支出缺凭证' : ' · expense missing evidence'), sub: (state.lang==='zh' ? '待 Secretary 补凭证' : 'awaiting Secretary evidence'), href: '#/tasks' });
 
-  const nextBadge = BADGES.find(b => !state.badges.includes(b.id));
+  /* ── 渲染 ── */
+  const rowHtml = (r, dataOdId) => '<div class="row" data-a="nav" data-href="' + r.href + '" data-od-id="' + dataOdId + '" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + r.title + '</b></div>' + (r.sub ? '<div class="row-l2">' + r.sub + '</div>' : '') + '</div><div class="row-r">' + (r.chip || '') + ic('chev', 15) + '</div></div>';
+  const riskHtml = (r) => '<div class="banner ' + r.level + '" style="margin:0 16px 8px" data-od-id="home-risk-row">' + ic('alert', 17) + '<div><b style="font-size:13px">' + r.title + '</b>' + (r.sub ? '<div class="meta" style="margin-top:2px">' + r.sub + '</div>' : '') + ' <button data-a="nav" data-href="' + r.href + '" style="text-decoration:underline;margin-left:4px">' + (state.lang === 'zh' ? '查看' : 'view') + ' →</button></div></div>';
+
+  const emptyNeeds = emptyState('check', state.lang==='zh' ? '现在没有需要你处理的事项' : 'No action needed from you right now', state.lang==='zh' ? 'AI 会在异常出现时立刻创建事项并提醒。' : 'AI creates an operation the moment an anomaly appears.');
+  const emptyAi = '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('clock', 17) + '<div class="row-l1" style="font-size:13px">' + (state.lang==='zh' ? 'AI 暂未处理任何推进中事项' : 'No operations are currently in motion') + '</div></div></div>';
+
+  const totalCards = needsYou.length + aiWorking.length + risks.length;
+  const normalBlock = (!totalCards)
+    ? '<div class="card" style="margin:10px 16px 0;padding:18px 16px;text-align:center" data-od-id="home-normal"><div style="display:flex;justify-content:center">' + ic('check', 28) + '</div><div style="font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-0.01em;margin-top:8px">' + (state.lang==='zh' ? '一切正常' : 'Everything looks good') + '</div><p style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.55">' + (state.lang==='zh' ? '所有 ' + state.props.length + ' 套物业运营正常 · AI 持续监控租金 / 维修 / 事项。' : 'All ' + state.props.length + ' properties are running normally · AI is monitoring rent, repairs and operations.') + '</p></div>'
+    : '';
 
   return shell('home', 'Pasay AI', MERCHANT.name, `
     ${setupBannerHtml()}
     <div class="pad" style="padding-bottom:0">
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
         <div>
-          <div style="font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:-0.02em">${state.lang==='zh' ? '早上好' : 'Good morning'}</div>
+          <div style="font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:-0.02em">${state.lang==='zh' ? '早上好' : 'Good morning'}</div>
           <div class="meta" style="margin-top:2px">${wd} · ${today} · ${roleIs('owner') ? 'Owner' : 'Secretary'} ${L('视角','view')}</div>
         </div>
         <span class="tag accent">${state.lang==='zh' ? '今日' : 'Today'} · ${TODAY.split('-')[2]}/${TODAY.split('-')[1]}</span>
       </div>
-      <div style="margin-top:14px"><button class="btn btn-s block" data-a="nav" data-href="#/search" style="justify-content:flex-start;color:var(--muted);font-weight:500">${ic('search',17)} ${state.lang==='zh' ? '搜索物业 / 租客 / 单据，或输入自然语言…' : 'Search property / tenant / docs, or ask…'}</button></div>
+      <div style="margin-top:12px"><button class="btn btn-s block" data-a="nav" data-href="#/search" style="justify-content:flex-start;color:var(--muted);font-weight:500">${ic('search',17)} ${state.lang==='zh' ? '搜索物业 / 租客 / 单据，或输入自然语言…' : 'Search property / tenant / docs, or ask…'}</button></div>
     </div>
-    ${sec(state.lang==='zh' ? 'TODAY · 需要处理' : 'TODAY · To handle', '<span class="meta">' + qlist.length + (state.lang==='zh' ? ' 项' : ' items') + '</span>')}
-    ${todayRows ? '<div class="list" style="margin-top:8px">' + todayRows + '</div>' : emptyState('check', state.lang==='zh' ? '今天没有待处理事项' : 'All clear', state.lang==='zh' ? 'AI 会在异常出现时第一时间创建任务。' : 'AI creates tasks the moment an anomaly appears.')}
-    ${excRows ? sec(state.lang==='zh' ? 'IMPORTANT EXCEPTION' : 'IMPORTANT EXCEPTION') + excRows : ''}
-    ${ai.length ? sec(state.lang==='zh' ? 'AI 主动发现' : 'AI DETECTED', '<span class="meta">' + ai.length + '</span>') + '<div class="list" style="margin-top:8px">' + aiRows + '</div>' : ''}
-    ${sec(state.lang==='zh' ? 'QUICK ACTIONS' : 'QUICK ACTIONS')}
-    <div class="qa-grid">${quick}</div>
-    ${sec(state.lang==='zh' ? 'PORTFOLIO PULSE' : 'PORTFOLIO PULSE', '<span class="meta">' + (state.lang==='zh' ? '实时 · 同一数据源' : 'live · single source') + '</span>')}
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 16px">
-      <div class="kpi"><div class="kv num">${occupied}<span style="font-size:14px;color:var(--muted)">/${total}</span></div><div class="kl">${state.lang==='zh' ? '已出租' : 'Occupied'} · ${state.lang==='zh' ? '空置' : 'Vacant'} ${vacant}</div></div>
-      <div class="kpi"><div class="kv num money pos">${money(collected)}</div><div class="kl">${state.lang==='zh' ? '本月已收租金' : 'Rent collected'}</div></div>
-      <div class="kpi"><div class="kv num money neg">${money(outstanding)}</div><div class="kl">${state.lang==='zh' ? '未收租金' : 'Outstanding'}</div></div>
-      <div class="kpi"><div class="kv num" style="color:var(--pend)">${money(pendingAmt)}</div><div class="kl">${state.lang==='zh' ? '待确认金额' : 'Pending confirm'}</div></div>
-      <div class="kpi"><div class="kv num money">${money(expPaid)}</div><div class="kl">${state.lang==='zh' ? '本月支出' : 'Expenses'}</div></div>
-      <div class="kpi"><div class="kv num" style="color:var(--warn)">${money(expToPay)}</div><div class="kl">${state.lang==='zh' ? '待付款支出' : 'To pay'}</div></div>
-      <div class="kpi"><div class="kv num money">${money(collected - expPaid)}</div><div class="kl">${state.lang==='zh' ? '净现金流' : 'Net cashflow'}</div></div>
-      <div class="kpi"><div class="kv num">${openReps.length}</div><div class="kl">${state.lang==='zh' ? '开放维修' : 'Open repairs'}</div></div>
-    </div>
-    <div class="card" style="margin:10px 16px 0">
-      <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:13.5px">${state.lang==='zh' ? '出租率' : 'Occupancy'}</b><span class="meta num">${Math.round(occupied / total * 100)}% · ${occupied}/${total}</span></div>
-      <div class="progress" style="margin-top:8px"><div style="width:${Math.round(occupied / total * 100)}%"></div></div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:var(--muted)"><span>${state.lang==='zh' ? '生命周期中' : 'In lifecycle'} ${inLifecycle}</span><span>${state.lang==='zh' ? '开放维修' : 'Open repairs'} ${openReps.length}</span></div>
-    </div>
-    ${sec(state.lang==='zh' ? 'LEARNING · 成长' : 'LEARNING')}
-    <div class="card" style="margin:0 16px">
-      <div class="row-l1" style="align-items:center;gap:8px">${ic('spark', 16)}<b style="font-size:13px">${state.lang==='zh' ? '成长 ' : 'Growth '}${state.badges.length}/${BADGES.length}</b></div>
-      <div class="progress" style="margin-top:8px"><div style="width:${Math.round(state.badges.length / BADGES.length * 100)}%"></div></div>
-      ${nextBadge ? '<div style="font-size:12.5px;color:var(--muted);margin-top:8px">' + (state.lang==='zh' ? '下一步建议：' : 'Next: ') + '<b style="color:var(--fg)">' + (state.lang==='zh' ? nextBadge.zh : nextBadge.en) + '</b> <button data-a="nav" data-href="#/learning" style="color:var(--accent);text-decoration:underline">→</button></div>' : '<div style="font-size:12.5px;margin-top:8px">' + (state.lang==='zh' ? '全部达成，运营大师！' : 'All earned — master operator!') + '</div>'}
-    </div>
+    ${sec(state.lang==='zh' ? '需你处理' : 'NEEDS YOU', '<span class="meta">' + needsYou.length + '</span>')}
+    ${needsYou.length ? '<div class="list" style="margin-top:8px">' + needsYou.map(n => rowHtml(n, 'home-needs-you')).join('') + '</div>' : emptyNeeds}
+    ${normalBlock}
+    ${sec(state.lang==='zh' ? 'AI 推进中' : 'AI WORKING', '<span class="meta">' + aiWorking.length + '</span>')}
+    ${aiWorking.length ? '<div class="list" style="margin-top:8px">' + aiWorking.map(n => rowHtml(n, 'home-ai-working')).join('') + '</div>' : emptyAi}
+    ${sec(state.lang==='zh' ? '需要关注' : 'RISKS · ATTENTION', '<span class="meta">' + risks.length + '</span>')}
+    ${risks.length ? risks.map(riskHtml).join('') : '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('shield', 17) + '<div class="row-l1" style="font-size:13px">' + (state.lang==='zh' ? '当前没有需要关注的风险' : 'No risks to flag right now') + '</div></div></div>'}
   `);
 }
 
@@ -3767,7 +3807,7 @@ function viewProps(q) {
     const r = rentByUnit(p.unit);
     const opr = openRepairs(p.unit);
     const chips = (p.status === 'occupied' ? '<span class="chip st-ok">' + (state.lang === 'zh' ? '已出租' : 'Occupied') + '</span>' : '<span class="chip st-neu">' + (state.lang === 'zh' ? '空置' : 'Vacant') + '</span>') + (r ? rentChip(r) : '') + (opr.length ? '<span class="chip st-warn">' + (state.lang === 'zh' ? '维修 ' : 'Fix ') + opr.length + '</span>' : '');
-    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span><span class="health ' + (p.health >= 85 ? 'good' : p.health >= 70 ? 'mid' : 'low') + '">' + p.health + '</span></div><div class="row-l2"><span class="who">' + (t ? t.name : (state.lang === 'zh' ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (r ? '<span class="dot"></span><span>' + (state.lang === 'zh' ? '租金 ' : 'Rent ') + money(r.amount) + '</span>' : '') + (r && r.status !== 'paid' && r.status !== 'upcoming' ? '<span class="dot"></span><span class="num">' + (state.lang === 'zh' ? '欠 ' : 'due ') + money(Math.max(r.amount - paidAmt(r) - pendAmt(r), 0)) + '</span>' : '') + '</div></div><div class="row-r" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">' + chips + ic('chev', 15) + '</div></div>';
+    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span>' + propertyStatusDot(p) + '</div><div class="row-l2"><span class="who">' + (t ? t.name : (state.lang === 'zh' ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (r ? '<span class="dot"></span><span>' + (state.lang === 'zh' ? '租金 ' : 'Rent ') + money(r.amount) + '</span>' : '') + (r && r.status !== 'paid' && r.status !== 'upcoming' ? '<span class="dot"></span><span class="num">' + (state.lang === 'zh' ? '欠 ' : 'due ') + money(Math.max(r.amount - paidAmt(r) - pendAmt(r), 0)) + '</span>' : '') + '</div></div><div class="row-r" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">' + chips + ic('chev', 15) + '</div></div>';
   }).join('');
   return shell('building', tr('nav_props'), totalOccupied() + ' / ' + state.props.length + ' ' + L('已出租','occupied'), `
     <div class="filters" data-od-id="props-filters">${filters.map(x => '<button class="fchip' + (f === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/props">' + x[1] + '</button>').join('')}</div>
@@ -3798,7 +3838,7 @@ function viewProperty(u, tab) {
       <div class="card" style="margin:14px 16px 0;padding:0;overflow:hidden">
         <div class="ph-img" style="height:150px;background:linear-gradient(135deg, color-mix(in oklch, var(--accent) 14%, transparent), var(--fg-soft));display:grid;place-items:center;color:var(--muted);font-family:var(--font-mono);font-size:12px">UNIT ${p.unit} · ${p.tower}</div>
         <div style="padding:14px">
-          <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${p.unit}</b><span class="tag">${p.type}</span>${propChip(p)}<span class="health ${p.health>=85?'good':p.health>=70?'mid':'low'}">${state.lang==='zh'?'健康度':'Health'} ${p.health}</span></div>
+          <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${p.unit}</b><span class="tag">${p.type}</span>${propChip(p)}${propertyStatusDot(p)}</div>
           <div class="meta" style="margin-top:4px">${p.addr}</div>
           <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6">${descLabel(p.desc, p.descriptionCode)}</p>
         </div>
@@ -3889,7 +3929,7 @@ function viewRents(q) {
     <div class="filters" style="margin-top:6px">${filters.map(x => '<button class="fchip' + (f === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/rents">' + x[1] + '</button>').join('')}</div>
     <div class="count-line">${list.length} ${state.lang==='zh'?'条租金记录':'records'}</div>
     <div class="list" style="margin-top:8px">${rows || emptyState('cash', state.lang==='zh'?'没有符合条件的租金记录':'No matching rent records', '')}</div>
-    <button class="fab" data-a="nav" data-href="#/rents?act=create" aria-label="${tr('add')}">${ic('plus')}</button>
+    ${/* Issue#3 · Rent 已退出一级 nav；新增入口仅来自 Property / Home / Operations */ ''}
   `);
 }
 
@@ -3961,7 +4001,7 @@ function viewExps(q) {
     <div class="filters">${filters.map(x => '<button class="fchip' + (f === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/exps">' + x[1] + '</button>').join('')}</div>
     <div class="count-line">${list.length} ${state.lang==='zh'?'笔支出':'expenses'} · ${money(sum(list))}</div>
     <div class="list" style="margin-top:8px">${rows || emptyState('card', state.lang==='zh'?'没有符合条件的支出':'No matching expenses', '')}</div>
-    <button class="fab" data-a="nav" data-href="#/exps?act=create" aria-label="${tr('add')}">${ic('plus')}</button>
+    ${/* Issue#3 · Expense 已退出一级 nav；新增入口仅来自 Property / Home / Operations */ ''}
   `);
 }
 
@@ -4035,7 +4075,7 @@ function viewReps(q) {
     <div class="filters" style="padding-top:14px">${filters.map(x => '<button class="fchip' + (f === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/reps">' + x[1] + '</button>').join('')}</div>
     <div class="count-line">${list.length} ${state.lang==='zh'?'条维修记录':'repairs'}</div>
     <div class="list" style="margin-top:8px">${rows || emptyState('wrench', state.lang==='zh'?'没有符合条件的维修':'No matching repairs', '')}</div>
-    <button class="fab" data-a="nav" data-href="#/reps?act=create" aria-label="${tr('add')}">${ic('plus')}</button>
+    ${/* Issue#3 · Repair 报修入口由 Property / Operations / Home 提供，不再重复 FAB */ ''}
   `);
 }
 function openRepsCount() { return state.repairs.filter(r => !['completed', 'closed'].includes(r.status)).length; }
@@ -4348,26 +4388,24 @@ function nextLine(o) {
 function viewOps() {
   const ops = state.operations.slice();
   const me = state.meta && state.meta.role ? state.meta.role : 'secretary';
-  /* "需要我处理" 只含当前角色自己的下一次真人动作；等对方/等外部分别归组，不冒充为我的待办 */
+  /* Issue#3 · Operations Center 用户视图分类：Needs You / In Progress / Waiting / Risks / Completed */
   const needs = ops.filter(opNextIsMine);
-  const aiworking = ops.filter(o => o.esc === 'ACTIVE');
-  const external = ops.filter(o => o.esc === 'WAITING_EXTERNAL');
-  const verify = ops.filter(o => o.esc === 'VERIFYING');
+  const inProgress = ops.filter(o => o.esc === 'ACTIVE' || o.esc === 'VERIFYING');
+  const waiting = ops.filter(o => o.esc === 'WAITING_EXTERNAL');
   const waitingOther = ops.filter(o => o.esc === 'WAITING_HUMAN' && o.next_actor !== me);
-  const blocked = ops.filter(o => o.esc === 'BLOCKED');
-  const closed = ops.filter(o => o.esc === 'CLOSED');
+  const risks = ops.filter(o => o.esc === 'BLOCKED');
+  const completed = ops.filter(o => o.esc === 'CLOSED');
   const block = g => '<div class="list" style="margin-top:6px">' + g.map(opCard).join('') + '</div>';
   const secWrap = (t, g, extra) => (g.length ? sec(t, extra) + block(g) : '');
-  const count = needs.length + aiworking.length + external.length + verify.length + waitingOther.length + blocked.length;
-  return shell('tasks', tr('nav_ops'), count + (state.lang==='zh'?' 个进行中事项':' live operations'), `
+  const count = needs.length + inProgress.length + waiting.length + waitingOther.length + risks.length;
+  return shell('ops', tr('nav_ops'), count + (state.lang==='zh'?' 个进行中事项':' live operations'), `
     <div class="count-line" style="padding-top:14px">${state.lang==='zh'?'AI 负责把事项推进到真实业务结果 · 无需理解内部状态机':'AI drives each matter to a real business result — no need to learn state machines'}</div>
     ${secWrap(state.lang==='zh'?'需要我处理':'NEEDS YOU', needs)}
-    ${secWrap(state.lang==='zh'?'AI 正在处理':'AI WORKING', aiworking)}
-    ${secWrap(state.lang==='zh'?'正在核对到账':'VERIFYING', verify)}
+    ${secWrap(state.lang==='zh'?'AI 推进中':'IN PROGRESS', inProgress)}
+    ${secWrap(state.lang==='zh'?'等待外部结果':'WAITING', waiting)}
     ${secWrap(state.lang==='zh' ? (me==='owner' ? '等待 Secretary 处理' : '等待 Owner 处理') : (me==='owner' ? 'Waiting on Secretary' : 'Waiting on Owner'), waitingOther)}
-    ${secWrap(state.lang==='zh'?'等待外部结果':'WAITING EXTERNAL', external)}
-    ${secWrap(state.lang==='zh'?'需要关注':'NEEDS REVIEW', blocked)}
-    ${secWrap(state.lang==='zh'?'最近完成':'RECENTLY CLOSED', closed)}
+    ${secWrap(state.lang==='zh'?'需要关注 · 卡住':'RISKS', risks)}
+    ${secWrap(state.lang==='zh'?'最近完成':'COMPLETED', completed)}
     ${ops.length ? '' : emptyState('tasks', state.lang==='zh'?'暂无进行中的事项':'No live operations', state.lang==='zh'?'AI 会在出现异常时自动创建并推进事项。':'AI creates & drives an operation when an anomaly appears.')}
   `);
 }
@@ -4409,7 +4447,7 @@ function viewOp(id) {
 
   const demo = opDemoHtml(o);
 
-  return shell('tasks', tr('nav_ops'), nm + ' · ' + unit, `
+  return shell('ops', tr('nav_ops'), nm + ' · ' + unit, `
     <div class="card" style="margin:14px 16px 0">
       <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${nm} · ${unit}</b>${escChip(o)}</div>
       <div style="font-size:13.5px;color:var(--muted);margin-top:4px">${zh?'六月租金 待收':'June rent outstanding'}</div>
@@ -4468,7 +4506,7 @@ function viewExpOp(o) {
   const demo = expDemoHtml(o);
 
   const title = expOpTitle(o); const cat = expOpCat(o); const uName = expOpUnit(o);
-  return shell('tasks', tr('nav_ops'), title, `
+  return shell('ops', tr('nav_ops'), title, `
     <div class="card" style="margin:14px 16px 0">
       <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${title}</b>${escChip(o)}${e?expChip(e):''}</div>
       <div style="font-size:13.5px;color:var(--muted);margin-top:4px">${cat} · ${uName}${relRep ? ' · ' + (zh?'关联维修 ':'Repair ') + relRep : ''}</div>
@@ -4526,7 +4564,7 @@ function viewRepairOp(o) {
   const humanAction = o.esc === 'WAITING_HUMAN' ? repairActionHtml(o) : '';
   const demo = repairDemoHtml(o);
 
-  return shell('tasks', tr('nav_ops'), ttl, `
+  return shell('ops', tr('nav_ops'), ttl, `
     <div class="card" style="margin:14px 16px 0">
       <div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:17px">${u} · ${zh?'空调':'Aircon'}</b>${escChip(o)}${rp?repChip(rp):''}</div>
       <div style="font-size:13.5px;color:var(--muted);margin-top:4px">${ttl}</div>
@@ -4858,27 +4896,8 @@ function claimAmountOptions(o) {
 }
 
 
-function viewTasks(q) {
-  const f = q.get('f') || 'all';
-  const who = q.get('who') || 'all';
-  const rel = q.get('rel') || null;
-  const filters = [['all', tr('all')], ['todo', L('待办','To do')], ['in_progress', L('进行中','In progress')], ['waiting', L('等待中','Waiting')], ['done', L('已完成','Done')]];
-  let list = state.tasks.filter(t => !t.migratedAction);   // 已迁移进 VNext Operation 的 legacy task 不再独立出现
-  if (f !== 'all') list = list.filter(t => t.status === f);
-  if (who !== 'all') list = list.filter(t => t.assignee === who);
-  if (rel) list = list.filter(t => t.related === rel);
-  list.sort((a, b) => (a.status === 'done') - (b.status === 'done') || (a.priority === 'high' ? -1 : 1));
-  const rows = list.map(t => {
-    const ent = openTask(t.object);
-    return '<div class="row" data-a="nav" data-href="#/task/' + t.id + '" data-od-id="task-row-' + t.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + taskTitle(t) + '</b></div><div class="row-l2">' + (t.assignee === 'owner' ? 'Owner' : 'Secretary') + ' · ' + (state.lang==='zh'?'截止 ':'due ') + fmtDate(t.due) + (ent ? ' · <button data-a="nav" data-href="#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + ent.target.id + '" style="color:var(--accent)">' + ent.target.id + ' →</button>' : '') + '</div></div><div class="row-r">' + priChip(t.priority) + taskChip(t) + ic('chev', 15) + '</div></div>';
-  }).join('');
-  return shell('tasks', tr('nav_tasks'), state.lang==='zh' ? '你的工作队列' : 'Your work queue', `
-    <div class="filters" style="padding-top:14px">${filters.map(x => '<button class="fchip' + (f === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/tasks">' + x[1] + '</button>').join('')}</div>
-    <div class="filters" style="padding-top:6px">${[['all', tr('all')], ['owner', 'Owner'], ['secretary', 'Secretary']].map(x => '<button class="fchip' + (who === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/tasks&who=' + x[0] + '" data-k="who">' + x[1] + '</button>').join('')}</div>
-    <div class="count-line">${list.length} ${state.lang==='zh'?'个任务':'tasks'} · <span class="meta">${state.lang==='zh'?'AI 自动创建审批、付款、跟进等任务':'AI auto-creates approval, payment & follow-up tasks'}</span></div>
-    <div class="list" style="margin-top:8px">${rows || emptyState('tasks', state.lang==='zh'?'没有任务':'No tasks', '')}</div>
-  `);
-}
+/* Issue#3 · 「事项」页已废弃重做为 Operations Center（#/ops）。#/tasks 路由保留为兼容 alias，直接进入 Operations Center。 */
+function viewTasks(q) { return viewOps(q); }
 
 function viewTask(id) {
   const t = task(id); if (!t) return viewTasks(new URLSearchParams());
@@ -4913,7 +4932,7 @@ function viewTenants() {
   return shell('users', state.lang==='zh'?'租客':'Tenants', state.tenants.length + (state.lang==='zh'?' 位在租租客':' active tenants'), `
     <div class="count-line" style="padding-top:14px">${state.tenants.length} ${state.lang==='zh'?'位在租租客':'active tenants'}</div>
     <div class="list" style="margin-top:8px">${rows}</div>
-    <button class="fab" data-a="add-tenant" aria-label="${tr('add')}">${ic('plus')}</button>
+    ${/* Issue#3 · 新增租客入口由 Team / Onboarding / Settings 提供 */ ''}
   `);
 }
 
@@ -4975,7 +4994,28 @@ function viewPayments() {
   return shell('card', state.lang==='zh'?'收付款方式':'Payment methods', MERCHANT.name, `
     <div class="banner info" style="margin-top:14px">${ic('shield', 17)}<div>${state.lang==='zh'?'用于收租与支出付款，并生成付款指引。':'Used for rent collection and expense payments, and to generate payment instructions.'}</div></div>
     <div class="list" style="margin-top:10px">${rows}</div>
-    <button class="fab" data-a="add-payment-method" aria-label="${tr('add')}">${ic('plus')}</button>
+    ${/* Issue#3 · 收付款方式入口由 Settings 提供，列表无需独立 FAB */ ''}
+  `);
+}
+
+/* ── Archive（Issue#3 · 恢复一级入口） ── */
+function viewArchive() {
+  const zh = state.lang === 'zh';
+  const media = state.media || [];
+  const mediaByKind = (kind) => media.filter(m => m.kind === kind).length;
+  const sections = [
+    { id: 'props', icon: 'building', title: zh ? '物业档案' : 'Properties', sub: zh ? '长期档案 / 装修 / 历史' : 'long-term archive / renovations / history', href: '#/props', count: state.props.length },
+    { id: 'tenants', icon: 'users', title: zh ? '租客 / 租约' : 'Tenants & Leases', sub: zh ? '生命周期、押金、合同' : 'lifecycle, deposit, contracts', href: '#/tenants', count: state.tenants.length + state.leases.length },
+    { id: 'receipts', icon: 'card', title: zh ? '付款凭证' : 'Receipts', sub: zh ? '租金 / 支出 / 维修付款' : 'rent / expense / repair payments', href: '#/docs', count: state.payments.length },
+    { id: 'repairs', icon: 'wrench', title: zh ? '维修记录' : 'Repairs', sub: zh ? '报修 / 报价 / 完成' : 'reported / quoted / completed', href: '#/reps', count: state.repairs.length },
+    { id: 'expenses', icon: 'card', title: zh ? '支出记录' : 'Expenses', sub: zh ? '审批 / 付款 / 凭证' : 'approved / paid / evidence', href: '#/exps', count: state.expenses.length },
+    { id: 'photos', icon: 'cam', title: zh ? '物业照片' : 'Photos', sub: zh ? '封面 / 当前 / 入住 / 迁出 / Turnover' : 'cover / current / move-in / move-out / turnover', href: '#/docs', count: media.length },
+    { id: 'documents', icon: 'doc', title: zh ? '文档' : 'Documents', sub: zh ? '合同 / 报告 / 导出' : 'contracts / reports / exports', href: '#/docs', count: state.exportLog.length }
+  ];
+  const cards = sections.map(s => '<div class="row" data-a="nav" data-href="' + s.href + '" data-od-id="archive-' + s.id + '" style="padding:12px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(s.icon, 18) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + s.title + '</b><span class="chip" style="margin-left:6px">' + s.count + '</span></div><div class="row-l2">' + s.sub + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>').join('');
+  return shell('archive', tr('nav_archive'), (zh ? '长期事实与证据层' : 'Long-term facts & evidence'), `
+    <div class="banner info" style="margin-top:14px">${ic('shield', 17)}<div>${zh ? 'Archive 是按业务对象组织的长期事实与证据层 — 不是简单网盘。所有 Operation / Claim / Evidence 都会沉淀到这里。' : 'Archive is organised by business objects — long-term facts & evidence, not a plain drive. Every operation, claim and evidence lives here.'}</div></div>
+    <div class="list" style="margin-top:10px">${cards}</div>
   `);
 }
 
@@ -5600,6 +5640,7 @@ function render() {
   else if (root === 'tenant') html = viewTenant(path[1]);
   else if (root === 'payments') html = viewPayments();
   else if (root === 'docs') html = viewDocs();
+  else if (root === 'archive') html = viewArchive();
   else if (root === 'settings') html = viewSettings();
   else if (root === 'team') html = viewTeam();
   else if (root === 'team-add') html = viewTeamAdd();
