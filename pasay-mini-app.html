@@ -4262,13 +4262,22 @@ function viewExps(q) {
 /* ═══ 008B · Finance Workspace（财务 = 数据工作台，不是 Telegram Rent/Expense 按钮复制）═══ */
 function viewFinance(q) {
   const zh = state.lang === 'zh';
+  /* 008B-FIX1 · Month 连续不跳月（2026-01..2026-08，覆盖 TODAY 月与业务数据月） */
+  const months = [];
+  for (let mm = 1; mm <= 8; mm++) months.push('2026-' + (mm < 10 ? '0' + mm : mm));
   const period = q.get('p') || '2026-06';
-  const periods = ['2026-08', '2026-06', '2026-05'].filter(p => p === period || state.rents.some(r => (r.period || '') === p));
-  if (periods.indexOf(period) === -1) periods.unshift(period);
+  const unitF = q.get('u') || '';
+  const statusF = q.get('s') || '';
   /* 聚合：全局 rents + collect_rent Operations 的 domain 快照（008A 1680 隔离 fixture 纳入应收） */
   const allRents = state.rents.slice();
   state.operations.filter(o => o.kind === 'collect_rent').forEach(o => { const r = opUnitRent(o); if (r && !allRents.some(x => x.id === r.id)) allRents.push(r); });
-  const rents = allRents.filter(r => (r.period || '').indexOf(period) === 0);
+  let rents = allRents.filter(r => (r.period || '').indexOf(period) === 0);
+  const units = [...new Set(allRents.filter(r => (r.period || '').indexOf(period) === 0).map(r => r.unit))].sort();
+  if (unitF) rents = rents.filter(r => r.unit === unitF);
+  if (statusF === 'overdue') rents = rents.filter(r => r.status === 'overdue');
+  else if (statusF === 'partial') rents = rents.filter(r => r.status === 'partial');
+  else if (statusF === 'pending') rents = rents.filter(r => r.status === 'pending');
+  else if (statusF === 'paid') rents = rents.filter(r => r.status === 'paid');
   const dueAmt = rents.reduce((a, r) => a + r.amount, 0);
   const paidAmtSum = rents.reduce((a, r) => a + paidAmt(r), 0);
   const overdue = rents.filter(r => r.status === 'overdue' || (r.status === 'partial' && r.due && daysSince(r.due) > 0));
@@ -4282,15 +4291,36 @@ function viewFinance(q) {
     card(zh ? '逾期未收' : 'Overdue', money(overdueAmt), overdue.length + (zh ? ' 期逾期' : ' overdue'), '#/rents?f=overdue') +
     card(zh ? '本月支出' : 'Spending', money(expPaid), (zh ? '待付 ' : 'to pay ') + money(expPending), '#/exps') +
     '</div>';
+  /* 下拉选择器（Month / Property / Status）—— FIX1 三筛选 */
+  const base = '#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF);
+  const sel = (label, href) => '<button class="fchip" data-a="nav" data-href="' + href + '" style="display:inline-flex;align-items:center;gap:4px">' + label + ' ' + ic('chev', 12) + '</button>';
+  const statusLabel = statusF === 'overdue' ? (zh ? '逾期' : 'Overdue') : statusF === 'partial' ? (zh ? '部分支付' : 'Partial') : statusF === 'pending' ? (zh ? '待确认' : 'Pending') : statusF === 'paid' ? (zh ? '已收' : 'Paid') : (zh ? '全部' : 'All');
+  const filtersRow = '<div style="display:flex;gap:6px;padding:14px 16px 0;flex-wrap:wrap">' +
+    sel(period.replace('-', '.'), '#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '&act=month') +
+    sel(unitF ? unitF : (zh ? '全部物业' : 'All units'), '#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '&act=prop') +
+    sel(statusLabel, '#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '&act=status') +
+    '</div>';
+  const act = q.get('act');
+  if (act === 'month') { + months.slice().reverse().map(m => '<div class="row" data-a="nav" data-href="#/finance?p=' + m + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + m.replace('-', '.') + '</b></div>' + (m === period ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+  } else if (act === 'prop') {
+    openSheet(sheetHead(zh ? '筛选物业' : 'Filter unit') + '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&u=&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + (zh ? '全部物业' : 'All units') + '</b></div>' + (!unitF ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>' + units.map(u => '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&u=' + u + '&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + u + '</b></div>' + (u === unitF ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+  } else if (act === 'status') {
+    const opts = [['', zh ? '全部' : 'All'], ['overdue', zh ? '逾期' : 'Overdue'], ['partial', zh ? '部分支付' : 'Partial'], ['pending', zh ? '待确认' : 'Pending'], ['paid', zh ? '已收' : 'Paid']];
+    openSheet(sheetHead(zh ? '筛选状态' : 'Filter status') + opts.map(o => '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + o[0] + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + o[1] + '</b></div>' + (statusF === o[0] ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+  }
   const overdueRows = overdue.map(r => {
     const t = tenantForRent(r);
     return '<div class="row" data-a="nav" data-href="#/rent/' + r.id + '" data-od-id="fin-overdue-' + r.id + '" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + r.unit + ' · ' + (t ? t.name : (zh ? '未知租客' : 'Unknown')) + '</b></div><div class="row-l2">' + (zh ? '逾期 ' : 'overdue ') + (r.due ? daysSince(r.due) : 0) + (zh ? ' 天' : 'd') + ' · ' + (zh ? '还欠 ' : 'remaining ') + money(Math.max(r.amount - paidAmt(r), 0)) + '</div></div><div class="row-r">' + rentChip(r) + ic('chev', 15) + '</div></div>';
   }).join('');
+  const emptyMonth = (rents.length === 0)
+    ? '<div class="row" style="padding:20px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px;justify-content:center;width:100%">' + ic('clock', 16) + '<div class="row-l1" style="font-size:13px">' + (zh ? '本期没有数据' : 'No data for this period') + '</div></div></div>'
+    : '';
   return shell('wallet', tr('nav_fin'), zh ? '钱现在什么情况 · 哪里需要处理' : 'Where the money stands', `
-    <div class="filters" style="padding-top:14px">${periods.map(p => '<button class="fchip' + (p === period ? ' on' : '') + '" data-a="filter" data-k="p" data-f="' + p + '" data-base="#/finance">' + p + '</button>').join('')}</div>
+    ${filtersRow}
     ${grid}
+    ${emptyMonth}
     ${sec(zh ? '逾期未收' : 'OVERDUE')}
-    <div class="list" style="margin-top:6px">${overdueRows || '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('check', 16) + '<div class="row-l1" style="font-size:13px">' + (zh ? '本期没有逾期' : 'Nothing overdue this period') + '</div></div></div>'}</div>
+    <div class="list" style="margin-top:6px">${overdueRows || '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('check', 16) + '<div class="row-l1" style="font-size:13px">' + (zh ? '当前筛选下没有逾期' : 'Nothing overdue under current filters') + '</div></div></div>'}</div>
     ${sec(zh ? '凭证与记录' : 'EVIDENCE & RECORDS')}
     <div class="list" style="margin-top:6px">
       <div class="row" data-a="nav" data-href="#/payments" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '付款凭证' : 'Payment evidence') + '</b></div><div class="row-l2">' + (zh ? '已确认付款与凭证' : 'confirmed payments & receipts') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>
@@ -4796,20 +4826,24 @@ function collectConfirmCandidates() {
   return list;
 }
 
-/* 008B · 连续处理 next-item workflow（Demo E）：同类待确认付款记录逐条处理，完成后自动下一条 */
-function viewConfirmFlow() {
+/* 008B-FIX1 · 连续处理 next-item workflow：真实 Queue 队列 + 隔离 demo fixture（?demo=1）
+   真实队列来自 collectConfirmCandidates()（Rent truth 的 unconfirmed/pending 付款）；
+   demo 5 条为隔离 prototype fixture（isFixture=true），不写入真实 rents truth */
+function viewConfirmFlow(q) {
   const zh = state.lang === 'zh';
-  if (!state.confirmFlow || !state.confirmFlow.items.length) {
-    state.confirmFlow = {
-      items: [
-        { id: 'CF-1', unit: '1602', tenant: 'Liza Mendoza', amount: 28000, method: 'GCash', period: '2026-06' },
-        { id: 'CF-2', unit: '1503', tenant: 'Ana Lim', amount: 10000, method: 'Bank Transfer', period: '2026-06' },
-        { id: 'CF-3', unit: '1805', tenant: 'Juan Dela Cruz', amount: 28000, method: 'GCash', period: '2026-06' },
-        { id: 'CF-4', unit: '1901', tenant: 'Carlo Bautista', amount: 35000, method: 'Bank Transfer', period: '2026-06' },
-        { id: 'CF-5', unit: '1680', tenant: 'Diego Cruz', amount: 18000, method: 'GCash', period: '2026-08' }
-      ],
-      idx: 0, done: 0, rejected: 0
-    };
+  const demo = !!(q && q.get('demo') === '1');
+  if (!state.confirmFlow || state.confirmFlow.demo !== demo || !state.confirmFlow.items.length) {
+    const real = collectConfirmCandidates();
+    const items = demo
+      ? [
+          { id: 'CF-1', unit: '1602', tenant: 'Liza Mendoza', amount: 28000, method: 'GCash', period: '2026-06', isFixture: true },
+          { id: 'CF-2', unit: '1503', tenant: 'Ana Lim', amount: 10000, method: 'Bank Transfer', period: '2026-06', isFixture: true },
+          { id: 'CF-3', unit: '1805', tenant: 'Juan Dela Cruz', amount: 28000, method: 'GCash', period: '2026-06', isFixture: true },
+          { id: 'CF-4', unit: '1901', tenant: 'Carlo Bautista', amount: 35000, method: 'Bank Transfer', period: '2026-06', isFixture: true },
+          { id: 'CF-5', unit: '1680', tenant: 'Diego Cruz', amount: 18000, method: 'GCash', period: '2026-08', isFixture: true }
+        ]
+      : real.map((r, i) => ({ id: 'CF-' + (i + 1), unit: r.unit, tenant: r.tenant, amount: r.amount, method: r.method, period: r.period, isFixture: false }));
+    state.confirmFlow = { items: items.slice(), idx: 0, done: 0, rejected: 0, demo };
   }
   const fl = state.confirmFlow;
   const total = fl.items.length;
@@ -6180,7 +6214,7 @@ function render() {
   else if (root === 'tasks') html = viewTasks(q);
   else if (root === 'task') html = viewTask(path[1]);
   else if (root === 'ops') html = viewOps(q);
-  else if (root === 'confirm-flow') html = viewConfirmFlow();
+  else if (root === 'confirm-flow') html = viewConfirmFlow(q);
   else if (root === 'op') html = viewOp(path[1]);
   else if (root === 'finance') html = viewFinance(q);
   else if (root === 'more') html = viewMore();
