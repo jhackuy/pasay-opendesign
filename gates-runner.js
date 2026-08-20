@@ -931,6 +931,26 @@ try {
   }
 }
 
+/* ─────────────── Run Mini App 008B-FIX2 Gate (PASAY-TASK-004-FIX2 · Finance Filter Truth) ─────────────── */
+{
+  const gateFix2 = ctx.window.__OD_GATE_MINAPP_008B_FIX2;
+  if (typeof gateFix2 === 'function') {
+    try {
+      const r = gateFix2();
+      console.log('\n═══════ Mini App 008B-FIX2 Gate (PASAY-TASK-004-FIX2 · Finance Filter Truth) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('MiniApp-008B-FIX2', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('MiniApp-008B-FIX2 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('MiniApp-008B-FIX2 gate not exposed on window (__OD_GATE_MINAPP_008B_FIX2 = ' + typeof gateFix2 + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
