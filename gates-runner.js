@@ -1023,6 +1023,35 @@ try {
   }
 }
 
+/* ─────────────── Run Mini App 009A Data Coherence Gate (PASAY-TASK-005) ─────────────── */
+{
+  const gateData = ctx.window.__OD_GATE_MINAPP_009A_DATA;
+  if (typeof gateData === 'function') {
+    try {
+      const r = gateData();
+      console.log('\n═══════ Mini App 009A Data Coherence Gate (PASAY-TASK-005 · 1680 math / undefined / 7789 / Queue count) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('MiniApp-009A-Data', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('MiniApp-009A-Data gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('MiniApp-009A-Data gate not exposed on window (__OD_GATE_MINAPP_009A_DATA = ' + typeof gateData + ')');
+    allPass = false;
+  }
+
+  /* Browser Visual Gate 暴露校验：真实浏览器 QA 由 OpenDesign Preview 执行（Node 无布局引擎） */
+  const browserQA = ctx.window.__OD_RUN_BROWSER_QA;
+  if (typeof browserQA === 'function') {
+    console.log('  ✓ [009A-BROWSER] window.__OD_RUN_BROWSER_QA 已暴露（真实 DOM QA · 390/430 · render 到 #app · scrollWidth/rect/leak）— 由 OpenDesign Preview 执行');
+  } else {
+    console.error('  ✗ [009A-BROWSER] window.__OD_RUN_BROWSER_QA 未暴露（PASAY-TASK-005 要求浏览器专用 Gate）');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
