@@ -4829,11 +4829,35 @@ function finSnapshot(q) {
   const expPaid = exps.filter(e => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
   const expPending = exps.filter(e => e.status === 'pending' || e.status === 'approved').reduce((a, e) => a + e.amount, 0);
   const payCount = rents.reduce((a, r) => a + paymentsForObligation(r.id).filter(p => p.status === 'confirmed').length, 0);
+  /* PASAY-TASK-011 · Cash Movement（自然月实际现金进出，与 Rent Performance 区分）：
+     Cash Received = valid confirmed Rent Payments，按 paid_at 落在选定自然月（含历史欠租本月实收）；
+     Cash Paid Out = Expense 真实已付款（status='paid'），按 paid_at/paidAt 落在选定自然月；
+     均为真实现金事实，Approved-unpaid / Quote 不计入。 */
+  const _paidMonth = s => (s || '').slice(0, 7);
+  /* Cash Received = valid confirmed Rent Payments in natural month（含历史欠租本月实收）；
+     property 过滤按 rent payment 的 property_id 关联当前 unit（unit 是 display，内部经 prop 解析）；无 unit filter 则全局 */
+  const cashReceivedRent = (function() {
+    let pts = state.paymentRecords.filter(p => p.status === 'confirmed' && _paidMonth(p.paid_at) === period);
+    if (unit) {
+      const up = prop(unit);
+      const pid = up ? up.id : null;
+      pts = pts.filter(p => (pid && p.property_id === pid) || p.property_id === null);   /* 单位租；common 现金单列 */
+    }
+    return pts.reduce((a, p) => a + Number(p.amount || 0), 0);
+  })();
+  const cashPaidOut = (function() {
+    let es = state.expenses.filter(e => e.status === 'paid' && _paidMonth(e.paid_at || e.paidAt || '') === period);
+    if (unit) es = es.filter(e => e.unit === unit);
+    return es.reduce((a, e) => a + Number(e.amount || 0), 0);
+  })();
+  /* Net Cash = actual received − actual paid out（不是 Profit） */
+  const netCash = cashReceivedRent - cashPaidOut;
+  const expPaidCashMonth = (function() { let es = state.expenses.filter(e => e.status === 'paid' && _paidMonth(e.paid_at || e.paidAt || '') === period); if (unit) es = es.filter(e => e.unit === unit); return es.reduce((a, e) => a + Number(e.amount || 0), 0); })();
   /* Property 选项基于 Property truth（state.props），不依赖“当月有没有 Rent” */
   const propOpts = ['', ...state.props.map(p => p.unit)];
   /* Empty Truth（FINANCE-FILTER-CLOSEOUT-001 · §2）：基于最终筛选后的集合 rents + exps（非 base 集） */
   const empty = rents.length === 0 && exps.length === 0;
-  return { period, unit, status, rents, exps, dueAmt, paidAmtSum, overdueAmt, expPaid, expPending, payCount, overdue, propOpts, empty };
+  return { period, unit, status, rents, exps, dueAmt, paidAmtSum, overdueAmt, expPaid, expPending, payCount, overdue, propOpts, empty, cashReceivedRent, cashPaidOut, netCash, expPaidCashMonth };
 }
 function viewFinance(q) {
   const zh = state.lang === 'zh';
@@ -4847,8 +4871,17 @@ function viewFinance(q) {
     card(zh ? '本月应收' : 'Due this month', money(f.dueAmt), zh ? '共 ' + f.rents.length + ' 期' : f.rents.length + ' periods', '#/rents') +
     card(zh ? '已收' : 'Received', money(f.paidAmtSum), (zh ? '已收 ' + money(f.paidAmtSum) + ' / 应收 ' + money(f.dueAmt) + ' · ' : 'received ') + pct + '%', '#/rents?f=paid') +
     card(zh ? '逾期未收' : 'Overdue', money(f.overdueAmt), f.overdue.length + (zh ? ' 期逾期' : ' overdue'), '#/rents?f=overdue') +
-    card(zh ? '本月支出' : 'Spending', money(f.expPaid), (zh ? '待付 ' : 'to pay ') + money(f.expPending), '#/exps') +
+    card(zh ? '本月支出(已付)' : 'Paid out', money(f.expPaidCashMonth), (zh ? '待付 ' : 'to pay ') + money(f.expPending), '#/exps') +
     '</div>';
+  /* PASAY-TASK-011 · Cash Movement 区块：Rent Performance（应收/已收/逾期）与真实现金进出区分 · Net Cash ≠ Profit */
+  const cashBlock = '<div class="card" style="margin:12px 16px 0;border-color:color-mix(in oklch, var(--accent) 26%, var(--border));background:var(--accent-soft)" data-od-id="fin-cash-motion">' +
+    '<div class="row-l1" style="align-items:center;gap:8px">' + ic('cash', 16) + '<b style="font-size:13.5px">' + (zh ? '现金流动 · 自然月实际进出' : 'Cash movement · actual cash this month') + '</b></div>' +
+    '<div class="dl" style="margin-top:10px">' +
+    '<div class="dl-row"><span class="k">' + (zh ? '本月实收现金' : 'Cash received') + '</span><span class="v money pos">' + money(f.cashReceivedRent) + '</span></div>' +
+    '<div class="dl-row"><span class="k">' + (zh ? '本月实付现金' : 'Cash paid out') + '</span><span class="v money neg">−' + money(f.cashPaidOut) + '</span></div>' +
+    '<div class="dl-row" style="border-top:1px solid var(--border)"><span class="k"><b>' + (zh ? '净现金流' : 'Net cash') + '</b></span><span class="v money ' + (f.netCash >= 0 ? 'pos' : 'neg') + '"><b>' + money(f.netCash) + '</b></span></div>' +
+    '</div>' +
+    '<div class="meta" style="margin-top:8px">' + (zh ? '净现金流 = 实收现金 − 实付现金（不是利润；已批准未付款支出不计入实付）' : 'Net cash = cash received − cash paid out (not profit; approved-but-unpaid is excluded)') + '</div></div>';
   const sel = (label, href) => '<button class="fchip" data-a="nav" data-href="' + href + '" style="display:inline-flex;align-items:center;gap:4px">' + label + ' ' + ic('chev', 12) + '</button>';
   const statusLabel = statusF === 'overdue' ? (zh ? '逾期' : 'Overdue') : statusF === 'partial' ? (zh ? '部分支付' : 'Partial') : statusF === 'pending' ? (zh ? '待确认' : 'Pending') : statusF === 'paid' ? (zh ? '已收' : 'Paid') : statusF === 'exppending' ? (zh ? '支出待处理' : 'Expenses to handle') : (zh ? '全部' : 'All');
   const filtersRow = '<div style="display:flex;gap:6px;padding:14px 16px 0;flex-wrap:wrap">' +
