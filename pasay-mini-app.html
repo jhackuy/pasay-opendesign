@@ -853,54 +853,42 @@ ensureVNextSeed();
    Rent 1680：八月租金 ₱28,000 · 已收 ₱10,000 · 剩余 ₱18,000（partial · AI 跟进 / 等待租客尾款）
    Repair 7789：厨房水槽漏水 → Repair Operation（Reported → Quote → Owner approval → …） */
 function ensureOps008aScenarios(){
-  if (!state.props.some(p => p.unit === '1680')) {
-    state.props.push({ unit:'1680', tower:'Tower B', type:'1BR · 40㎡', addr:'Sunrise Residences, Pasay Blvd', tenant:'PT-9', status:'occupied', rent:28000, deposit:56000, ls:'2026-02-01', le:'2027-01-31', health:62, img:'unit-1680', desc:'八月租金部分支付，AI 跟进尾款。', archive_message_url:'https://t.me/c/1234567890/901', photos:[], moveOut:null });
-  }
-  if (!state.tenants.some(t => t.id === 'PT-9')) {
-    state.tenants.push({ id:'PT-9', name:'Diego Cruz', phone:'0917 555 0180', email:'diego.c@gmail.com', unit:'1680', since:'2026-02-01', deposit:56000, note:'八月租金已付部分，尾款跟进中。', status:'active', history:[] });
-  }
-  if (!state.rents.some(r => r.id === 'R-2026-08-1680')) {
-    state.rents.push({ id:'R-2026-08-1680', unit:'1680', period:'2026-08', amount:28000, due:'2026-08-05', status:'partial', payments:[{ id:'P-1680-1', amount:10000, date:'2026-08-12', method:'GCash', by:'Tenant', status:'confirmed', note:'部分付款 ₱10,000' }], lease_id:null });
-  }
+  /* PASAY-TASK-003-FIX1 · Blocker 2：008A Required Scenarios 使用隔离 prototype fixture，
+     只以 operation.domain 内嵌快照存在（rent_snapshot / repair_snapshot / tenant / prop），
+     不写入全局 state.props / tenants / rents / repairs / expenses —— 冻结 Property Truth 零污染。 */
   if (!state.operations.some(o => o.id === 'OP-RENT-1680')) {
     const op = {
       id:'OP-RENT-1680', kind:'collect_rent',
       objective:(state.lang==='zh'?'收回 1680 八月租金 ₱28,000（已收 ₱10,000 · 剩余 ₱18,000）':'Collect 1680 August rent ₱28,000 (₱10,000 received · ₱18,000 remaining)'),
-      domain:{ rent_id:'R-2026-08-1680', unit:'1680', tenant_id:'PT-9' },
+      domain:{ rent_id:'R-2026-08-1680', unit:'1680', tenant_id:'PT-9',
+        rent_snapshot:{ id:'R-2026-08-1680', unit:'1680', period:'2026-08', amount:28000, due:'2026-08-05', status:'partial', payments:[{ id:'P-1680-1', amount:10000, date:'2026-08-12', method:'GCash', by:'Tenant', status:'confirmed', note:'部分付款 ₱10,000' }], lease_id:null },
+        tenant:{ id:'PT-9', name:'Diego Cruz', phone:'0917 555 0180', unit:'1680' },
+        prop:{ unit:'1680', tower:'Tower B', type:'1BR · 40㎡' } },
       esc:'WAITING_EXTERNAL', next_actor:'tenant-external', next_action_code:'wait_payment',
       expected_result:(state.lang==='zh'?'租客支付剩余 ₱18,000，或返回其他合法付款安排':'Tenant pays remaining ₱18,000 or returns another authorized arrangement'),
       wake_at:'2026-08-25', priority:'high', escalation_level:0, blocked_reason:null,
       close_outcome:null, close_reason:null, claims:[], legacyTasks:[], migratedFrom:null,
       demoStage:'partial', simdate:null, tl:[]
     };
-    op.tl.push({ at:'2026-08-15', t:(state.lang==='zh'?'AI 创建 1680 八月收租事项':'AI opened 1680 August rent collection') });
     op.tl.push({ at:'2026-08-12', t:(state.lang==='zh'?'租客支付 ₱10,000（GCash）· 已入账':'Tenant paid ₱10,000 (GCash) · received') });
     op.tl.push({ at:'2026-08-12', t:(state.lang==='zh'?'剩余 ₱18,000 · AI 持续跟进 / 等待租客尾款':'₱18,000 remaining · AI following up / waiting on tenant balance') });
+    op.tl.push({ at:'2026-08-15', t:(state.lang==='zh'?'AI 创建 1680 八月收租事项':'AI opened 1680 August rent collection') });
     state.operations.push(op);
-  }
-  if (!state.props.some(p => p.unit === '7789')) {
-    state.props.push({ unit:'7789', tower:'Tower B', type:'2BR · 55㎡', addr:'Sunrise Residences, Pasay Blvd', tenant:'PT-10', status:'occupied', rent:25000, deposit:50000, ls:'2026-03-01', le:'2027-02-28', health:70, img:'unit-7789', desc:'厨房水槽漏水维修推进中。', archive_message_url:'https://t.me/c/1234567890/902', photos:[], moveOut:null });
-  }
-  if (!state.tenants.some(t => t.id === 'PT-10')) {
-    state.tenants.push({ id:'PT-10', name:'Elena Marquez', phone:'0917 555 0177', email:'elena.m@gmail.com', unit:'7789', since:'2026-03-01', deposit:50000, note:'厨房水槽漏水，维修推进中。', status:'active', history:[] });
-  }
-  if (!state.repairs.some(r => r.id === 'REP-7789')) {
-    state.repairs.push({ id:'REP-7789', unit:'7789', issue:'Leaking sink', desc:'厨房水槽持续漏水，需更换水槽与下水组件。', priority:'high', status:'quoted', assignee:'Mario · Caretaker', photos:null, by:'Tenant', at:'2026-08-18', relatedExpenses:[], nextAction:'Owner 审批报价后安排维修', tl:[{ at:'2026-08-18 09:00', t:'租客报修 7789 厨房水槽漏水', d:'REPORTED' }, { at:'2026-08-19 10:00', t:'Secretary 检查并取得报价 ₱3,200', d:'QUOTED' }] });
-  }
-  if (!state.expenses.some(e => e.id === 'EXP-7789')) {
-    state.expenses.push({ id:'EXP-7789', unit:'7789', category:'Repair', purpose:'Kitchen sink replacement — 7789', amount:3200, by:'Secretary', at:'2026-08-19', status:'pending', paidVia:null, receipt:null, relatedRepair:'REP-7789', tl:[{ at:'2026-08-19 10:05', t:'Secretary 创建维修报价支出', d:'PENDING' }] });
   }
   if (!state.operations.some(o => o.id === 'OP-REP-7789')) {
     const op = {
       id:'OP-REP-7789', kind:'repair',
       objective:(state.lang==='zh'?'处理 7789 厨房水槽漏水维修（报价已收到 → Owner 审批 → 安排 → 证据 → 核验 → 关闭）':'Resolve 7789 kitchen sink leak (quote received → Owner approval → schedule → evidence → verify → closed)'),
-      domain:{ repair_id:'REP-7789', unit:'7789' },
+      domain:{ repair_id:'REP-7789', unit:'7789',
+        repair_snapshot:{ id:'REP-7789', unit:'7789', issue:'Leaking sink', desc:'厨房水槽持续漏水，需更换水槽与下水组件。', priority:'high', status:'quoted', assignee:'Mario · Caretaker', photos:null, by:'Tenant', at:'2026-08-18', nextAction:'Owner 审批报价后安排维修' },
+        tenant:{ id:'PT-10', name:'Elena Marquez', phone:'0917 555 0177', unit:'7789' },
+        prop:{ unit:'7789', tower:'Tower B', type:'2BR · 55㎡' } },
       esc:'WAITING_HUMAN', next_actor:'owner', next_action_code:'approve_quote',
       expected_result:(state.lang==='zh'?'Owner 审批报价 ₱3,200 或要求调整':'Owner approves ₱3,200 quote or requests changes'),
       quote_amount:3200,
       wake_at:null, priority:'high', escalation_level:0, blocked_reason:null,
       close_outcome:null, close_reason:null, claims:[], legacyTasks:[], migratedFrom:null,
-      quotes:[{ expenseId:'EXP-7789', amount:3200, version:1 }],
+      quotes:[{ expenseId:null, amount:3200, version:1 }],
       completionClaims:[], completionEvidence:[], completionResults:[],
       demoStage:'quote_received', simdate:null, tl:[]
     };
@@ -1768,7 +1756,7 @@ function priChip(p) { const s = PRI[p]; return '<span class="chip st-' + s.st + 
 /* ═══════════════ VNext Operation 模型（业务真相由 Rent 单一数据源派生） ═══════════════ */
 const op = id => state.operations.find(o => o.id === id);
 const opForRent = rid => state.operations.find(o => o.domain && o.domain.rent_id === rid);
-const opUnitRent = o => { const r = state.rents.find(x => x.id === o.domain.rent_id); return r ? r : null; };
+const opUnitRent = o => { const r = state.rents.find(x => x.id === o.domain.rent_id); return r ? r : (o.domain && o.domain.rent_snapshot) || null; };
 /* 派生到账真相：一律读 Rent（R-2026-06-1805），绝不存独立数字造成双源 */
 function opReceived(o) { const r = opUnitRent(o); return r ? paidAmt(r) : 0; }
 function opObjective(o) { const r = opUnitRent(o); return r ? r.amount : (o.objective_amount || 0); }
@@ -2133,7 +2121,7 @@ function expRelOpCard(e) {
 
 /* ═══════════════ Repair Domain Adapter（第二业务域 · 复用 Generic Operation Kernel） ═══════════════ */
 function isRepairOp(o) { return !!o && o.kind === 'repair'; }
-function opRepair(o) { return o && o.domain && o.domain.repair_id ? state.repairs.find(x => x.id === o.domain.repair_id) : null; }
+function opRepair(o) { return o && o.domain && o.domain.repair_id ? (state.repairs.find(x => x.id === o.domain.repair_id) || o.domain.repair_snapshot || null) : null; }
 function opRepairUnit(o) { const rp = opRepair(o); return rp ? rp.unit : (o.domain ? o.domain.unit : ''); }
 function opRepairTitle(o) { const rp = opRepair(o); const u = opRepairUnit(o); return (rp ? rp.issue : '') || (state.lang==='zh' ? ('维修 ' + u) : ('Repair ' + u)); }
 /* Issue#3 · Home 不暴露状态机原始字段：业务化标签 */
@@ -4581,8 +4569,8 @@ function opCard(o) {
   if (isLeaseOp(o)) return leaseOpCard(o);
   if (isMoveOutOp(o)) return moveOutOpCard(o);
   const r = opUnitRent(o);
-  const p = o.domain && o.domain.unit ? prop(o.domain.unit) : (r ? prop(r.unit) : null);
-  const t = o.domain && o.domain.tenant_id ? ten(o.domain.tenant_id) : (r ? tenantForRent(r) : null);
+  const p = (o.domain && o.domain.unit ? prop(o.domain.unit) : (r ? prop(r.unit) : null)) || (o.domain && o.domain.prop) || null;
+  const t = (o.domain && o.domain.tenant_id ? ten(o.domain.tenant_id) : (r ? tenantForRent(r) : null)) || (o.domain && o.domain.tenant) || null;
   const nm = t ? t.name : L('未知','Unknown');
   const unit = o.domain ? o.domain.unit : (r ? r.unit : '');
   const left = money(opRemaining(o));
@@ -4682,8 +4670,8 @@ function viewOp(id) {
   if (isMoveOutOp(o)) return viewMoveOutOp(o);
   const zh = state.lang === 'zh';
   const r = opUnitRent(o);
-  const p = o.domain && o.domain.unit ? prop(o.domain.unit) : (r ? prop(r.unit) : null);
-  const t = o.domain && o.domain.tenant_id ? ten(o.domain.tenant_id) : (r ? tenantForRent(r) : null);
+  const p = (o.domain && o.domain.unit ? prop(o.domain.unit) : (r ? prop(r.unit) : null)) || (o.domain && o.domain.prop) || null;
+  const t = (o.domain && o.domain.tenant_id ? ten(o.domain.tenant_id) : (r ? tenantForRent(r) : null)) || (o.domain && o.domain.tenant) || null;
   const nm = t ? t.name : L('未知','Unknown');
   const unit = o.domain ? o.domain.unit : (r ? r.unit : '');
   const left = money(opRemaining(o));
