@@ -1034,7 +1034,8 @@ function ensureLeaseOperationSeed() {
   const zh = state.lang === 'zh';
   const unit = '1608';
   const prop8 = state.props.find(p => p.unit === unit);
-  const tenant = state.tenants.find(t => t.unit === unit && (!t.status || t.status === 'active'));
+  /* P0-2 · Current Tenant 只从 Active Lease 派生（不按 tenant.unit 猜） */
+  const tenant = lease && lease.tenant_id ? ten(lease.tenant_id) : state.tenants.find(t => t.unit === unit && (!t.status || t.status === 'active'));
   const op = createChildOperation({
     id: 'LEASE-OP-1', kind: 'lease_renewal',
     objective: zh ? ('续租 ' + unit + ' · ' + (tenant ? tenant.name : '租客') + ' · 租约 ' + lease.end_date + ' 到期') : ('Renew lease ' + unit + ' · ' + (tenant ? tenant.name : 'tenant') + ' · ends ' + lease.end_date),
@@ -1149,7 +1150,7 @@ function seed_lease_for(u) {
   const p = prop(u);
   if (!p && !u) return null;
   const l = {
-    lease_id: 'LS-' + fmtId4(uid('lease')), unit: u, property_id: u,
+    lease_id: 'LS-' + fmtId4(uid('lease')), unit: u, property_id: (p && p.id) || u,
     tenant_id: p && p.tenant ? p.tenant : null,
     start_date: (p && p.ls) || '2025-01-01', end_date: (p && p.le) || '2026-12-31',
     monthly_rent: p ? p.rent : 0, deposit: p ? p.deposit : 0,
@@ -1195,13 +1196,31 @@ function propDeposit(p) { const al = propLease(p); return al ? al.deposit : 0; }
 function propLeaseStart(p) { const al = propLease(p); return al ? al.start_date : null; }
 function propLeaseEnd(p) { const al = propLease(p); return al ? al.end_date : null; }
 function propLeaseDueDay(p) { const al = propLease(p); return al ? (al.rent_due_day || 5) : null; }
-function propLeaseDrafts(p) { return p ? state.leases.filter(l => l.unit === p.unit && l.status === 'draft') : []; }
+function propLeaseDrafts(p) { return p ? state.leases.filter(l => (l.property_id === p.id || l.unit === p.unit) && l.status === 'draft') : []; }
+/* ── PASAY-TASK-007-FIX1 · P0-1 · Migration / reconcile helper：
+   确保每个 Property 有 PRP-xxxx id，并把 legacy lease.property_id（= unit）迁移为 PRP-xxxx。
+   seed / historical fixtures 兼容；unit 唯一时安全解析，同 unit 多 Tower 时不猜测归属（保留原值）。 */
+function wsEnsurePropertyIds() {
+  if (!state.props) return;
+  state.props.forEach(p => { if (!p.id || p.id.indexOf('PRP-') !== 0) p.id = 'PRP-' + String(1001 + state.props.indexOf(p)).padStart(4, '0'); });
+}
+function wsMigrateLeasePropertyRefs() {
+  if (!state.leases) return;
+  wsEnsurePropertyIds();
+  state.leases.forEach(l => {
+    if (l.property_id && l.property_id.indexOf('PRP-') === 0) return;   /* 已是 PRP 引用 */
+    const p = prop(l.unit);
+    if (p && p.id) l.property_id = p.id;   /* legacy unit 引用 → PRP-xxxx（unit 唯一时才安全） */
+  });
+}
 /* 投影 reconcile：render / mutation 前把 Property 投影字段同步为 Lease truth（杜绝 split-brain）。
    生命周期状态（move_out_pending / inspection / turnover）保留，不被覆盖。 */
 function wsReconcileOccupancy() {
   if (!state.props) return;
+  wsEnsurePropertyIds();
+  wsMigrateLeasePropertyRefs();
   state.props.forEach(p => {
-    const al = active_lease(p.unit);
+    const al = propLease(p);
     if (al) {
       p.tenant = al.tenant_id; p.rent = al.monthly_rent; p.deposit = al.deposit;
       p.ls = al.start_date; p.le = al.end_date;
@@ -1210,6 +1229,15 @@ function wsReconcileOccupancy() {
       p.status = 'vacant';
     }
   });
+}
+/* ── PASAY-TASK-007-FIX1 · P0-2 · Tenant Current 关系只能来自 Active Lease：
+   tenantCurrentLease / tenantCurrentProperty 是权威 current-relation 读取；
+   tenant.unit 仅为 legacy projection，绝不用于 current-tenant 判定。 */
+function tenantCurrentLease(t) { return t ? (state.leases.find(l => l.tenant_id === t.id && l.status === 'active') || null) : null; }
+function tenantCurrentProperty(t) {
+  const l = tenantCurrentLease(t);
+  if (l) return propById(l.property_id) || prop(l.unit) || null;
+  return null;
 }
 /* ── PASAY-TASK-007 · 纯业务函数（handler 与 Gate 共用同一语义） ──
    Property id / Tenant id 全部系统生成；用户不输入任何内部 ID。
@@ -1237,9 +1265,11 @@ function wsCreateTenantWithDraft(opts) {
   const name = ((opts && opts.name) || '').trim(); const unit = ((opts && opts.unit) || '').trim();
   if (!name || !unit) return { ok: false, reason: L('请填写姓名与单元','name and unit required') };
   if (!hasActiveMembership()) return { ok: false, reason: L('无在职 Membership','no active membership') };
-  const p = prop(unit); if (!p || propLease(p)) return { ok: false, reason: L('该单元已有生效租约','unit has an active lease') };
+  const p = prop(unit); if (!p) return { ok: false, reason: L('物业不存在','property not found') };
+  /* P0-2/P0-3 · Tenant 是独立人员资料（unit 仅 legacy projection，非 current-relation）；
+     已有 Active Lease 时仍允许创建 Tenant + 下一份 Lease Draft（Draft 不占 occupancy）。 */
   const id = 'PT-' + uid('ten');
-  state.tenants.push({ id, name, phone: (opts && opts.phone) || '', email: '', unit, since: null, deposit: 0, note: 'system:new_tenant', status: 'active', history: [{ code: 'TENANT_CREATED', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { name: name, unit: unit } }] });
+  state.tenants.push({ id, name, phone: (opts && opts.phone) || '', email: '', unit: unit, since: null, deposit: 0, note: 'system:new_tenant', status: 'active', legacyUnitProjection: true, history: [{ code: 'TENANT_CREATED', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { name: name, unit: unit } }] });
   const dr = wsCreateLeaseDraft(unit, id, {
     start_date: (opts && opts.ls) || null, end_date: (opts && opts.le) || null,
     monthly_rent: (opts && opts.rent) || 0, deposit: (opts && opts.deposit) || 0,
@@ -1251,14 +1281,14 @@ function wsCreateTenantWithDraft(opts) {
 }
 /* ── Lease Draft → Review → Activate（PASAY-TASK-007 核心主链） ──
    Draft：不改变 occupancy / current tenant / rent truth（Rent 不把 Draft 当应收来源）。
-   Activate：10 项 preflight 原子通过后才形成 Lease=Active → Occupied / Current Tenant / Rent source。 */
+   P0-3 · 已有 Active Lease 时仍允许创建下一份 Draft（Draft 本身不结束 / 覆盖当前 Active Lease；
+   Activate 时由 preflight #9 检查 overlap 并给真实业务出口）。 */
 function wsCreateLeaseDraft(unit, tenantId, terms) {
   const p = prop(unit); if (!p) return { ok: false, reason: 'property not found' };
   const t = ten(tenantId); if (!t) return { ok: false, reason: 'tenant not found' };
   if (!hasActiveMembership()) return { ok: false, reason: 'no active membership' };
-  if (propLease(p)) return { ok: false, reason: L('该物业已有生效租约 — 无法创建草稿','This property already has an active lease — cannot create a draft') };
   const draft = {
-    lease_id: 'LS-' + fmtId4(uid('lease')), unit, property_id: unit, tenant_id: tenantId,
+    lease_id: 'LS-' + fmtId4(uid('lease')), unit, property_id: p.id, tenant_id: tenantId,
     start_date: (terms && terms.start_date) || null, end_date: (terms && terms.end_date) || null,
     monthly_rent: (terms && terms.monthly_rent) || 0, deposit: (terms && terms.deposit) || 0,
     rent_due_day: (terms && terms.rent_due_day !== undefined && terms.rent_due_day !== null) ? terms.rent_due_day : 5,
