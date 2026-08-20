@@ -758,7 +758,7 @@ try {
     const dsSrc = fs.readFileSync(path.join(__dirname, 'pasay-design-system.html'), 'utf8');
     const checks = [
       { n: 3, cond: code.indexOf("a === 'open-master-post'") !== -1 && code.indexOf('window.open(p.archive_message_url') !== -1 && code.indexOf('data-a="open-master-post"') !== -1, msg: '[007C-3] Open Archive 使用 Telegram message deep-link（open-master-post handler + window.open(archive_message_url) + 真实导航按钮，非 modal-only / close-modal）' },
-      { n: 7, cond: dsSrc.indexOf('Partial payment never auto-creates') !== -1 || dsSrc.indexOf('Partial payment 不自动生成 Property Summary') !== -1, msg: '[007C-7] Partial payment 不自动生成 Property Summary / Snapshot（design-system 契约保留）' },
+      { n: 7, cond: dsSrc.indexOf('Partial payment 不自动创建 Property Summary') !== -1, msg: '[007C-7] Partial payment 不自动生成 Property Summary / Snapshot（design-system 契约保留）' },
       { n: 8, cond: code.indexOf("kind: 'receipt'") !== -1 && (dsSrc.indexOf('receipts stay as archive records') !== -1 || dsSrc.indexOf('Receipt 本身作为 Archive record') !== -1), msg: '[007C-8] Receipt 继续作为 Archive record（receipt 分类 + design-system 契约文案）' },
       { n: 9, cond: code.indexOf("a === 'archive-snapshot'") !== -1 && code.indexOf('手动快照') !== -1, msg: '[007C-9] 手动 Create Snapshot 仍然存在（archive-snapshot action + 按钮）' },
       { n: 11, cond: code.indexOf('data-a="building-contacts-more"') !== -1 && code.indexOf('查看 ') !== -1, msg: '[007C-11] Primary contact 默认显示 + 其余联系人 View N more 展开' }
