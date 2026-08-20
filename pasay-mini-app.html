@@ -12076,7 +12076,7 @@ window.__OD_GATE_PROPERTY_TENANT_LEASE_BOOTSTRAP_P0 = runGatePropertyTenantLease
 function runGateRentCollectionTruthP0() {
   const results = [], A = (ok, msg) => results.push({ pass:!!ok, msg });
   try {
-    const fresh = () => { state = seed(); state.leases = []; __isFreshSeed = true; ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); wsResetFresh(); wsCreateWorkspace('Rent Truth Co', 'rent-owner'); };
+    const fresh = () => { state = seed(); state.leases = []; state.paymentRecords = []; __isFreshSeed = true; ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); wsResetFresh(); wsCreateWorkspace('Rent Truth Co', 'rent-owner'); };
     const owner = () => { state.currentUserId = ws().members.find(m => m.role === 'owner' && m.status === 'active').userId; };
     const secretary = () => { const i = wsGenerateInvite('secretary', 'Rent Sec'); wsAcceptInvite(i.id, 'rent-sec'); state.currentUserId = 'rent-sec'; };
     fresh(); owner();
