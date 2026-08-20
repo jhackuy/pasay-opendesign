@@ -1,4 +1,4 @@
-/* Probe to find which line crashes */
+/* Trace ME/1 specifically */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -25,10 +25,6 @@ const sandbox = {
 sandbox.global = sandbox; sandbox.self = sandbox;
 Object.assign(sandbox.window, { addEventListener: _noop, localStorage: _ls, __OD_INTEGRITY: false, rxSim: null });
 sandbox.rxSim = null;
-
-// Patch toast to throw (so we see where it fails)
-// const origConsoleError = console.error;
-
 const ctx = vm.createContext(sandbox);
 try {
   vm.runInContext(code, ctx, { filename: 'pasay-mini-app.html', timeout: 60000 });
@@ -36,46 +32,28 @@ try {
   console.log('SCRIPT ERR:', e.message);
   process.exit(1);
 }
-// Run gate H step-by-step
-const runGate = sandbox.window.__OD_GATE_H;
-try {
-  const r = runGate();
-  console.log('Pass:', r.pass, 'Total:', r.results.length);
-  r.results.forEach(x => { if (!x.pass) console.log('FAIL:', x.msg); });
-} catch (e) {
-  console.log('GATE H ERR:', e.message);
-  console.log(e.stack.split('\n').slice(0,15).join('\n'));
-}
+const r = sandbox.window.__OD_MOVEOUT_GATE_E ? sandbox.window.__OD_MOVEOUT_GATE_E() : null;
+if (!r) { console.log('no gate; trying ME call directly'); process.exit(1); }
+console.log('Pass:', r.pass, 'Total:', r.results.length);
+r.results.forEach(x => { if (!x.pass) console.log('FAIL:', x.msg); });
 
-// Run gate H in traced mode by wrapping each step
-console.log('--- tracing gate H steps ---');
-const STEPS = [
-  'reset',
-  'H1: rx-confirm-info click',
-  'H2: reset click',
-  'H3: nav click',
-  'H3b: toggle-lang click'
-];
-let stepIx = 0;
+// Debug: call __odSetupMoveOutGates + manual sequence
+console.log('--- debugging ME/1 ---');
 try {
   vm.runInContext(`
-(function() {
-  const origConsole = console.log;
-  try {
-    __odResetSeedForGates();
-    stepIx = 1; origConsole('Step: after reset');
-    const r1 = state.operations.find(o => o.id === 'OP-R1');
-    origConsole('r1=', r1 ? r1.id : 'null');
-    stepIx = 2;
-    __odClickHandler({ target: { dataset: { a: 'rx-confirm-info', id: 'OP-R1' }, closest: function(s){ return s==='[data-a]'?this:null; } } });
-    origConsole('Step: after rx-confirm-info click; r1.demoStage=' + r1.demoStage);
-  } catch (e) {
-    throw { step: stepIx, msg: e.message, stack: e.stack };
-  }
-})();
-  `, ctx, { filename: 'probe' });
-  console.log('OK');
+    var op1 = __odSetupMoveOutGates();
+    var orig = console.log;
+    orig('Lease:', op1.domain.lease_id);
+    var lease = state.leases.find(function(l){ return l.lease_id === op1.domain.lease_id; });
+    orig('Lease truth:', JSON.stringify({unit:lease.unit, tenant:lease.tenant_id, monthly_rent:lease.monthly_rent}));
+    moSim('mo-confirm-date', op1); syncOperationTasks();
+    moSim('mo-arrange-inspection', op1); syncOperationTasks();
+    moSim('mo-submit-inspection', op1);
+    moSim('mo-verify-inspection', op1);
+    orig('settlement:', JSON.stringify({deductions: op1.settlement.deductions, total: op1.settlement.total_deductions, refund: op1.settlement.refund_amount, balance: op1.settlement.tenant_balance_due}));
+    orig('R-2026-07-1608:', JSON.stringify(state.rents.find(function(r){ return r.id === 'R-2026-07-1608'; })));
+    orig('paidAmt(R-2026-07-1608):', paidAmt(state.rents.find(function(r){ return r.id === 'R-2026-07-1608'; })));
+  `, ctx, { filename: 'debug-me' });
 } catch (e) {
-  console.log('STEP', e.step, 'FAILED:', e.msg);
-  if (e.stack) console.log(e.stack.split('\n').slice(0,15).join('\n'));
+  console.log('DEBUG ERR:', e.message);
 }

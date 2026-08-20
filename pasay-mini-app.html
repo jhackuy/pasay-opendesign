@@ -8239,12 +8239,28 @@ function __odResetSeedForGates() {
      注意：必须在 ensure*Seed 之前把 operations 重置（避免旧 OP-R2/OP-EX99 命中 createChildOperation 幂等返回）。 */
   state = seed();
   state.leases = [];
+  state.paymentRecords = [];
   __isFreshSeed = true;
   /* 重新跑既有 ensureVNextSeed / ensureExpenseOperationSeed / ensureRepairOperationSeed
      → 让 seed 幂等路径在干净 state 上跑一次，拿到稳定 baseline。 */
   if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
   if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
   if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
+  /* PASAY-TASK-008 · seed 后重跑 Rent→Payment 迁移（让 paymentRecords 与 seed rents 一致；
+     反向同步：state.paymentRecords 必须与 seed rents.payments 一致） */
+  state.rents.forEach(r => {
+    if (!r.lease_id) return;
+    (r.payments || []).forEach(p => {
+      const prId = p.id || ('PMR-' + r.id + '-' + (state.paymentRecords.filter(x => x.rent_obligation_id === r.id).length + 1));
+      if (state.paymentRecords.some(x => x.id === prId)) return;
+      state.paymentRecords.push({
+        id: prId, rent_obligation_id: r.id, lease_id: r.lease_id, property_id: r.property_id || null,
+        amount: Number(p.amount) || 0, paid_at: p.date || p.paid_at || TODAY, method: p.method || 'unknown',
+        status: (p.status === 'unconfirmed' || p.status === 'confirmed') ? p.status : 'confirmed',
+        recorded_by: p.by || 'secretary', note: p.note || '', source: 'seed_rebuild', created_at: TODAY
+      });
+    });
+  });
   /* 投影 task 同步（syncOperationTasks）让 ACTIVE state 下的 task 一致 */
   if (typeof syncOperationTasks === 'function') syncOperationTasks();
 }
