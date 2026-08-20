@@ -4800,14 +4800,26 @@ function viewExps(q) {
    Empty = 基于最终筛选后的集合 rents + exps（Payment 随 Rent 归零；Status 无匹配也必须 empty=true）。 */
 function finSnapshot(q) {
   const period = q.get('p') || '2026-06';
-  const unit = q.get('u') || '';
+  /* PASAY-TASK-011-FIX1 · Property filter authority = Property.id（PRP-xxxx）。
+     selector value 用 pid；兼容旧 u=<unit> 解析为对应 property_id（同 unit 多 Property 时不猜，需显式 pid）。 */
+  let pid = q.get('pid') || '';
+  if (!pid && q.get('u')) {
+    const u = q.get('u');
+    const matches = state.props.filter(p => p.unit === u);
+    if (matches.length === 1) pid = matches[0].id;   /* unit 唯一时才安全映射 */
+    else if (matches.length === 0) pid = '';          /* 无此 unit → 无此 property */
+    else pid = '__ambiguous__';                        /* 同 unit 多 Property：旧 unit 查询歧义 → 不匹配 */
+  }
   const status = q.get('s') || '';
   /* 聚合：全局 rents + collect_rent Operations 的 domain 快照（008A 1680 隔离 fixture 纳入应收） */
   const allRents = state.rents.slice();
   state.operations.filter(o => o.kind === 'collect_rent').forEach(o => { const r = opUnitRent(o); if (r && !allRents.some(x => x.id === r.id)) allRents.push(r); });
-  /* Month + Property 基准集（Property 过滤同时作用于 Rent 与 Expense） */
-  const baseRents = allRents.filter(r => (r.period || '').indexOf(period) === 0 && (!unit || r.unit === unit));
-  const baseExps = state.expenses.filter(e => (e.at || '').slice(0, 7) === period && (!unit || e.unit === unit));
+  /* PASAY-TASK-011-FIX1 · Expense property_id 投影：legacy expense 缺 property_id 时由 unit 推导（unit 唯一时）；
+     unit 为 null/common 保持 null（building-level Expense 属 common context，不当成具体 Property）。 */
+  state.expenses.forEach(e => { if (e.property_id === undefined) { if (e.unit) { const mp = state.props.filter(p => p.unit === e.unit); e.property_id = (mp.length === 1) ? mp[0].id : null; } else { e.property_id = null; } } });
+  /* Month + Property 基准集（Property 过滤按 property_id；unit 仅投影，非 authority） */
+  const baseRents = allRents.filter(r => (r.period || '').indexOf(period) === 0 && (!pid || r.property_id === pid));
+  const baseExps = state.expenses.filter(e => (e.at || '').slice(0, 7) === period && (!pid || e.property_id === pid));
   /* Status Truth（FINANCE-FILTER-CLOSEOUT-001 · §1）：Rent-only / Expense-only 严格隔离，禁止交叉污染 */
   let rents = baseRents;
   let exps = baseExps;
@@ -4834,30 +4846,26 @@ function finSnapshot(q) {
      Cash Paid Out = Expense 真实已付款（status='paid'），按 paid_at/paidAt 落在选定自然月；
      均为真实现金事实，Approved-unpaid / Quote 不计入。 */
   const _paidMonth = s => (s || '').slice(0, 7);
-  /* Cash Received = valid confirmed Rent Payments in natural month（含历史欠租本月实收）；
-     property 过滤按 rent payment 的 property_id 关联当前 unit（unit 是 display，内部经 prop 解析）；无 unit filter 则全局 */
+  /* FIX1 · Cash Received 按 payment.property_id（或经 rent obligation relation）隔离到 selected Property */
   const cashReceivedRent = (function() {
     let pts = (state.paymentRecords || []).filter(p => p.status === 'confirmed' && _paidMonth(p.paid_at) === period);
-    if (unit) {
-      const up = prop(unit);
-      const pid = up ? up.id : null;
-      pts = pts.filter(p => (pid && p.property_id === pid) || p.property_id === null);   /* 单位租；common 现金单列 */
+    if (pid && pid !== '__ambiguous__') {
+      pts = pts.filter(p => { if (p.property_id === pid) return true; const ob = (p.rent_obligation_id ? rentById(p.rent_obligation_id) : null); return !!ob && ob.property_id === pid; });
     }
     return pts.reduce((a, p) => a + Number(p.amount || 0), 0);
   })();
   const cashPaidOut = (function() {
     let es = state.expenses.filter(e => e.status === 'paid' && _paidMonth(e.paid_at || e.paidAt || '') === period);
-    if (unit) es = es.filter(e => e.unit === unit);
+    if (pid && pid !== '__ambiguous__') es = es.filter(e => e.property_id === pid);   /* building/common（无 pid）在选中具体 Property 时排除 */
     return es.reduce((a, e) => a + Number(e.amount || 0), 0);
   })();
   /* Net Cash = actual received − actual paid out（不是 Profit） */
   const netCash = cashReceivedRent - cashPaidOut;
-  const expPaidCashMonth = (function() { let es = state.expenses.filter(e => e.status === 'paid' && _paidMonth(e.paid_at || e.paidAt || '') === period); if (unit) es = es.filter(e => e.unit === unit); return es.reduce((a, e) => a + Number(e.amount || 0), 0); })();
-  /* Property 选项基于 Property truth（state.props），不依赖“当月有没有 Rent” */
-  const propOpts = ['', ...state.props.map(p => p.unit)];
-  /* Empty Truth（FINANCE-FILTER-CLOSEOUT-001 · §2）：基于最终筛选后的集合 rents + exps（非 base 集） */
+  const expPaidCashMonth = (function() { let es = state.expenses.filter(e => e.status === 'paid' && _paidMonth(e.paid_at || e.paidAt || '') === period); if (pid && pid !== '__ambiguous__') es = es.filter(e => e.property_id === pid); return es.reduce((a, e) => a + Number(e.amount || 0), 0); })();
+  /* Property 选项基于 Property truth（state.props），selector value = property_id（label 为物业显示名） */
+  const propOpts = state.props.map(p => ({ id: p.id, label: p.tower + ' · ' + p.unit }));
   const empty = rents.length === 0 && exps.length === 0;
-  return { period, unit, status, rents, exps, dueAmt, paidAmtSum, overdueAmt, expPaid, expPending, payCount, overdue, propOpts, empty, cashReceivedRent, cashPaidOut, netCash, expPaidCashMonth };
+  return { period, unit: pid, pid, status, rents, exps, dueAmt, paidAmtSum, overdueAmt, expPaid, expPending, payCount, overdue, propOpts, empty, cashReceivedRent, cashPaidOut, netCash, expPaidCashMonth };
 }
 function viewFinance(q) {
   const zh = state.lang === 'zh';
@@ -4884,19 +4892,23 @@ function viewFinance(q) {
     '<div class="meta" style="margin-top:8px">' + (zh ? '净现金流 = 实收现金 − 实付现金（不是利润；已批准未付款支出不计入实付）' : 'Net cash = cash received − cash paid out (not profit; approved-but-unpaid is excluded)') + '</div></div>';
   const sel = (label, href) => '<button class="fchip" data-a="nav" data-href="' + href + '" style="display:inline-flex;align-items:center;gap:4px">' + label + ' ' + ic('chev', 12) + '</button>';
   const statusLabel = statusF === 'overdue' ? (zh ? '逾期' : 'Overdue') : statusF === 'partial' ? (zh ? '部分支付' : 'Partial') : statusF === 'pending' ? (zh ? '待确认' : 'Pending') : statusF === 'paid' ? (zh ? '已收' : 'Paid') : statusF === 'exppending' ? (zh ? '支出待处理' : 'Expenses to handle') : (zh ? '全部' : 'All');
+  /* PASAY-TASK-011-FIX1 · Property filter 用 pid（Property.id）为权威 value；label 展示物业显示名 */
+  const pidF = f.pid;
+  const pidLabel = pidF ? (state.props.find(p => p.id === pidF) || {}).unit || '' : '';
+  const _url = () => '#/finance?p=' + encodeURIComponent(period) + '&pid=' + encodeURIComponent(pidF || '') + '&s=' + encodeURIComponent(statusF);
   const filtersRow = '<div style="display:flex;gap:6px;padding:14px 16px 0;flex-wrap:wrap">' +
-    sel(period.replace('-', '.'), '#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '&act=month') +
-    sel(unitF ? unitF : (zh ? '全部物业' : 'All units'), '#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '&act=prop') +
-    sel(statusLabel, '#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '&act=status') +
+    sel(period.replace('-', '.'), _url() + '&act=month') +
+    sel(pidF ? ((state.props.find(p => p.id === pidF) || {}).tower || '') + ' · ' + pidLabel : (zh ? '全部物业' : 'All properties'), _url() + '&act=prop') +
+    sel(statusLabel, _url() + '&act=status') +
     '</div>';
   const act = q.get('act');
   if (act === 'month') {
-    openSheet(sheetHead(zh ? '选择月份' : 'Select month') + months.slice().reverse().map(m => '<div class="row" data-a="nav" data-href="#/finance?p=' + m + '&u=' + encodeURIComponent(unitF) + '&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + m.replace('-', '.') + '</b></div>' + (m === period ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+    openSheet(sheetHead(zh ? '选择月份' : 'Select month') + months.slice().reverse().map(m => '<div class="row" data-a="nav" data-href="#/finance?p=' + m + '&pid=' + encodeURIComponent(pidF || '') + '&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + m.replace('-', '.') + '</b></div>' + (m === period ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
   } else if (act === 'prop') {
-    openSheet(sheetHead(zh ? '筛选物业' : 'Filter unit') + '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&u=&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + (zh ? '全部物业' : 'All units') + '</b></div>' + (!unitF ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>' + f.propOpts.filter(u => u).map(u => '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&u=' + u + '&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + u + '</b></div>' + (u === unitF ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+    openSheet(sheetHead(zh ? '筛选物业' : 'Filter property') + '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&pid=&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + (zh ? '全部物业' : 'All properties') + '</b></div>' + (!pidF ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>' + f.propOpts.map(u => '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&pid=' + u.id + '&s=' + encodeURIComponent(statusF) + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + u.label + '</b></div>' + (u.id === pidF ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
   } else if (act === 'status') {
     const opts = [['', zh ? '全部' : 'All'], ['overdue', zh ? '逾期' : 'Overdue'], ['partial', zh ? '部分支付' : 'Partial'], ['pending', zh ? '待确认' : 'Pending'], ['paid', zh ? '已收' : 'Paid'], ['exppending', zh ? '支出待处理' : 'Expenses to handle']];
-    openSheet(sheetHead(zh ? '筛选状态' : 'Filter status') + opts.map(o => '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&u=' + encodeURIComponent(unitF) + '&s=' + o[0] + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + o[1] + '</b></div>' + (statusF === o[0] ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
+    openSheet(sheetHead(zh ? '筛选状态' : 'Filter status') + opts.map(o => '<div class="row" data-a="nav" data-href="#/finance?p=' + period + '&pid=' + encodeURIComponent(pidF || '') + '&s=' + o[0] + '" style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"><div class="row-main"><b style="font-size:14px">' + o[1] + '</b></div>' + (statusF === o[0] ? '<div class="row-r">' + ic('check', 15) + '</div>' : '<div class="row-r">' + ic('chev', 14) + '</div>') + '</div>').join('') + '<button class="btn btn-s block" data-a="close-sheet" style="margin-top:12px">' + (zh ? '取消' : 'Cancel') + '</button>');
   }
   const overdueRows = f.overdue.map(r => {
     const t = tenantForRent(r);
