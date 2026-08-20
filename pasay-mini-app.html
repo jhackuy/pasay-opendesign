@@ -6357,8 +6357,8 @@ const __odClickHandler = function(e) {
     const p = prop(u);
     if (p && p.archive_message_url) {
       try { window.open(p.archive_message_url, '_blank'); } catch (e) { location.href = p.archive_message_url; }
-      toast(state.lang === 'zh' ? '正在打开 ' + u + ' 的主档案消息（Telegram）' : 'Opening ' + u + ' master post (Telegram)');
-      if (state.activity) state.activity.push({ at: TODAY, t: (state.lang === 'zh' ? '打开主档案消息 · ' + u : 'Opened master post · ' + u) + ' · ' + p.archive_message_url });
+      toast(state.lang === 'zh' ? '正在打开 ' + u + ' 的 Telegram 记录' : 'Opening ' + u + ' records in Telegram');
+      if (state.activity) state.activity.push({ at: TODAY, t: (state.lang === 'zh' ? '在 Telegram 中打开记录 · ' + u : 'Opened records in Telegram · ' + u) + ' · ' + p.archive_message_url });
     }
     return;
   }
@@ -6421,7 +6421,7 @@ const __odClickHandler = function(e) {
     if (u) {
       const p = prop(u);
       toast((state.lang==='zh' ? '已为 ' + u + ' 创建手动 Snapshot（演示）' : 'Manual snapshot created for ' + u + ' (demo)'));
-      if (state.activity) state.activity.push({ at: TODAY, t: (state.lang==='zh' ? '手动快照 · 主档案 · ' + u : 'Manual snapshot · master post · ' + u) + ' (' + (p ? (p.tenant ? ten(p.tenant).name : 'Vacant') : '') + ')' });
+      if (state.activity) state.activity.push({ at: TODAY, t: (state.lang==='zh' ? '手动快照 · 记录 · ' + u : 'Manual snapshot · records · ' + u) + ' (' + (p ? (p.tenant ? ten(p.tenant).name : 'Vacant') : '') + ')' });
     }
     return;
   }
@@ -6825,7 +6825,7 @@ const __odClickHandler = function(e) {
     const m = state.media.find(x => x.id === el.dataset.id); if (!m) return;
     m.archive_reference = 'channel/archive/' + (el.dataset.unit || m.related_id);
     m.kind = 'historical';
-    save(); render(); toast((state.lang==='zh'?'已归档到本房主档案消息':'Archived to master post'));
+    save(); render(); toast((state.lang==='zh'?'已归档到本房记录':'Archived to property records'));
     return;
   }
   if (a === 'add-payment-evidence') { sheetPaymentEvidence(el.dataset.id); return; }
@@ -10281,7 +10281,7 @@ function runGateOperations008A() {
     __odAssert(!state.props.some(p => p.unit === '1680') && !state.props.some(p => p.unit === '7789') && !state.rents.some(r => r.id === 'R-2026-08-1680') && !state.repairs.some(r => r.id === 'REP-7789') && !state.tenants.some(t => t.id === 'PT-9') && !state.tenants.some(t => t.id === 'PT-10'), '[FIX1-4b] 008A 未向全局 props/tenants/rents/repairs/expenses 写入 1680 / 7789（隔离）');
     /* 1 · Operations ≠ Tasks：Work Queue 基于 Operation 主记录 */
     const src = viewOps.toString() + opCard.toString() + opWaitingLabel.toString() + opTypeLabel.toString();
-    __odAssert(src.indexOf('ACT NOW') !== -1 && src.indexOf('AI WORKING') !== -1 && src.indexOf('DONE TODAY') !== -1, '[008A-1] Work Queue 视图 = Act Now / AI Working / Waiting / Done Today（基于 Operations，非 Task 列表）');
+    __odAssert(src.indexOf('NEEDS YOU') !== -1 && src.indexOf('AUTO-PILOT') !== -1 && src.indexOf('DONE TODAY') !== -1 && src.indexOf('等待租客') !== -1, '[008A-1] Action Queue 视图 = 需要你处理 / 自动推进中 / 等待（明确等谁）/ 今天完成（基于 Operations，非 Task 列表）');
     /* 2 · 分类 helpers 存在 */
     __odAssert(typeof opWaitingLabel === 'function' && typeof opTypeLabel === 'function' && typeof opDoneToday === 'function', '[008A-2] 分类 helpers 存在（opWaitingLabel / opTypeLabel / opDoneToday）');
     /* 3 · Waiting 明确等谁 / 等什么（禁止只显示 Waiting） */

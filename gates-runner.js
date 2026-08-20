@@ -747,15 +747,19 @@ try {
     allPass = false;
   }
 
-  /* 静态契约断言：对 pasay-mini-app.html 源码文本（deep-link handler / Partial / Receipt / 手动快照 / View N more） */
+  /* 静态契约断言：007C Final 契约事实。
+     PASAY-TASK-004（008B）要求普通用户 UI 不暴露 Snapshot Policy 等工程术语 ——
+     Mini App 的契约卡已移入 design-system 契约文档层（vnext-property-007c），
+     因此 7/8 两项改对 pasay-design-system.html 断言；3/9/11 仍对 mini-app 源码断言。 */
   try {
     const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
     const script = miniSrc.match(/<script>([\s\S]*?)<\/script>/i);
     const code = script ? script[1] : miniSrc;
+    const dsSrc = fs.readFileSync(path.join(__dirname, 'pasay-design-system.html'), 'utf8');
     const checks = [
       { n: 3, cond: code.indexOf("a === 'open-master-post'") !== -1 && code.indexOf('window.open(p.archive_message_url') !== -1 && code.indexOf('data-a="open-master-post"') !== -1, msg: '[007C-3] Open Archive 使用 Telegram message deep-link（open-master-post handler + window.open(archive_message_url) + 真实导航按钮，非 modal-only / close-modal）' },
-      { n: 7, cond: code.indexOf('Partial payment never auto-creates') !== -1, msg: '[007C-7] Partial payment 不自动生成 Property Summary / Snapshot（契约文案存在）' },
-      { n: 8, cond: code.indexOf("kind: 'receipt'") !== -1 && code.indexOf('receipts stay as archive records') !== -1, msg: '[007C-8] Receipt 继续作为 Archive record（receipt 分类 + 契约文案）' },
+      { n: 7, cond: dsSrc.indexOf('Partial payment never auto-creates') !== -1 || dsSrc.indexOf('Partial payment 不自动生成 Property Summary') !== -1, msg: '[007C-7] Partial payment 不自动生成 Property Summary / Snapshot（design-system 契约保留）' },
+      { n: 8, cond: code.indexOf("kind: 'receipt'") !== -1 && (dsSrc.indexOf('receipts stay as archive records') !== -1 || dsSrc.indexOf('Receipt 本身作为 Archive record') !== -1), msg: '[007C-8] Receipt 继续作为 Archive record（receipt 分类 + design-system 契约文案）' },
       { n: 9, cond: code.indexOf("a === 'archive-snapshot'") !== -1 && code.indexOf('手动快照') !== -1, msg: '[007C-9] 手动 Create Snapshot 仍然存在（archive-snapshot action + 按钮）' },
       { n: 11, cond: code.indexOf('data-a="building-contacts-more"') !== -1 && code.indexOf('查看 ') !== -1, msg: '[007C-11] Primary contact 默认显示 + 其余联系人 View N more 展开' }
     ];
@@ -837,7 +841,7 @@ try {
     const script = miniSrc.match(/<script>([\s\S]*?)<\/script>/i);
     const code = script ? script[1] : miniSrc;
     const checks = [
-      { n: 1, cond: code.indexOf('Operation 是推进真实业务结果的主记录') !== -1 && code.indexOf('ACT NOW') !== -1, msg: '[008A-s1] Work Queue 视图声明（Operations ≠ Tasks 文案 + Act Now 分类）' },
+      { n: 1, cond: code.indexOf('需要人处理的在这里') !== -1 && code.indexOf('NEEDS YOU') !== -1, msg: '[008A-s1] Action Queue 视图声明（Operations ≠ Tasks 文案 + 需要你处理分组）' },
       { n: 2, cond: code.indexOf('Waiting for tenant') !== -1 && code.indexOf('等待租客') !== -1 && code.indexOf('Waiting for Owner decision') !== -1, msg: '[008A-s2] Waiting Contract 文案（等待租客 / 等待 Owner 决策等）' },
       { n: 3, cond: code.indexOf('任务完成不代表 Operation 结束') !== -1 && code.indexOf('Task done ≠ Operation closed') !== -1, msg: '[008A-s3] Task 完成 ≠ Operation Closed（Related Task 区块文案）' },
       { n: 4, cond: code.indexOf('部分支付 · 已收') !== -1 || code.indexOf('partially paid') !== -1, msg: '[008A-s4] Rent partial 卡片表达（部分支付 · 已收 / partially paid）' },
