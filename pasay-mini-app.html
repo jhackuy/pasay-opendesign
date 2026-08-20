@@ -1034,8 +1034,8 @@ function ensureLeaseOperationSeed() {
   const zh = state.lang === 'zh';
   const unit = '1608';
   const prop8 = state.props.find(p => p.unit === unit);
-  /* P0-2 · Current Tenant 只从 Active Lease 派生（不按 tenant.unit 猜） */
-  const tenant = lease && lease.tenant_id ? ten(lease.tenant_id) : state.tenants.find(t => t.unit === unit && (!t.status || t.status === 'active'));
+  /* F2-4 · Current Tenant 只从 Active Lease 派生（tenant.unit 完全退出 current-relation authority） */
+  const tenant = (lease && lease.tenant_id) ? ten(lease.tenant_id) : null;
   const op = createChildOperation({
     id: 'LEASE-OP-1', kind: 'lease_renewal',
     objective: zh ? ('续租 ' + unit + ' · ' + (tenant ? tenant.name : '租客') + ' · 租约 ' + lease.end_date + ' 到期') : ('Renew lease ' + unit + ' · ' + (tenant ? tenant.name : 'tenant') + ' · ends ' + lease.end_date),
@@ -1201,7 +1201,8 @@ function propDeposit(p) { const al = propLease(p); return al ? al.deposit : 0; }
 function propLeaseStart(p) { const al = propLease(p); return al ? al.start_date : null; }
 function propLeaseEnd(p) { const al = propLease(p); return al ? al.end_date : null; }
 function propLeaseDueDay(p) { const al = propLease(p); return al ? (al.rent_due_day || 5) : null; }
-function propLeaseDrafts(p) { return p ? state.leases.filter(l => (l.property_id === p.id || l.unit === p.unit) && l.status === 'draft') : []; }
+/* F2-E · Draft 列表按 property_id 严格隔离（禁止跨房 unit fallback） */
+function propLeaseDrafts(p) { return p ? state.leases.filter(l => l.property_id === p.id && l.status === 'draft') : []; }
 /* ── PASAY-TASK-007-FIX1 · P0-1 · Migration / reconcile helper：
    确保每个 Property 有 PRP-xxxx id，并把 legacy lease.property_id（= unit）迁移为 PRP-xxxx。
    seed / historical fixtures 兼容；unit 唯一时安全解析，同 unit 多 Tower 时不猜测归属（保留原值）。 */
@@ -1280,7 +1281,12 @@ function wsCreateTenantWithDraft(opts) {
     monthly_rent: (opts && opts.rent) || 0, deposit: (opts && opts.deposit) || 0,
     rent_due_day: (opts && opts.due !== undefined && opts.due !== null) ? opts.due : 5
   }, opts && opts.propertyId);
-  if (!dr.ok) return { ok: false, reason: dr.reason };
+  if (!dr.ok) {
+    /* F2-5 · 失败完整 rollback：移除孤儿 Tenant（tenant / lease / occupancy / rent 全零变更） */
+    state.tenants = state.tenants.filter(x => x.id !== id);
+    save();
+    return { ok: false, reason: dr.reason };
+  }
   save();
   return { ok: true, tenant: state.tenants[state.tenants.length - 1], lease: dr.lease };
 }
@@ -1289,8 +1295,8 @@ function wsCreateTenantWithDraft(opts) {
    P0-3 · 已有 Active Lease 时仍允许创建下一份 Draft（Draft 本身不结束 / 覆盖当前 Active Lease；
    Activate 时由 preflight #9 检查 overlap 并给真实业务出口）。 */
 function wsCreateLeaseDraft(unit, tenantId, terms, propId) {
-  /* P0-1 · property 解析：显式 propertyId（PRP-xxxx）优先；unit 仅 legacy 解析（同 unit 多 Property 时必须传 propertyId 避免串房） */
-  const p = propId ? (propById(propId) || prop(unit)) : prop(unit);
+  /* F2-2 · 显式 propertyId 是唯一 authority：不存在即 REJECT，禁止 fallback 到 unit */
+  const p = propId ? propById(propId) : prop(unit);
   if (!p) return { ok: false, reason: 'property not found' };
   const t = ten(tenantId); if (!t) return { ok: false, reason: 'tenant not found' };
   if (!hasActiveMembership()) return { ok: false, reason: 'no active membership' };
@@ -1329,23 +1335,24 @@ function wsActivateLease(leaseId) {
   if (l.status !== 'draft') return { ok: false, reason: L('该租约不是可激活的草稿','Lease is not an activatable draft (current: ' + l.status + ')') };
   if (!hasActiveMembership()) return { ok: false, reason: L('无在职 Membership','no active membership') };
   if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可激活租约','Only the Owner can activate a lease') };
-  const p = prop(l.unit); if (!p) return { ok: false, reason: 'property not found' };
+  const p = prop(l.property_id) || prop(l.unit); if (!p) return { ok: false, reason: 'property not found' };
   const t = ten(l.tenant_id); if (!t) return { ok: false, reason: 'tenant not found' };
   if (!l.start_date || !l.end_date || l.start_date > l.end_date) return { ok: false, reason: L('起止日期不合法','Invalid lease dates') };
   if (!(l.monthly_rent > 0)) return { ok: false, reason: L('月租必须大于 0','Monthly rent must be positive') };
   const due = (l.rent_due_day !== undefined && l.rent_due_day !== null) ? l.rent_due_day : 5;
   if (!(due >= 1 && due <= 28)) return { ok: false, reason: L('扣款日不合法（1–28）','Invalid rent due day (1–28)') };
-  const overlap = state.leases.find(x => x.unit === l.unit && x.status === 'active' && x.lease_id !== l.lease_id);
+  /* F2-1 · Overlap authority = property_id（同 unit 不同 Property 各自可拥有 1 个 Active Lease） */
+  const overlap = state.leases.find(x => x.property_id === l.property_id && x.status === 'active' && x.lease_id !== l.lease_id);
   if (overlap) return { ok: false, reason: L('该物业已有生效租约 — 请先结束 / 续租当前租约再激活新租约','This property already has an active lease. End / renew the current lease before activating another one.') };
   /* 原子激活 */
   l.status = 'active'; l.move_in_at = l.start_date; l.activated_at = TODAY; l.activated_by = wsCurrentUserId();
   l.tl.push({ at: TODAY, t: L('租约已激活 · 物业转为已出租','Lease activated — property occupied'), d: 'ACTIVE' });
-  /* 首月 Rent：合法来源 = Active Lease（单真相） */
+  /* 首月 Rent：合法来源 = Active Lease（单真相）· F2-3 · Rent 关系 PRP 化（property_id + lease_id · id 含 PRP 防同 unit 碰撞） */
   if (!state.rents.some(r => r.lease_id === l.lease_id)) {
     const period = (l.start_date || TODAY).slice(0, 7);
     const dd = String(due).padStart(2, '0');
     state.rents.push({
-      id: 'R-' + period + '-' + l.unit, unit: l.unit, period: period,
+      id: 'R-' + period + '-' + (l.property_id || l.unit), unit: l.unit, property_id: l.property_id, period: period,
       amount: l.monthly_rent, due: (l.start_date || TODAY).slice(0, 8) + dd,
       status: 'upcoming', payments: [], lease_id: l.lease_id
     });
@@ -1407,8 +1414,8 @@ function ensureMoveOutSeedFixtures() {
 function ensureMoveOutOperationSeed(source_op_id) {
   const lease = active_lease('1608') || state.leases.find(l => l.unit === '1608');
   if (!lease) return;
-  /* P0-2 · Current Tenant 只从 Active Lease 派生（不按 tenant.unit 猜） */
-  const tenant = (lease && lease.tenant_id && ten(lease.tenant_id)) || state.tenants.find(t => t.unit === '1608') || null;
+  /* F2-4 · Current Tenant 只从 Active Lease 派生（tenant.unit 完全退出 current-relation authority） */
+  const tenant = (lease && lease.tenant_id) ? ten(lease.tenant_id) : null;
   /* P0-1 (005B2) — Continuity backfill：MOVEOUT-OP-1 已被 discovery 路径（ensureMoveOutSeedFixtures → ending → 无 source）预先创建；
      之后 lx-tenant-notrenew 通过 ensureMoveOutOperationSeed('LEASE-OP-1') 显式传 source_op_id 续接。
      已存在的 op 必须补齐 follow_up_of + domain.follow_up_of 并写 timeline；同 source 幂等；异 source 拒绝静默覆盖。 */
@@ -7219,7 +7226,7 @@ const __odClickHandler = function(e) {
     if (!ft) {
       const tid = 'T-' + uid('task');
       /* P0-2 · 跟进对象 Rent 从 Current Active Lease 派生（不按 tenant.unit 猜） */
-      const curRentRef = (function() { const cl = tenantCurrentLease(t); if (cl) { const cr = currentRentForLease(cl.lease_id); if (cr) return cr.id; } const leg = state.rents.find(r => r.unit === t.unit); return leg ? leg.id : ref; })();
+      const curRentRef = (function() { const cl = tenantCurrentLease(t); if (cl) { const cr = currentRentForLease(cl.lease_id); if (cr) return cr.id; } return ref; })();
       ft = { id: tid, type: 'follow_up', subject: '', object: { kind: 'rent', id: curRentRef }, assignee: 'secretary', status: 'in_progress', priority: 'medium', due: TODAY, nextAction: '', nextActionCode: rawNote ? '' : 'FOLLOW_UP_TENANT', source: 'manual', related: ref, tl: [], reminder: { state: 'active', snoozeUntil: null, lastAt: null } };
       state.tasks.unshift(ft);
     } else { ft.status = 'in_progress'; ft.nextAction = rawNote || ''; ft.nextActionCode = rawNote ? '' : 'FOLLOW_UP_TENANT'; }
@@ -7320,8 +7327,10 @@ const __odClickHandler = function(e) {
     t.status = 'move_out_notice';
     t.moveOut = { date: $('#mo-date') ? $('#mo-date').value : '2026-07-15', reason: $('#mo-reason') ? $('#mo-reason').value : '', noticeDate: $('#mo-notice') ? $('#mo-notice').value : TODAY };
     t.history = t.history || []; t.history.push({ code: 'TENANT_MOVE_OUT_NOTICE', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { name: t.name, unit: t.unit, reason: t.moveOut.reason || '' } });
-    /* P0-2 · 迁出作用于 Current Property（由 Active Lease 派生，不按 tenant.unit 猜） */
-    const cp = tenantCurrentProperty(t) || prop(t.unit); if (cp) cp.status = 'move_out_pending';
+    /* F2-4 · 迁出作用于 Current Property / Lease（只由 Active Lease 派生，无 unit fallback） */
+    const cp = tenantCurrentProperty(t); const cl = tenantCurrentLease(t);
+    if (!cp || !cl) { toast((state.lang==='zh'?'该租客无生效租约，无法发起迁出':'no active lease for this tenant')); return; }
+    if (cp) cp.status = 'move_out_pending';
     const tid = 'T-' + uid('task');
     state.tasks.unshift({ id: tid, type: 'move_out', subject: '', object: { kind: 'property', id: (cp && cp.unit) || t.unit }, assignee: 'secretary', status: 'todo', priority: 'high', due: TODAY, nextAction: '', source: 'system', related: (cp && cp.unit) || t.unit, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
     addEvent('TENANT_MOVE_OUT_NOTICE', roleIs('owner') ? 'owner' : 'secretary', 'tenant', t.id, { name: t.name, unit: t.unit });
@@ -7339,7 +7348,8 @@ const __odClickHandler = function(e) {
     t.status = 'inspection';
     t.inspection = { furniture: $('#inp-furn') ? $('#inp-furn').value : '', damage: $('#inp-damage') ? $('#inp-damage').value : '', keys: ($('#inp-key') ? $('#inp-key').value : 'returned'), at: TODAY };
     t.history = t.history || []; t.history.push({ code: 'INSPECTION_COMPLETED', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { unit: t.unit } });
-    const p = tenantCurrentProperty(t) || prop(t.unit); if (p) p.status = 'inspection';
+    /* F2-4 · 验房作用于 Current Property（只由 Active Lease 派生，无 unit fallback） */
+    const p = tenantCurrentProperty(t); if (p) p.status = 'inspection';
     addMedia('inspection', t.id, 'move_out', 'system:move_out');
     addEvent('INSPECTION_COMPLETED', roleIs('owner') ? 'owner' : 'secretary', 'tenant', t.id, { unit: t.unit });
     save(); closeSheet(); render(); toast((state.lang==='zh'?'验房完成 · 下一步：押金结算':'Inspection done — next: deposit settlement'));
@@ -7363,9 +7373,9 @@ const __odClickHandler = function(e) {
     const refund = t.deposit - (s.unpaidRent||0) - (s.utilities||0) - (s.repairs||0) - (s.other||0);
     t.status = 'moved_out';
     t.history = t.history || []; t.history.push({ code: 'TENANT_MOVED_OUT', actor: 'owner', at: TODAY, metadata: { name: t.name } });
-    /* P0-2 · 关闭的是该租客的 Current Active Lease（不按 tenant.unit 猜） */
-    const p = tenantCurrentProperty(t) || prop(t.unit);
-    const cl = tenantCurrentLease(t) || active_lease(t.unit); if (cl) { cl.status = 'closed'; cl.move_out_at = TODAY; }
+    /* F2-4 · 关闭的是该租客的 Current Active Lease（只由 Active Lease 派生，无 unit fallback） */
+    const p = tenantCurrentProperty(t);
+    const cl = tenantCurrentLease(t); if (cl) { cl.status = 'closed'; cl.move_out_at = TODAY; }
     if (p) { p.status = 'turnover'; p.tenant = null; p.moveOut = p.moveOut || {}; p.moveOut.completedAt = TODAY;
       const tid = 'T-' + uid('task');
       state.tasks.unshift({ id: tid, type: 'turnover', subject: '', object: { kind: 'property', id: p.unit }, assignee: 'secretary', status: 'todo', priority: 'medium', due: TODAY, nextAction: '', source: 'system', related: p.unit, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
