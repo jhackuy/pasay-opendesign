@@ -706,7 +706,7 @@ let tr = k => (T[state.lang] && T[state.lang][k]) || T.zh[k] || k;
 
 /* ═══════════════ 种子数据 ═══════════════ */
 function seed() {
-  return {
+  const __s = {
     meta: { today: TODAY, merchant: MERCHANT.name, merchant_id: MERCHANT.id, lang: 'zh', langManual: false },
     workspace: wsSeed(),
     props: [
@@ -799,6 +799,10 @@ function seed() {
     guidance: { stages: {} },
     seq: { exp: 11, req: 1, task: 110, pay: 7, rep: 16, rent: 8, prop: 14, ten: 8, media: 0, insp: 0, settle: 0, notice: 0, evid: 0, mo: 0, moe: 0, mof: 0 }
   };
+  /* PASAY-TASK-007-FIX1 · P0-1 · seed Property 也获得稳定 PRP-xxxx id（1001 段，避开运行时 uid 段），
+     Property.id = PRP-xxxx 成为真实 Domain relation key；unit 只作 display / legacy。 */
+  __s.props.forEach((p, i) => { if (!p.id) p.id = 'PRP-' + String(1001 + i).padStart(4, '0'); });
+  return __s;
 }
 
 /* ═══════════════ 状态 ═══════════════ */
@@ -1084,7 +1088,9 @@ function resetAll() { try { localStorage.removeItem(LS_KEY); } catch (e) {} loca
 /* ═══════════════ 工具 ═══════════════ */
 const money = n => '₱' + Math.round(n).toLocaleString('en-US');
 const uid = p => { state.seq[p] = (state.seq[p] || 0) + 1; return state.seq[p]; };
-const prop = u => state.props.find(p => p.unit === u);
+/* PASAY-TASK-007-FIX1 · P0-1 · Property relation key = PRP-xxxx（id）；unit 仅 display / legacy / 搜索辅助 */
+const propById = id => state.props.find(p => p.id === id);
+const prop = u => propById(u) || state.props.find(p => p.unit === u);
 const ten = id => state.tenants.find(t => t.id === id);
 /* rentByUnit 严格代表“当前有效租约的当前 Rent”：Unit → Active Lease → latest Rent of Active Lease。
    无 active lease（vacant / turnover / closed）返回 null，绝不用历史 Rent 兜底。 */
@@ -1153,14 +1159,25 @@ function seed_lease_for(u) {
   state.leases.push(l);
   return l.lease_id;
 }
-function active_lease(unit) { return state.leases.find(l => l.unit === unit && l.status === 'active'); }
+/* PASAY-TASK-007-FIX1 · P0-1 · Active Lease 主关联基于 property_id（PRP-xxxx）：
+   activeLeaseByPropId 是权威查询；active_lease(unit) 保留为 legacy 兼容（unit 唯一时经 prop.id 解析，绝不按 unit 直查导致同 unit 碰撞）。 */
+function activeLeaseByPropId(propId) { return state.leases.find(l => l.property_id === propId && l.status === 'active'); }
+function active_lease(unit) {
+  const p = prop(unit);
+  if (p && p.id && p.id.indexOf('PRP-') === 0) {
+    const byId = activeLeaseByPropId(p.id);
+    if (byId) return byId;
+  }
+  return state.leases.find(l => l.unit === unit && l.status === 'active');
+}
 function close_active_lease(unit, move_out_at) {
   const al = active_lease(unit);
   if (al) { al.status = 'closed'; al.move_out_at = move_out_at || TODAY; }
 }
 function open_lease(unit, tenant_id, start, end, rent, deposit, move_in_at) {
   close_active_lease(unit, move_in_at || TODAY);
-  const l = { lease_id: 'LS-' + fmtId4(uid('lease')), unit, property_id: unit, tenant_id, start_date: start || TODAY, end_date: end || '2027-06-19', monthly_rent: rent || (prop(unit) ? prop(unit).rent : 0), deposit: deposit || 0, status: 'active', move_in_at: move_in_at || TODAY, move_out_at: null, created_at: TODAY };
+  const p0 = prop(unit);
+  const l = { lease_id: 'LS-' + fmtId4(uid('lease')), unit, property_id: (p0 && p0.id) || unit, tenant_id, start_date: start || TODAY, end_date: end || '2027-06-19', monthly_rent: rent || (p0 ? p0.rent : 0), deposit: deposit || 0, status: 'active', move_in_at: move_in_at || TODAY, move_out_at: null, created_at: TODAY };
   state.leases.push(l);
   return l.lease_id;
 }
@@ -1170,7 +1187,7 @@ function open_lease(unit, tenant_id, start, end, rent, deposit, move_in_at) {
    Property 上的 status / tenant / rent / ls / le / deposit 只是 reconcile 投影
    （与 Lease truth 强制一致，禁止手工双写第二真相）。
    ═══════════════════════════════════════════════════════════════════════════ */
-function propLease(p) { return p ? active_lease(p.unit) : null; }
+function propLease(p) { return p ? activeLeaseByPropId(p.id) : null; }
 function propOccupancy(p) { return propLease(p) ? 'occupied' : 'vacant'; }
 function propMonthlyRent(p) { const al = propLease(p); return al ? al.monthly_rent : 0; }
 function propCurrentTenant(p) { const al = propLease(p); return al ? (ten(al.tenant_id) || null) : null; }
