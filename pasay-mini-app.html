@@ -4002,8 +4002,28 @@ function viewProperty(u, tab) {
     const acts = state.activity.filter(a => actContains(a, p.unit) || (t && actContains(a, t.name)));
     body = sec(state.lang==='zh'?'操作时间线':'Activity timeline') + '<div class="card" style="margin:0 16px"><div class="tl">' + (acts.length ? acts.map(actRow).join('') : emptyState('clock', state.lang==='zh'?'暂无动态':'No activity', '')) + '</div></div>';
   } else if (tb[0] === 'archive') {
-    body = sec(L('长期档案','Property Archive'),'') +
-    '<div class="card" style="margin:0 16px;padding:0;overflow:hidden"><div class="ph-img" style="height:140px;background:linear-gradient(135deg, color-mix(in oklch, var(--accent) 16%, transparent), var(--fg-soft));display:grid;place-items:center;color:var(--muted);font-family:var(--font-mono);font-size:12px">ARCHIVE · UNIT ' + p.unit + '</div><div style="padding:14px"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:15px">Unit ' + p.unit + ' · ' + p.type + '</b><span class="tag">' + (state.lang==='zh'?'长期档案':'archive') + '</span></div><div class="meta" style="margin-top:4px">Sunrise Residences, Pasay · ' + p.tower + '</div><p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.65">' + (t ? (state.lang==='zh' ? '现任租客 ' + t.name + '，' + fmtDate(p.ls) + ' 起租。' : 'Current tenant ' + t.name + ', since ' + fmtDate(p.ls) + '.') : (state.lang==='zh' ? '空置单元，可带看。' : 'Vacant unit — ready for viewing.')) + (state.lang==='zh' ? ' 历史装修、维修与照片均归档于频道文章。' : ' Past renovations, repairs & photos are archived in the channel.') + '</p><button class="btn btn-s sm" style="margin-top:12px" data-a="open-archive" data-unit="' + p.unit + '">' + ic('bot', 15) + (state.lang==='zh'?'在 Telegram 频道打开':'Open in Telegram channel') + '</button></div></div>';
+    const media = state.media.filter(m => m.unit === p.unit);
+    const mediaByKind = m => media.filter(x => x.kind === m).length;
+    /* 007C · 一房一档：Archive Tab 文档按业务对象分层 · Channel 置顶 Snapshot */
+    const docSections = [
+      { kind: 'lease', icon: 'doc', label: state.lang === 'zh' ? '租约 / 合同' : 'Lease & contracts', count: mediaByKind('lease') },
+      { kind: 'id', icon: 'users', label: state.lang === 'zh' ? '租客身份证 / 资料' : 'Tenant ID & docs', count: mediaByKind('id') + mediaByKind('id_doc') },
+      { kind: 'receipt', icon: 'cash', label: state.lang === 'zh' ? '收据 / 付款凭证' : 'Receipts', count: mediaByKind('receipt') },
+      { kind: 'repair', icon: 'wrench', label: state.lang === 'zh' ? '维修照片' : 'Repair photos', count: mediaByKind('repair_photo') },
+      { kind: 'inspection', icon: 'search', label: state.lang === 'zh' ? '验房照片' : 'Inspection photos', count: mediaByKind('inspection_photo') },
+      { kind: 'building', icon: 'building', label: state.lang === 'zh' ? '楼宇公告' : 'Building notices', count: mediaByKind('building_notice') },
+      { kind: 'note', icon: 'doc', label: state.lang === 'zh' ? '其他备注' : 'Other notes', count: mediaByKind('note') }
+    ].filter(d => d.count > 0 || ['lease', 'id', 'receipt'].indexOf(d.kind) >= 0);
+    const docRows = docSections.map(d => '<div class="row" style="padding:9px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(d.kind === 'lease' || d.kind === 'note' ? 'doc' : d.kind === 'receipt' ? 'cash' : d.kind === 'building' ? 'building' : d.kind.indexOf('id') === 0 ? 'users' : d.kind.indexOf('repair') === 0 ? 'wrench' : 'search', 16) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + d.label + '</b></div><div class="row-l2">' + d.count + (state.lang === 'zh' ? ' 份' : ' files') + '</div></div><div class="row-r">' + ic('chev', 14) + '</div></div>').join('');
+    body = sec(state.lang === 'zh' ? '一房一档 · Telegram 频道档案' : 'PER-PROPERTY ARCHIVE CHANNEL', '') +
+      '<div class="card" style="margin:0 16px;padding:0;overflow:hidden"><div class="ph-img" style="height:140px;background:linear-gradient(135deg, color-mix(in oklch, var(--accent) 16%, transparent), var(--fg-soft));display:grid;place-items:center;color:var(--muted);font-family:var(--font-mono);font-size:12px">UNIT ' + p.unit + ' · ARCHIVE</div><div style="padding:14px"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:15px">' + (state.lang === 'zh' ? '频道档案 · ' : 'Channel · ') + p.unit + '</b><span class="tag">' + (state.lang === 'zh' ? '长期存在' : 'long-lived') + '</span>' + propertyStatusDot(p) + '</div><div class="meta" style="margin-top:4px">' + p.tower + ' · ' + p.addr + '</div><p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.65">' + (t ? (state.lang === 'zh' ? '现任租客 ' + t.name + '，' + fmtDate(p.ls) + ' 起租。' : 'Current tenant ' + t.name + ', since ' + fmtDate(p.ls) + '.') : (state.lang === 'zh' ? '空置单元，可带看。' : 'Vacant unit — ready for viewing.')) + '</p><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn btn-p sm" data-a="open-archive" data-unit="' + p.unit + '">' + ic('bot', 14) + (state.lang === 'zh' ? '在频道打开' : 'Open in channel') + '</button><button class="btn btn-s sm" data-a="archive-snapshot" data-unit="' + p.unit + '">' + ic('spark', 14) + (state.lang === 'zh' ? '重发当前快照' : 'Re-snapshot') + '</button></div></div></div>' +
+      sec(state.lang === 'zh' ? 'Documents · 文档分层（属于这套房）' : 'DOCUMENTS BY CATEGORY') +
+      '<div class="list" style="margin-top:8px">' + (docRows || emptyState('doc', state.lang === 'zh' ? '尚未归档任何文件' : 'No archived files yet', '')) + '</div>' +
+      sec(state.lang === 'zh' ? '自然语言归档 · 快捷键' : 'NATURAL LANGUAGE ARCHIVE') +
+      '<div class="card" style="margin:8px 16px 0;padding:12px 14px"><div style="font-size:13px;line-height:1.7">' +
+      (state.lang === 'zh' ? '直接在 Telegram 群发送（自动归到对应房产频道）：<br>· <code>' + p.unit + ' rent receipt</code><br>· <code>' + p.unit + ' tenant ID</code><br>· <code>' + p.unit + ' contract</code><br>· <code>' + p.unit + ' repair photo</code>' :
+      ' Send in the group (auto-routed to this property):<br>· <code>' + p.unit + ' rent receipt</code><br>· <code>' + p.unit + ' tenant ID</code><br>· <code>' + p.unit + ' contract</code><br>· <code>' + p.unit + ' repair photo</code>') +
+      '</div></div>';
   }
 
   return shell('building', L('物业 ','Property ') + p.unit, p.type + ' · ' + p.tower, `
@@ -5671,6 +5691,64 @@ function sheetAddProperty() {
     field('ap-type', state.lang==='zh'?'户型':'Type', '<input id="ap-type" class="input" placeholder="1BR · 40㎡"/>') +
     field('ap-rent', state.lang==='zh'?'挂牌月租':'Asking rent (₱)', '<input id="ap-rent" class="input num" inputmode="numeric" placeholder="30000"/>') +
     '<button class="btn btn-p block" data-a="submit-property">' + (state.lang==='zh'?'保存':'Save') + '</button>');
+}
+/* 007C · 模块化 Edit Property（不暴露给 Owner 几十字段的大表单；按业务模块编辑） */
+function sheetEditPropertyMenu(unitId) {
+  const p = prop(unitId); if (!p) return;
+  const zh = state.lang === 'zh';
+  const items = [
+    { icon: 'building', title: zh ? '物业资料' : 'Property', sub: zh ? '单元号 / 户型 / 楼栋 / 地址 / 健康度' : 'Unit / type / tower / address / status', act: 'prop-edit-basic' },
+    { icon: 'users', title: zh ? '当前租客' : 'Tenant', sub: zh ? '姓名 / 电话 / 邮箱 / 入住' : 'Name / phone / email / move-in', act: 'prop-edit-tenant' },
+    { icon: 'cash', title: zh ? '租金 / 押金' : 'Rent & deposit', sub: zh ? '月租 / 押金 / 起租日' : 'Rent / deposit / start date', act: 'prop-edit-rent' },
+    { icon: 'doc', title: zh ? '租约' : 'Lease', sub: zh ? '起止日 / 续约提醒' : 'Term / renewal reminder', act: 'prop-edit-lease' },
+    { icon: 'phone', title: zh ? '物业管理联系' : 'Property mgmt contact', sub: zh ? '管理处 / 应急电话（可选）' : 'Mgmt office / emergency (optional)', act: 'prop-edit-contact' },
+    { icon: 'chat', title: zh ? '备注' : 'Notes', sub: zh ? '内部备忘（不对租客展示）' : 'Internal notes (not shown to tenant)', act: 'prop-edit-notes' }
+  ];
+  const rows = items.map(i => '<div class="row" data-a="' + i.act + '" data-unit="' + p.unit + '" data-od-id="prop-edit-' + i.act.replace('prop-edit-','') + '" style="padding:11px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(i.icon, 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + i.title + '</b></div><div class="row-l2">' + i.sub + '</div></div><div class="row-r">' + ic('chev', 14) + '</div></div>').join('');
+  openSheet(sheetHead((zh ? '编辑物业 · ' : 'Edit Property · ') + p.unit, zh ? '按业务模块编辑 — 禁止一次几十字段的大表单' : 'Edit by business module — never a 30-field form') +
+    rows);
+}
+/* 007C · 模块化 Edit Property：逐模块具体 sheet（Owner 不接触 DB 字段名 / 仅 1608/Paolo/30000 业务字段） */
+function sheetEditPropertyBasic(unitId) {
+  const p = prop(unitId); if (!p) return;
+  const zh = state.lang === 'zh';
+  openSheet(sheetHead(zh ? '物业资料 · ' + p.unit : 'Property · ' + p.unit, '') +
+    field('eb-tower', zh ? '楼栋' : 'Tower', '<input id="eb-tower" class="input" value="' + p.tower + '"/>') +
+    field('eb-type', zh ? '户型' : 'Type', '<input id="eb-type" class="input" value="' + p.type + '"/>') +
+    field('eb-addr', zh ? '地址' : 'Address', '<input id="eb-addr" class="input" value="' + p.addr + '"/>') +
+    '<button class="btn btn-p block" data-a="prop-edit-basic-save" data-unit="' + p.unit + '">' + (zh ? '保存' : 'Save') + '</button>');
+}
+function sheetEditPropertyRent(unitId) {
+  const p = prop(unitId); if (!p) return;
+  const zh = state.lang === 'zh';
+  openSheet(sheetHead(zh ? '租金 · ' + p.unit : 'Rent · ' + p.unit, '') +
+    field('er-rent', zh ? '月租 (₱)' : 'Monthly rent (₱)', '<input id="er-rent" class="input num" inputmode="numeric" value="' + p.rent + '"/>') +
+    field('er-deposit', zh ? '押金 (₱)' : 'Deposit (₱)', '<input id="er-deposit" class="input num" inputmode="numeric" value="' + p.deposit + '"/>') +
+    '<button class="btn btn-p block" data-a="prop-edit-rent-save" data-unit="' + p.unit + '">' + (zh ? '保存' : 'Save') + '</button>');
+}
+function sheetEditPropertyLease(unitId) {
+  const p = prop(unitId); if (!p) return;
+  const zh = state.lang === 'zh';
+  openSheet(sheetHead(zh ? '租约 · ' + p.unit : 'Lease · ' + p.unit, '') +
+    field('el-ls', zh ? '起租日' : 'Lease start', '<input id="el-ls" class="input" value="' + (p.ls || '') + '"/>') +
+    field('el-le', zh ? '到期日' : 'Lease end', '<input id="el-le" class="input" value="' + (p.le || '') + '"/>') +
+    '<button class="btn btn-p block" data-a="prop-edit-lease-save" data-unit="' + p.unit + '">' + (zh ? '保存' : 'Save') + '</button>');
+}
+function sheetEditPropertyContact(unitId) {
+  const p = prop(unitId); if (!p) return;
+  const zh = state.lang === 'zh';
+  openSheet(sheetHead(zh ? '物业管理联系 · ' + p.unit : 'Property mgmt · ' + p.unit, zh ? '可选 · 不抢占主视图' : 'Optional · does not crowd main view') +
+    field('ec-admin', zh ? '管理处名称' : 'Mgmt office', '<input id="ec-admin" class="input" value="' + (p.admin || '') + '"/>') +
+    field('ec-phone', zh ? '电话' : 'Phone', '<input id="ec-phone" class="input" placeholder="+63 2 8123 4567" value="' + (p.adminPhone || '') + '"/>') +
+    field('ec-emerg', zh ? '应急电话' : 'Emergency', '<input id="ec-emerg" class="input" value="' + (p.emergency || '') + '"/>') +
+    '<button class="btn btn-p block" data-a="prop-edit-contact-save" data-unit="' + p.unit + '">' + (zh ? '保存' : 'Save') + '</button>');
+}
+function sheetEditPropertyNotes(unitId) {
+  const p = prop(unitId); if (!p) return;
+  const zh = state.lang === 'zh';
+  openSheet(sheetHead(zh ? '备注 · ' + p.unit : 'Notes · ' + p.unit, zh ? '内部备忘 · 不对租客展示' : 'Internal notes · not shown to tenant') +
+    '<textarea id="en-notes" class="input" rows="5" placeholder="' + (zh ? '例如：单元因楼宇改造暂停 1 周；空调主板已 7 年' : ' ') + '">' + (p.notes || '') + '</textarea>' +
+    '<button class="btn btn-p block" data-a="prop-edit-notes-save" data-unit="' + p.unit + '" style="margin-top:12px">' + (zh ? '保存' : 'Save') + '</button>');
 }
 function sheetAddTenant() {
   const vacant = state.props.filter(p => p.status === 'vacant');
