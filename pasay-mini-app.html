@@ -2296,7 +2296,18 @@ function openTask(obj) { const kind = obj.kind; const target = { expense: exp(ob
 
 /* ═════╡ Task 标题结构化：由 task_type + object 按 locale 渲染 ═════
    Task 不再把本地化标题固死为业务事实存储；subject 仅作遗留回退。 */
-function taskRef(t) { const ent = openTask(t.object); return ent ? ent.target.id : (t.related || t.id); }
+/* PASAY-TASK-006 · P0-9 · 实体引用统一解析：Property 对象用 unit（无 id 字段），
+   Rent/Repair/Expense/Lease/Tenant 用 id / lease_id。杜绝 'Renew lease undefined' 类泄漏。 */
+function entityRef(ent) {
+  if (!ent || !ent.target) return '';
+  const tg = ent.target;
+  if (tg.id !== undefined && tg.id !== null && tg.id !== '') return tg.id;
+  if (tg.unit !== undefined && tg.unit !== null && tg.unit !== '') return tg.unit;
+  if (tg.lease_id !== undefined && tg.lease_id !== null && tg.lease_id !== '') return tg.lease_id;
+  if (tg.ref !== undefined && tg.ref !== null) return tg.ref;
+  return '';
+}
+function taskRef(t) { const ent = openTask(t.object); return entityRef(ent) || t.related || t.id; }
 function taskTitle(t) {
   const ref = taskRef(t);
   const objKind = t.object && t.object.kind;
@@ -3889,7 +3900,8 @@ function navBar(title, sub, opts) {
     (isRoot ? '<div class="tb-back" style="width:40px;flex-shrink:0"></div>' : '<button class="tb-back" data-a="nav" data-href="#/home" aria-label="' + tr('back') + '">' + ic('back', 18) + '</button>') +
     '<div class="tb-title">' + title + (sub ? '<div class="tb-sub">' + sub + '</div>' : '') + '</div><div class="tb-act">' +
     '<button class="iconb" data-a="nav" data-href="#/search" aria-label="' + tr('search') + '">' + ic('search', 19) + '</button>' +
-    '<button class="avatar" data-a="open-role" title="' + (roleIs('owner') ? 'Owner' : 'Secretary') + '">' + (roleIs('owner') ? 'OW' : 'SC') + '</button>' +
+    /* PASAY-TASK-006 · P0-1 · Avatar role 唯一来源 = ACTIVE Membership（不可点击切换角色） */
+    '<div class="avatar" style="cursor:default" title="' + (wsEffectiveRole() === 'owner' ? 'Owner' : wsEffectiveRole() === 'secretary' ? 'Secretary' : (state.lang==='zh'?'未加入工作区':'no workspace')) + '">' + (wsEffectiveRole() === 'owner' ? 'OW' : wsEffectiveRole() === 'secretary' ? 'SC' : '—') + '</div>' +
   '</div></header>';
 }
 function bottomNav(active) {
@@ -3945,7 +3957,7 @@ function viewHome() {
     if (seen[k]) return;
     seen[k] = 1;
     const ent = openTask(t.object);
-    const href = ent ? '#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + ent.target.id : '#/op/' + (t.tzOp || '');
+    const href = ent ? '#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + entityRef(ent) : '#/op/' + (t.tzOp || '');
     const sub = ent ? (ent.kind === 'expense' ? ent.target.purpose : ent.kind === 'repair' ? ent.target.issue : ent.kind === 'property' ? ent.target.type : (state.lang === 'zh' ? '租金 ' : 'rent ') + money(ent.target.amount)) : t.nextAction;
     needsYou.push({
       title: taskTitle(t),
@@ -5648,12 +5660,13 @@ function viewDocs() {
 
 /* ── Settings ── */
 function viewSettings() {
-  const role = state.meta.role || 'secretary';
+  /* PASAY-TASK-006 · P0-1 · Settings Role label 唯一来源 = ACTIVE Membership（state.meta.role 不参与） */
+  const role = wsEffectiveRole() || 'none';
   const lang = state.lang;
   return shell('gear', tr('settings'), 'Pasay AI · v0.9', `
     ${sec(state.lang==='zh'?'账户':'Account')}
     <div class="list">
-      <div class="row" data-a="open-role"><div class="row-main"><div class="row-l1"><b style="font-size:14px">${state.lang==='zh'?'当前角色':'Role'}</b></div><div class="row-l2">${role === 'owner' ? L('Owner · 中文（默认）','Owner · Chinese (default)') : L('Secretary / Operator · English (default)','Secretary / Operator · English (default)')}</div></div><div class="row-r">${ic('chev', 15)}</div></div>
+      <div class="row" data-a="none"><div class="row-main"><div class="row-l1"><b style="font-size:14px">${state.lang==='zh'?'当前角色':'Role'}</b></div><div class="row-l2">${role === 'owner' ? L('Owner · 中文（默认）','Owner · Chinese (default)') : role === 'secretary' ? L('Secretary / Operator · English (default)','Secretary / Operator · English (default)') : (state.lang==='zh'?'无在职身份（未加入公司）':'No active membership')}</div></div></div>
       <div class="row" data-a="toggle-lang"><div class="row-main"><div class="row-l1"><b style="font-size:14px">${state.lang==='zh'?'界面语言':'App language'}</b></div><div class="row-l2">${lang === 'zh' ? '中文' : 'English'}</div></div><div class="row-r"><div class="switch${lang === 'en' ? ' on' : ''}"></div></div></div>
       <div class="row" data-a="none"><div class="row-main"><div class="row-l1"><b style="font-size:14px">Telegram</b></div><div class="row-l2 num">@pasay_ops</div></div></div>
     </div>
@@ -5865,6 +5878,9 @@ function setupStepDesc(id) {
 function viewSetup() {
   const zh = state.lang === 'zh';
   const w = ws();
+  /* PASAY-TASK-006 · P0-4 · Setup Progress 渲染前按 Domain Truth reconcile（杜绝 stale cache 复活已完成步骤） */
+  wsReconcileSetupSteps();
+  const isOwner = currentRole() === 'owner';
   const rows = w.setupSteps.map(s => {
     const done = s.done;
     return '<div class="row" data-a="none" data-od-id="setup-step-' + s.id + '">' +
@@ -5874,7 +5890,7 @@ function viewSetup() {
     '</div>';
   }).join('');
   return shell('flag', zh ? '设置进度' : 'Setup', w.name, `
-    <div class="banner info" style="margin:12px 16px 0">${ic('flag', 16)}<div>${zh ? '只提示下一件最值得完成的事情 — 完成后自动消失。' : 'Only the next most valuable step is shown — it disappears once done.'}</div></div>
+    ${!isOwner ? '<div class="banner info" style="margin:12px 16px 0">' + ic('shield', 16) + '<div>' + (zh ? '工作区设置由 Owner 完成 — 你正在以只读方式查看进度。' : 'Workspace setup is Owner-only — you are viewing progress read-only.') + '</div></div>' : '<div class="banner info" style="margin:12px 16px 0">' + ic('flag', 16) + '<div>' + (zh ? '只提示下一件最值得完成的事情 — 完成后自动消失。' : 'Only the next most valuable step is shown — it disappears once done.') + '</div></div>'}
     <div class="list" style="margin-top:8px">${rows}</div>
     <div style="padding:14px 16px"><button class="btn btn-s block" data-a="nav" data-href="#/team">${zh ? '去管理团队' : 'Go to Team'}</button></div>
   `);
@@ -5903,6 +5919,23 @@ function viewSwitch() {
 }
 
 /* ── 007A2 · Access Removed（P0-3 REMOVED REALLY MEANS NO ACCESS） ── */
+/* ── PASAY-TASK-006 · P0-7 · PENDING INVITE = 仅邀请接受流程（不读取 business data） ── */
+function viewPendingInvite() {
+  const zh = state.lang === 'zh';
+  const w = ws();
+  const m = wsCurrentMember();
+  return shell('users', zh ? '邀请待接受' : 'Invite pending', w.name || '', `
+    <div class="card" style="margin:16px;text-align:center;padding:26px 16px">
+      <div style="display:flex;justify-content:center">${ic('link', 42)}</div>
+      <div class="h3" style="margin-top:12px">${zh ? '你有一条待接受的邀请' : 'You have a pending invite'}</div>
+      <div class="meta" style="margin-top:8px">${zh ? '接受后即可加入 ' + w.name + '，开始查看与处理经营数据。' : 'Accept to join ' + w.name + ' and access its workspace data.'}</div>
+      ${m ? '<div style="margin-top:14px;display:flex;justify-content:center;gap:8px">' + memberAvatar(m, 44) + '<div style="text-align:left"><b style="font-size:14px">' + m.name + '</b><div class="meta">' + wsRoleLabel(m) + ' · ' + (zh ? '待接受' : 'pending') + '</div></div></div>' : ''}
+    </div>
+    ${m ? '<div style="padding:14px 16px"><button class="btn btn-p block" data-a="invite-accept-me" data-id="' + m.id + '">' + ic('check', 16) + (zh ? '接受邀请 · 加入公司' : 'Accept invite & join') + '</button></div>' : ''}
+    <div style="padding:0 16px 16px"><button class="btn btn-s block" data-a="ws-join">${zh ? '使用其他邀请链接加入' : 'Join with another invite link'}</button></div>
+  `);
+}
+
 function viewAccessRemoved() {
   const zh = state.lang === 'zh';
   const w = ws();
@@ -6232,13 +6265,20 @@ function sheetAddTenant() {
     '<div class="meta" style="margin-bottom:12px">' + (state.lang==='zh'?'完成后：物业 → 已出租 · 租客 → 在租 · 进入租金生命周期；入住照片与身份文件自动归档。':'After: property → Occupied, tenant → Active, rent lifecycle starts; move-in photos & ID archived.') + '</div>' +
     '<button class="btn btn-p block" data-a="submit-tenant" data-od-id="submit-tenant">' + (state.lang==='zh'?'确认入住':'Confirm move-in') + '</button>');
 }
+/* ── PASAY-TASK-006 · P0-2 · ROLE SWITCH 不再是生产态产品能力 ──
+   生产 UI（Settings / Avatar / More）不提供 Secretary↔Owner 切换；
+   本函数仅保留为 test-only demo helper（OpenDesign QA 切换 demo 用户），
+   权限永远由 ACTIVE Membership 决定，切换 demo 用户不改变任何权限。 */
 function sheetRole() {
-  const role = state.meta.role || 'secretary';
-  openSheet(sheetHead(state.lang==='zh'?'切换角色':'Switch role', state.lang==='zh'?'权限边界即时生效':'permission boundary applies immediately') +
+  const role = wsEffectiveRole() || 'none';
+  openSheet(sheetHead(state.lang==='zh'?'Demo · 切换演示用户':'Demo · Switch user', state.lang==='zh'?'test-only：切换演示身份 · 权限不变':'test-only: switch demo identity · permissions unchanged') +
+    '<div class="banner warn" style="margin:0 0 12px">' + ic('shield', 16) + '<div>' + (state.lang==='zh'?'仅用于原型演示：切换的是演示用户（currentUserId），角色永远由 Membership 决定，伪造 state.meta.role 无法提权。':'Prototype-only: this switches the demo user (currentUserId). Role always comes from the Membership — forging state.meta.role cannot elevate.') + '</div></div>' +
     '<div class="seg" style="margin-bottom:12px">' + [['secretary', L('Secretary · 日常运营','Secretary · daily operations')], ['owner', L('Owner · 最终审批','Owner · final approval')]].map(r => '<button type="button" class="' + (role === r[0] ? 'on' : '') + '" data-a="role-seg" data-r="' + r[0] + '">' + r[1] + '</button>').join('') + '</div>' +
     (role === 'owner'
       ? '<div class="banner info" style="margin:0">' + ic('shield', 16) + '<div>' + (state.lang==='zh'?'Owner：审批支出 / 确认租金 / 付款 / 逆向。':'Owner: approve expenses, confirm rent, pay, reverse.') + '</div></div>'
-      : '<div class="banner info" style="margin:0">' + ic('users', 16) + '<div>' + (state.lang==='zh'?'Secretary：登记租金、支出、报修、租客、跟进任务 — 不能绕过 Owner 审批。':'Secretary: log rents, expenses, repairs, tenants, follow-ups — cannot bypass Owner approval.') + '</div></div>'));
+      : role === 'secretary'
+      ? '<div class="banner info" style="margin:0">' + ic('users', 16) + '<div>' + (state.lang==='zh'?'Secretary：登记租金、支出、报修、租客、跟进任务 — 不能绕过 Owner 审批。':'Secretary: log rents, expenses, repairs, tenants, follow-ups — cannot bypass Owner approval.') + '</div></div>'
+      : '<div class="banner info" style="margin:0">' + ic('users', 16) + '<div>' + (state.lang==='zh'?'无在职 Membership — 当前无 Owner/Secretary 身份。':'No active membership — no Owner/Secretary identity.') + '</div></div>'));
 }
 function sheetArchive(unitId) {
   const p = prop(unitId); if (!p) return;
@@ -6311,14 +6351,30 @@ function parseHash() {
 }
 function render() {
   syncOperationTasks();   // VNext Operation → Task projection（幂等）
+  /* PASAY-TASK-006 · P0-4 · Setup Progress 每次 render 前按 Domain Truth reconcile（reload / mutation 后同样生效） */
+  wsReconcileSetupSteps();
   const { path, q } = parseHash();
   const root = path[0] || 'home';
-  /* 007A2 · P0-3 REMOVED REALLY MEANS NO ACCESS：
+  /* 007A2 · P0-3 REMOVED REALLY MEANS NO ACCESS / PASAY-TASK-006 · P0-7 NO MEMBERSHIP = NO BUSINESS DATA：
      current Membership 非 active → 禁止读取 business data / business actions；
-     只允许 Access Removed 视图内的 Switch / Join 出口。 */
-  const accessBlocked = wsAccessBlocked();
-  if (accessBlocked && root !== 'switch') {
+     blocked（removed/left/inactive）→ 只允许 Access Removed 内的 Switch / Join 出口；
+     pending-invite → 只进入 invite acceptance flow（不读 business data）；
+     none（无工作区）→ 首次 onboarding（Create company / Join with invite），不展示 Owner/Secretary view 与经营数据。 */
+  const accState = wsAccessState();
+  if (accState === 'blocked' && root !== 'switch') {
     $('#app').innerHTML = viewAccessRemoved();
+    $('#app').scrollTop = 0;
+    try { localStorage.setItem('pasay_last_route', location.hash); } catch (e) {}
+    return;
+  }
+  if (accState === 'pending-invite' && root !== 'switch') {
+    $('#app').innerHTML = viewPendingInvite();
+    $('#app').scrollTop = 0;
+    try { localStorage.setItem('pasay_last_route', location.hash); } catch (e) {}
+    return;
+  }
+  if (accState === 'none' && root !== 'onboarding' && root !== 'switch') {
+    $('#app').innerHTML = viewOnboarding(new URLSearchParams());
     $('#app').scrollTop = 0;
     try { localStorage.setItem('pasay_last_route', location.hash); } catch (e) {}
     return;
@@ -6381,6 +6437,13 @@ const __odClickHandler = function(e) {
   /* 007A3 · P0-4 MUTATION AUTHORITY BOUNDARY：business mutation 统一 access guard
      （在读取任何 DOM / 写任何 state 之前；Removed / Left / inactive → zero mutation） */
   if (WS_ACCESS_ACTIONS[a] && !wsRequireAccess()) return;
+  /* PASAY-TASK-006 · P0-8 · OWNER-ONLY MUTATION AUTHORITY：
+     add-property / submit-property 统一走 ACTIVE Membership.role === owner（wsCanManage）。
+     forged click 同样被拦截 —— 不只靠隐藏按钮。 */
+  if ((a === 'add-prop' || a === 'submit-property') && !wsCanManage()) {
+    toast(L('仅 Owner 可登记物业','Only the Owner can register properties'));
+    return;
+  }
   if (a === 'nav') { location.hash = el.dataset.href; return; }
   if (a === 'filter') { const base = el.dataset.base; const f = el.dataset.f; const k = el.dataset.k; const q = new URLSearchParams(base.split('?')[1] || ''); q.set(k || 'f', f); location.hash = base.split('?')[0] + '?' + q.toString(); return; }
   if (a === 'props-filter') {
@@ -6524,6 +6587,14 @@ const __odClickHandler = function(e) {
     render(); return;
   }
   if (a === 'ws-join') { toast(L('已打开邀请链接入口（演示）','Invite link entry opened (demo)')); return; }
+  if (a === 'invite-accept-me') {
+    /* PASAY-TASK-006 · P0-7 · Pending Invite → Accept：绑定当前用户为 Active Member，进入 workspace */
+    const m = wsMember(el.dataset.id);
+    if (!m || m.status !== 'invited' || !m.invite || m.invite.status !== 'PENDING') { toast(L('邀请状态不可用','invite not usable')); return; }
+    const r = wsAcceptInvite(m.id, wsCurrentUserId());
+    toast(r.ok ? (L('已加入 ','Joined ') + ws().name + ' ✓') : (r.reason || L('无法接受邀请','cannot accept invite')));
+    save(); render(); return;
+  }
   if (a === 'role-seg') {
     const r = el.dataset.r; state.meta.role = r;
     /* 007A2 · demo role selector 只切换测试身份（currentUserId）；authority 永远来自 Membership */
