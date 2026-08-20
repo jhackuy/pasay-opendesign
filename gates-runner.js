@@ -1172,6 +1172,26 @@ try {
   }
 }
 
+/* ─────────────── Run Daily Operations Command Center P0 Gate (PASAY-TASK-012) ─────────────── */
+{
+  const gateDcc = ctx.window.__OD_GATE_DAILY_OPERATIONS_COMMAND_CENTER_P0;
+  if (typeof gateDcc === 'function') {
+    try {
+      const r = gateDcc();
+      console.log('\n═══════ Daily Operations Command Center P0 Gate (PASAY-TASK-012 · Home + Queue cross-domain projection) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('DAILY_OPERATIONS_COMMAND_CENTER_P0', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('DAILY_OPERATIONS_COMMAND_CENTER_P0 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('DAILY_OPERATIONS_COMMAND_CENTER_P0 gate not exposed on window (__OD_GATE_DAILY_OPERATIONS_COMMAND_CENTER_P0 = ' + typeof gateDcc + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
