@@ -339,7 +339,7 @@ const WS_ACCESS_ACTIONS = {
   /* task / inspection */
   'submit-inspect': 1, 'submit-inspection': 1, 'inspection-start': 1, 'inspection-photos': 1, 'follow-task': 1, 'follow-tenant': 1, 'confirm-follow': 1, 'confirm-follow-tenant': 1, 'take-task': 1, 'complete-task': 1, 'snooze-task': 1, 'quiet-task': 1, 'turnover-done': 1, 'submit-request': 1, 'confirm-reject': 1,
   /* media / evidence */
-  'submit-media': 1, 'submit-media-cover': 1, 'media-upload': 1, 'media-archive': 1, 'media-cover': 1,
+  'submit-media': 1, 'submit-media-cover': 1, 'media-upload': 1, 'media-archive': 1, 'media-cover': 1, 'reclassify-doc': 1, 'reclassify-doc-save': 1,
   /* Team */
   'ta-submit': 1, 'team-accept': 1, 'team-revoke': 1, 'team-resend': 1, 'team-remove': 1, 'team-remove-confirm': 1, 'team-leave': 1, 'team-leave-confirm': 1,
   /* workspace create / group binding */
@@ -4017,7 +4017,7 @@ function viewProperty(u, tab) {
   } else if (tb[0] === 'archive') {
     const media = state.media.filter(m => m.unit === p.unit);
     const mediaByKind = m => media.filter(x => x.kind === m).length;
-    /* 007C · 一房一档：Archive Tab 文档按业务对象分层 · Channel 置顶 Snapshot */
+    /* PASAY-TASK-002 · 一个 Workspace = 一个 Archive Channel；一个 Property = 一条主档案消息 · 单 primary category + Reclassify */
     const docSections = [
       { kind: 'lease', icon: 'doc', label: state.lang === 'zh' ? '租约 / 合同' : 'Lease & contracts', count: mediaByKind('lease') },
       { kind: 'id', icon: 'users', label: state.lang === 'zh' ? '租客身份证 / 资料' : 'Tenant ID & docs', count: mediaByKind('id') + mediaByKind('id_doc') },
@@ -4027,15 +4027,15 @@ function viewProperty(u, tab) {
       { kind: 'building', icon: 'building', label: state.lang === 'zh' ? '楼宇公告' : 'Building notices', count: mediaByKind('building_notice') },
       { kind: 'note', icon: 'doc', label: state.lang === 'zh' ? '其他备注' : 'Other notes', count: mediaByKind('note') }
     ].filter(d => d.count > 0 || ['lease', 'id', 'receipt'].indexOf(d.kind) >= 0);
-    const docRows = docSections.map(d => '<div class="row" style="padding:9px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(d.kind === 'lease' || d.kind === 'note' ? 'doc' : d.kind === 'receipt' ? 'cash' : d.kind === 'building' ? 'building' : d.kind.indexOf('id') === 0 ? 'users' : d.kind.indexOf('repair') === 0 ? 'wrench' : 'search', 16) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + d.label + '</b></div><div class="row-l2">' + d.count + (state.lang === 'zh' ? ' 份' : ' files') + '</div></div><div class="row-r">' + ic('chev', 14) + '</div></div>').join('');
-    body = sec(state.lang === 'zh' ? '一房一档 · Telegram 频道档案' : 'PER-PROPERTY ARCHIVE CHANNEL', '') +
-      '<div class="card" style="margin:0 16px;padding:0;overflow:hidden"><div class="ph-img" style="height:140px;background:linear-gradient(135deg, color-mix(in oklch, var(--accent) 16%, transparent), var(--fg-soft));display:grid;place-items:center;color:var(--muted);font-family:var(--font-mono);font-size:12px">UNIT ' + p.unit + ' · ARCHIVE</div><div style="padding:14px"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:15px">' + (state.lang === 'zh' ? '频道档案 · ' : 'Channel · ') + p.unit + '</b><span class="tag">' + (state.lang === 'zh' ? '长期存在' : 'long-lived') + '</span>' + propertyStatusDot(p) + '</div><div class="meta" style="margin-top:4px">' + p.tower + ' · ' + p.addr + '</div><p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.65">' + (t ? (state.lang === 'zh' ? '现任租客 ' + t.name + '，' + fmtDate(p.ls) + ' 起租。' : 'Current tenant ' + t.name + ', since ' + fmtDate(p.ls) + '.') : (state.lang === 'zh' ? '空置单元，可带看。' : 'Vacant unit — ready for viewing.')) + '</p><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn btn-p sm" data-a="open-archive" data-unit="' + p.unit + '">' + ic('bot', 14) + (state.lang === 'zh' ? '在频道打开' : 'Open in channel') + '</button><button class="btn btn-s sm" data-a="archive-snapshot" data-unit="' + p.unit + '">' + ic('spark', 14) + (state.lang === 'zh' ? '重发当前快照' : 'Re-snapshot') + '</button></div></div></div>' +
-      sec(state.lang === 'zh' ? 'Documents · 文档分层（属于这套房）' : 'DOCUMENTS BY CATEGORY') +
+    const docRows = docSections.map(d => '<div class="row" style="padding:9px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(d.kind === 'lease' || d.kind === 'note' ? 'doc' : d.kind === 'receipt' ? 'cash' : d.kind === 'building' ? 'building' : d.kind.indexOf('id') === 0 ? 'users' : d.kind.indexOf('repair') === 0 ? 'wrench' : 'search', 16) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + d.label + '</b></div><div class="row-l2">' + d.count + (state.lang === 'zh' ? ' 份 · 单一分类' : ' files · single category') + '</div></div><div class="row-r">' + (d.count ? '<button class="btn btn-g sm" style="height:26px;font-size:11px;padding:0 8px" data-a="reclassify-doc" data-unit="' + p.unit + '" data-kind="' + d.kind + '">' + (state.lang === 'zh' ? '重分类' : 'Reclassify') + '</button>' : '') + ic('chev', 14) + '</div></div>').join('');
+    body = sec(state.lang === 'zh' ? 'Workspace 频道档案 · 主档案' : 'WORKSPACE CHANNEL · MASTER POST', '') +
+      '<div class="card" style="margin:0 16px;padding:0;overflow:hidden"><div class="ph-img" style="height:140px;background:linear-gradient(135deg, color-mix(in oklch, var(--accent) 16%, transparent), var(--fg-soft));display:grid;place-items:center;color:var(--muted);font-family:var(--font-mono);font-size:12px">UNIT ' + p.unit + ' · MASTER POST</div><div style="padding:14px"><div class="row-l1" style="align-items:center;gap:8px"><b style="font-size:15px">' + (state.lang === 'zh' ? '主档案 · ' : 'Master post · ') + p.unit + '</b><span class="tag">' + (state.lang === 'zh' ? 'Workspace 频道内' : 'in workspace channel') + '</span>' + propertyStatusDot(p) + '</div><div class="meta" style="margin-top:4px">' + p.tower + ' · ' + p.addr + (state.lang === 'zh' ? ' · 一个 Workspace = 一个 Archive Channel' : ' · one workspace = one archive channel') + '</div><p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.65">' + (t ? (state.lang === 'zh' ? '现任租客 ' + t.name + '，' + fmtDate(p.ls) + ' 起租。主档案随重要事实变化自动更新。' : 'Current tenant ' + t.name + ', since ' + fmtDate(p.ls) + '. Master post auto-updates on material changes.') : (state.lang === 'zh' ? '空置单元，可带看。' : 'Vacant unit — ready for viewing.')) + '</p><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn btn-p sm" data-a="open-archive" data-unit="' + p.unit + '">' + ic('bot', 14) + (state.lang === 'zh' ? '打开主档案消息' : 'Open master post') + '</button><button class="btn btn-s sm" data-a="archive-snapshot" data-unit="' + p.unit + '">' + ic('spark', 14) + (state.lang === 'zh' ? '手动快照' : 'Create snapshot') + '</button></div></div></div>' +
+      sec(state.lang === 'zh' ? 'Documents · 文档分层（属于这套房 · 每文件单一 primary category）' : 'DOCUMENTS BY CATEGORY · ONE PRIMARY CATEGORY PER FILE') +
       '<div class="list" style="margin-top:8px">' + (docRows || emptyState('doc', state.lang === 'zh' ? '尚未归档任何文件' : 'No archived files yet', '')) + '</div>' +
       sec(state.lang === 'zh' ? '自然语言归档 · 快捷键' : 'NATURAL LANGUAGE ARCHIVE') +
       '<div class="card" style="margin:8px 16px 0;padding:12px 14px"><div style="font-size:13px;line-height:1.7">' +
-      (state.lang === 'zh' ? '直接在 Telegram 群发送（自动归到对应房产频道）：<br>· <code>' + p.unit + ' rent receipt</code><br>· <code>' + p.unit + ' tenant ID</code><br>· <code>' + p.unit + ' contract</code><br>· <code>' + p.unit + ' repair photo</code>' :
-      ' Send in the group (auto-routed to this property):<br>· <code>' + p.unit + ' rent receipt</code><br>· <code>' + p.unit + ' tenant ID</code><br>· <code>' + p.unit + ' contract</code><br>· <code>' + p.unit + ' repair photo</code>') +
+      (state.lang === 'zh' ? '直接在 Telegram 群发送（自动归档到本房主档案消息）：<br>· <code>' + p.unit + ' rent receipt</code><br>· <code>' + p.unit + ' tenant ID</code><br>· <code>' + p.unit + ' contract</code><br>· <code>' + p.unit + ' repair photo</code><br><span class="meta">每个文件只有一个 primary category；可在之后 Move category / Reclassify（首次分类不锁死）。</span>' :
+      ' Send in the group (auto-routed to this property master post):<br>· <code>' + p.unit + ' rent receipt</code><br>· <code>' + p.unit + ' tenant ID</code><br>· <code>' + p.unit + ' contract</code><br>· <code>' + p.unit + ' repair photo</code><br><span class="meta">One primary category per file; can be reclassified later (Move category / Reclassify) — first classification is not locked.</span>') +
       '</div></div>';
   }
 
@@ -5156,24 +5156,24 @@ function viewArchive() {
   ];
   const cards = sections.map(s => '<div class="row" data-a="nav" data-href="' + s.href + '" data-od-id="archive-' + s.id + '" style="padding:12px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(s.icon, 18) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + s.title + '</b><span class="chip" style="margin-left:6px">' + s.count + '</span></div><div class="row-l2">' + s.sub + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>').join('');
 
-  /* 007C · 一房一档 Per-Property Archive Channel 入口
-     每套房对应一个长期 Telegram Channel 档案入口；Mini App 永远是最新事实入口 */
-  const propertyChannels = state.props.slice(0, 8).map(p => {
+  /* PASAY-TASK-002 · 一个 Workspace = 一个 Telegram Archive Channel；
+     一个 Property = Channel 内一条长期主档案消息；Mini App deep-link 到对应主档案消息 */
+  const masterPosts = state.props.slice(0, 8).map(p => {
     const t = p.tenant ? ten(p.tenant) : null;
     const mediaCount = media.filter(m => m.unit === p.unit || m.kind === 'cover' || m.unit === p.unit).length;
-    return '<div class="row" data-a="open-archive" data-unit="' + p.unit + '" data-od-id="archive-channel-' + p.unit + '" style="padding:11px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 14%, transparent);color:var(--accent);border-radius:10px">' + ic('bot', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + p.unit + ' · ' + (t ? t.name : (zh ? '空置' : 'Vacant')) + '</b></div><div class="row-l2">' + (zh ? '频道档案 · ' : 'Channel · ') + p.tower + ' · ' + p.type + ' · ' + mediaCount + (zh ? ' 张图片' : ' photos') + '</div></div><div class="row-r">' + propertyStatusDot(p) + ic('chev', 14) + '</div></div>';
+    return '<div class="row" data-a="open-archive" data-unit="' + p.unit + '" data-od-id="archive-master-' + p.unit + '" style="padding:11px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 14%, transparent);color:var(--accent);border-radius:10px">' + ic('bot', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + p.unit + ' · ' + (t ? t.name : (zh ? '空置' : 'Vacant')) + '</b></div><div class="row-l2">' + (zh ? '主档案消息 · ' : 'Master post · ') + p.tower + ' · ' + p.type + ' · ' + mediaCount + (zh ? ' 份资料' : ' items') + '</div></div><div class="row-r">' + propertyStatusDot(p) + ic('chev', 14) + '</div></div>';
   }).join('');
 
   return shell('archive', tr('nav_archive'), (zh ? '长期事实与证据层' : 'Long-term facts & evidence'), `
     <div class="banner info" style="margin-top:14px">${ic('shield', 17)}<div>${zh ? 'Archive 是按业务对象组织的长期事实与证据层 — 不是简单网盘。所有 Operation / Claim / Evidence 都会沉淀到这里。' : 'Archive is organised by business objects — long-term facts & evidence, not a plain drive. Every operation, claim and evidence lives here.'}</div></div>
-    ${sec(zh ? '一房一档 · Telegram 频道档案' : 'PER-PROPERTY ARCHIVE CHANNELS', '<span class="meta">' + state.props.length + '</span>')}
-    <div class="meta" style="padding:6px 16px 0;font-size:12px">${zh ? '每套房对应一个长期存在的 Telegram 频道档案入口。Mini App 永远是最新事实入口。' : 'One long-lived channel post per property. Mini App is always the source of truth.'}</div>
-    <div class="list" style="margin-top:8px">${propertyChannels}</div>
+    ${sec(zh ? 'Workspace Archive Channel · 主档案消息' : 'WORKSPACE ARCHIVE CHANNEL · MASTER POSTS', '<span class="meta">' + state.props.length + '</span>')}
+    <div class="meta" style="padding:6px 16px 0;font-size:12px">${zh ? '一个 Workspace = 一个 Telegram Archive Channel；一个 Property = Channel 内一条长期主档案消息。Mini App 的「打开主档案消息」deep-link 到对应 Property 主档案。' : 'One workspace = one Telegram archive channel; one property = one long-lived master post inside it. Mini App deep-links to each property master post.'}</div>
+    <div class="list" style="margin-top:8px">${masterPosts}</div>
     ${sec(zh ? '业务对象档案' : 'BY BUSINESS OBJECT')}
     <div class="list" style="margin-top:8px">${cards}</div>
-    ${sec(zh ? '频道内容老化策略' : 'CHANNEL REFRESH POLICY')}
+    ${sec(zh ? '频道契约 · Pin / Edit + Snapshot Policy' : 'CHANNEL CONTRACT · PIN / EDIT + SNAPSHOT POLICY')}
     <div class="card" style="margin:8px 16px 0;padding:12px 14px">
-      <div style="font-size:13px;line-height:1.7">${zh ? '· 房源主档案长期存在（不会被新消息淹没）<br>· 重要状态变化后系统重新生成 Summary，置顶发布<br>· 必要时新增 Snapshot（Latest Snapshot + 历史可见）<br>· Mini App / backend 是最新事实入口，频道只承担人类可读资料层' : '· Property master post stays pinned long-term<br>· Re-summarised after any material state change<br>· New Snapshot appended when needed; history stays visible<br>· Mini App / backend is the source of truth; channel is human-readable archive only'}</div>
+      <div style="font-size:13px;line-height:1.7">${zh ? '· Pasay Bot 拥有 Channel admin 权限时，可以 pin 消息并执行允许的消息编辑<br>· 一个 Archive Channel + 一条可选的 Property Archive Index pinned message<br>· Property 主档案在重要事实变化时自动更新；不要求每个 Property 消息全部 pin<br>· 仅业务里程碑自动创建历史 Snapshot：Rent 逾期 / 逾期转已付 / Repair 开启或关闭 / 租约起止续 / 租客搬入搬出 / 房屋空置或入住 / 重大资料变更<br>· 部分付款（Partial）不自动创建 Summary；收据作为 Archive record，主档案同步更新<br>· 手动 Create Snapshot 保留' : '· Pasay Bot can pin channel messages & apply permitted edits once it has Channel admin rights<br>· One archive channel + one optional pinned Property Archive Index<br>· Master posts auto-update on material changes; not every property post must be pinned<br>· Historical Snapshot auto-created only at milestones: Rent overdue / overdue→paid / Repair open or closed / Lease start-renew-end / Tenant move-in-out / Property vacant-occupied / major info change<br>· Partial payment never auto-creates a Summary; receipts stay as archive records while the master post syncs<br>· Manual Create Snapshot is kept'}</div>
     </div>
   `);
 }
@@ -5789,13 +5789,32 @@ function sheetRole() {
 function sheetArchive(unitId) {
   const p = prop(unitId); if (!p) return;
   const t = p.tenant ? ten(p.tenant) : null;
-  openModal('<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px"><b style="font-size:16px">' + (state.lang==='zh'?'频道文章':'Channel post') + ' · Unit ' + p.unit + '</b><button class="iconb" data-a="close-modal">' + ic('x', 18) + '</button></div>' +
-    '<div class="ph-img" style="height:130px;background:linear-gradient(135deg, color-mix(in oklch, var(--accent) 16%, transparent), var(--fg-soft));display:grid;place-items:center;color:var(--muted);font-family:var(--font-mono);font-size:12px">UNIT ' + p.unit + '</div>' +
+  openModal('<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px"><b style="font-size:16px">' + (state.lang==='zh'?'Workspace 频道 · 主档案消息':'Workspace channel · master post') + ' · Unit ' + p.unit + '</b><button class="iconb" data-a="close-modal">' + ic('x', 18) + '</button></div>' +
+    '<div class="ph-img" style="height:130px;background:linear-gradient(135deg, color-mix(in oklch, var(--accent) 16%, transparent), var(--fg-soft));display:grid;place-items:center;color:var(--muted);font-family:var(--font-mono);font-size:12px">UNIT ' + p.unit + ' · MASTER POST</div>' +
     '<div style="margin-top:12px;font-size:19px;font-weight:700;letter-spacing:-0.01em">Unit ' + p.unit + ' · ' + p.type + '</div>' +
-    '<div class="meta" style="margin-top:4px">Sunrise Residences · Pasay · ' + p.tower + '</div>' +
-    '<div style="font-size:13px;line-height:1.7;margin-top:12px;color:var(--fg)">' + (t ? '<b>' + t.name + '</b> · ' + (state.lang==='zh' ? '自 ' + fmtDate(p.ls) + ' 起租 · 月租 ' : 'since ' + fmtDate(p.ls) + ' · monthly ' ) + money(p.rent) + '</div><div style="font-size:12.5px;color:var(--muted);margin-top:8px">' + (state.lang==='zh' ? '历史维修、装修与照片归档于此文章，作为房产长期资料（CMS 展示层）。' : 'Past repairs, renovations & photos are archived in this post as long-term property record (CMS layer).') + '</div>' : (state.lang==='zh' ? '空置单元 · 可带看 · 挂牌 ' : 'Vacant unit · ready for viewing · listing ') + money(p.rent)) + '</div>' +
+    '<div class="meta" style="margin-top:4px">Sunrise Residences · Pasay · ' + p.tower + ' · Workspace Archive Channel</div>' +
+    '<div style="font-size:13px;line-height:1.7;margin-top:12px;color:var(--fg)">' + (t ? '<b>' + t.name + '</b> · ' + (state.lang==='zh' ? '自 ' + fmtDate(p.ls) + ' 起租 · 月租 ' : 'since ' + fmtDate(p.ls) + ' · monthly ' ) + money(p.rent) + '</div><div style="font-size:12.5px;color:var(--muted);margin-top:8px">' + (state.lang==='zh' ? '历史维修、装修与照片归档于此主档案，作为房产长期资料；主档案随重要事实变化自动更新。' : 'Past repairs, renovations & photos are archived in this master post as long-term property record; it auto-updates on material changes.') + '</div>' : (state.lang==='zh' ? '空置单元 · 可带看 · 挂牌 ' : 'Vacant unit · ready for viewing · listing ') + money(p.rent)) + '</div>' +
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px">' + (state.lang==='zh'?['客厅','卧室','厨卫']:['Living room','Bedroom','Kitchen & bath']).map(x => '<div style="height:56px;border-radius:8px;background:var(--fg-soft);display:grid;place-items:center;color:var(--muted);font-size:11px">' + x + '</div>').join('') + '</div>' +
-    '<button class="btn btn-p block" style="margin-top:14px" data-a="close-modal">' + (state.lang==='zh'?'在频道中打开':'Open in channel') + '</button>');
+    '<button class="btn btn-p block" style="margin-top:14px" data-a="close-modal">' + (state.lang==='zh'?'打开主档案消息':'Open master post') + '</button>');
+}
+/* PASAY-TASK-002 · 文档重新分类（Move category / Reclassify）：每文件单一 primary category，首次分类不锁死 */
+function sheetReclassify(unitId, fromKind) {
+  const p = prop(unitId); if (!p) return;
+  const zh = state.lang === 'zh';
+  const media = state.media.filter(m => m.unit === p.unit && m.kind === fromKind);
+  const kinds = [
+    ['lease', zh ? '租约 / 合同' : 'Lease & contracts'],
+    ['id', zh ? '租客身份证 / 资料' : 'Tenant ID & docs'],
+    ['receipt', zh ? '收据 / 付款凭证' : 'Receipts'],
+    ['repair_photo', zh ? '维修照片' : 'Repair photos'],
+    ['inspection_photo', zh ? '验房照片' : 'Inspection photos'],
+    ['building_notice', zh ? '楼宇公告' : 'Building notices'],
+    ['note', zh ? '其他备注' : 'Other notes']
+  ].filter(k => k[0] !== fromKind);
+  openSheet(sheetHead(zh ? '重新分类 · ' + p.unit : 'Reclassify · ' + p.unit, zh ? '每个文件单一 primary category' : 'one primary category per file') +
+    '<div class="meta" style="margin-bottom:12px">' + (zh ? ('将「' + media.length + ' 份文件」移动到新的 primary category。首次分类不锁死，随时可重新分类。') : ('Move ' + media.length + ' file(s) to a new primary category. First classification is not locked.')) + '</div>' +
+    field('rc-target', zh ? '移动到' : 'Move to', '<select id="rc-target" class="select">' + kinds.map(k => '<option value="' + k[0] + '">' + k[1] + '</option>').join('') + '</select>') +
+    '<button class="btn btn-p block" data-a="reclassify-doc-save" data-unit="' + p.unit + '" data-from="' + fromKind + '">' + (zh ? '移动分类' : 'Move category') + '</button>');
 }
 
 /* ═══════════════ 导出 CSV ═══════════════ */
@@ -6032,6 +6051,16 @@ const __odClickHandler = function(e) {
   if (a === 'pri-seg') { document.querySelectorAll('[data-a="pri-seg"]').forEach(b => b.classList.remove('on')); el.classList.add('on'); return; }
   if (a === 'urg-seg' || a === 'req-urg-seg') { const sel = a === 'req-urg-seg' ? '[data-a="req-urg-seg"]' : '[data-a="urg-seg"]'; document.querySelectorAll(sel).forEach(b => b.classList.remove('on')); el.classList.add('on'); return; }
   if (a === 'open-archive') { sheetArchive(el.dataset.unit); return; }
+  if (a === 'building-contacts-more') {
+    const p = prop(el.dataset.unit);
+    if (p && p.building_contacts && p.building_contacts.length) {
+      const zh = state.lang === 'zh';
+      openModal('<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px"><b style="font-size:16px">' + (zh ? '物业联系人 · ' : 'Building contacts · ') + p.unit + '</b><button class="iconb" data-a="close-modal">' + ic('x', 18) + '</button></div>' +
+        p.building_contacts.map(c => '<div style="display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:13.5px">' + c.name + '</b><div class="meta" style="margin-top:2px">' + c.role + '</div></div><span class="num" style="font-size:13px">' + c.phone + '</span></div>').join('') +
+        '<button class="btn btn-s block" style="margin-top:14px" data-a="close-modal">' + (zh ? '关闭' : 'Close') + '</button>');
+    }
+    return;
+  }
   if (a === 'attach-receipt') { const id = el.dataset.id; const x = exp(id); if (x) { x.receipt = 'receipt-' + x.id; save(); render(); toast((state.lang==='zh'?'已添加凭证':'Receipt attached') + ' ✓'); } return; }
   if (a === 'attach-receipt-new') { toast((state.lang==='zh'?'凭证已附加（模拟）':'Receipt attached (simulated)')); return; }
   if (a === 'toggle-pay') { const p = state.payments.find(x => x.id === el.dataset.id); if (p) { p.active = !p.active; save(); render(); } return; }
@@ -6080,8 +6109,22 @@ const __odClickHandler = function(e) {
     const u = el.dataset.unit;
     if (u) {
       const p = prop(u);
-      toast((state.lang==='zh' ? '已请求为 ' + u + ' 生成最新 Snapshot（演示）' : 'Re-snapshot requested for ' + u + ' (demo)'));
-      if (state.activity) state.activity.push({ at: TODAY, t: (state.lang==='zh' ? '重发频道档案 Snapshot · ' + u : 'Re-snapshot channel archive · ' + u) + ' (' + (p ? (t ? t.name : 'Vacant') : '') + ')' });
+      toast((state.lang==='zh' ? '已为 ' + u + ' 创建手动 Snapshot（演示）' : 'Manual snapshot created for ' + u + ' (demo)'));
+      if (state.activity) state.activity.push({ at: TODAY, t: (state.lang==='zh' ? '手动快照 · 主档案 · ' + u : 'Manual snapshot · master post · ' + u) + ' (' + (p ? (p.tenant ? ten(p.tenant).name : 'Vacant') : '') + ')' });
+    }
+    return;
+  }
+  if (a === 'reclassify-doc') { sheetReclassify(el.dataset.unit, el.dataset.kind); return; }
+  if (a === 'reclassify-doc-save') {
+    const u = el.dataset.unit;
+    const from = el.dataset.from;
+    const target = $('#rc-target') ? $('#rc-target').value : '';
+    if (u && from && target) {
+      let n = 0;
+      state.media.forEach(m => { if (m.unit === u && m.kind === from) { m.kind = target; n++; } });
+      save(); closeSheet(); render();
+      toast((state.lang==='zh' ? '已重新分类 ' + n + ' 份文件 → ' + target : 'Reclassified ' + n + ' file(s) → ' + target));
+      if (n && state.activity) state.activity.push({ at: TODAY, t: (state.lang==='zh' ? '重新分类文档 · ' + u + ' · ' + from + ' → ' + target : 'Reclassified docs · ' + u + ' · ' + from + ' → ' + target) });
     }
     return;
   }
