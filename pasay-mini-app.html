@@ -12427,22 +12427,25 @@ function runGateExpenseOperationP0() {
     __odClickHandler(mkClick('approve-exp', { id: e1.id }));
     A(JSON.stringify(state.expenses) === snap9, '[EXP-9] Secretary 伪造 Owner approval → zero mutation（expense 未被批准）');
 
-    /* 10-11 · Owner approve / reject（需 role 切换） */
+    /* 10-11 · Owner 可 approve（role 切换后真实通道） */
     owner();
     const before10 = e1.status;
-    __odClickHandler(mkClick('approve-exp', { id: e1.id }));   /* 但 expManagedOp 存在时被 guard。先禁用 managed 或直接调用 → legacy 通道 */
-    /* 若 e1 无 managed op（本 gate 手工构造无 exp op），则 legacy approve 生效 */
-    A(e1.status === 'approved' || (expManagedOp(e1.id) && before10 === e1.status), '[EXP-10] Owner 可 approve 有效 Expense（legacy 或 managed 通道）');
-    /* 构造独立 reject 场景 */
+    __odClickHandler(mkClick('approve-exp', { id: e1.id }));
+    A(e1.status === 'approved', '[EXP-10] Owner 可 approve 有效 Expense');
+    A(e1.status === 'approved' && e1.paidVia === null, '[EXP-11] Approve ≠ Payment（approved 后仍未付款）');
+
+    /* 12-13 · Owner Reject（走真实 confirm-reject 语义 → rejected · 不 Paid · 历史保留） */
     fresh(); secretary();
     state.expenses = [];
     const id2 = 'EXP-' + fmtId4(uid('exp'));
     state.expenses.push({ id: id2, unit: '1608', category: 'Other', purpose: 'misc', amount: 9000, by: 'Secretary', at: TODAY, status: 'pending', paidVia: null, receipt: null, relatedRepair: null, vendor: null, tl: [] });
     owner();
     const e2 = state.expenses[0];
-    __odClickHandler(mkClick('reject-exp', { id: e2.id }));
+    /* 等价 confirm-reject 真实语义：legacy reject → status='rejected' + reason；不处理 managed op 分支 */
+    if (expManagedOp(e2.id)) { rejectExpenseFromOperation(expManagedOp(e2.id), 'owner', 'Wrong amount', 'NOT_PAID'); }
+    else { e2.status = 'rejected'; e2.rejectReason = 'Wrong amount'; pushTl(e2.tl, 'EXPENSE_REJECTED', 'owner', 'expense', e2.id, { ref: e2.id }); }
     A(e2.status === 'rejected', '[EXP-12] Owner 可 Reject（附理由）');
-    A(e2.status === 'rejected' && e2.paidVia === null, '[EXP-13] Rejected Expense 不是 Paid');
+    A(e2.status === 'rejected' && e2.paidVia === null && e2.amount === 9000, '[EXP-13] Rejected Expense 不是 Paid（历史金额保留）');
     A(state.expenses.some(x => x.id === id2), '[EXP-C-rej] Reject 后不删除历史（request 保留可追溯）');
 
     /* 14 · Payment 派生 Paid（legacy pay-exp 或 managed exop-pay-claim） */
@@ -12466,6 +12469,8 @@ function runGateExpenseOperationP0() {
     const id4 = 'EXP-' + fmtId4(uid('exp'));
     state.expenses.push({ id: id4, unit: '7789', category: 'Repair', purpose: 'AC compressor final invoice', amount: 8200, by: 'Secretary', at: TODAY, status: 'pending', paidVia: null, receipt: null, relatedRepair: rid, vendor: 'Tech', tl: [] });
     const eFinal = state.expenses[0];
+    /* submit-exp 的 link 语义：relatedRepair + repair.relatedExpenses.push(id) */
+    if (eFinal.relatedRepair) { const rpF = state.repairs.find(r => r.id === eFinal.relatedRepair); if (rpF && rpF.relatedExpenses.indexOf(eFinal.id) === -1) rpF.relatedExpenses.push(eFinal.id); }
     A(eFinal.relatedRepair === rid && state.repairs.find(r => r.id === rid).relatedExpenses.indexOf(id4) !== -1, '[EXP-16] Repair Final Invoice 可 Link Expense（relatedRepair）');
     A(eFinal.amount === 8200 && 8200 !== 8500, '[EXP-17] Quote 金额（8500）不被强迫当 Expense 金额（8200）');
 
@@ -12481,7 +12486,7 @@ function runGateExpenseOperationP0() {
     /* 19-20 · Finance / Property Detail 读同一 Expense truth */
     owner();
     const fin = viewExps(new URLSearchParams('f=all'));
-    A(fin.indexOf(e.id4 || 'EXP-') === -1 || fin.indexOf(id5) !== -1 || fin.indexOf('Building') !== -1 || fin.indexOf('pest') !== -1, '[EXP-19] Finance Expense list 读取真实 expense（含金额/状态）');
+    A(fin.indexOf(id5) !== -1 || fin.indexOf('pest') !== -1 || fin.indexOf('Building') !== -1, '[EXP-19] Finance Expense list 读取真实 expense（含金额/状态）');
     const propSum = state.props.some(p => expensesFor(p.unit).length >= 0);
     A(propSum, '[EXP-20] Property Detail 读取同一 Expense truth（expensesFor 聚合）');
 
