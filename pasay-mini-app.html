@@ -1548,7 +1548,7 @@ function propertyRowSub(p) {
   if (partial) return (zh ? '尾款未清' : 'Balance not cleared');
   if (expiring) return (zh ? '租约 30 天内到期' : 'Lease expiring within 30 days');
   if (p.status === 'vacant') return (zh ? '可出租' : 'Ready for lease');
-  return (zh ? 'OK' : 'OK');
+  return (zh ? '正常' : 'OK');
 }
 
 /* Issue#3 + 007C · Active Operations 聚合（每个独立成行，不互相覆盖 — Scenario D 多事件并存） */
@@ -4054,9 +4054,11 @@ function viewProps(q) {
   }
   const rows = list.map(p => {
     const t = p.tenant ? ten(p.tenant) : null;
-    /* 008B-FIX3 · Row 两层：Unit / 1 行辅助 / Tenant · 一个最重要异常；右侧只放纯色状态点 + chevron（去重） */
+    /* RENDER-UX-CLOSEOUT-R1 · Row 两层完整层级：
+       第一行 Unit + Tower + 房型 + 面积；第二行 Tenant/空置 + 一个最重要异常；
+       右侧单一状态点 + chevron（不重复文字）；长租客名 flex 截断不挤压右侧。 */
     const subStatus = propertyRowSub(p);
-    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span></div><div class="row-l2"><span class="who">' + (t ? t.name : (zh ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (subStatus ? '<span class="dot"></span><span class="num" style="font-weight:600">' + subStatus + '</span>' : '') + '</div></div><div class="row-r">' + propertyStatusDotOnly(p) + ic('chev', 15) + '</div></div>';
+    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span></div><div class="row-l2"><span class="who" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (t ? t.name : (zh ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (subStatus ? '<span class="dot"></span><span class="num" style="font-weight:600;flex-shrink:0">' + subStatus + '</span>' : '') + '</div></div><div class="row-r">' + propertyStatusDotOnly(p) + ic('chev', 15) + '</div></div>';
   }).join('');
   const xName = xFilters.find(z => z[0] === x);
   const occupiedN = state.props.filter(p => p.status === 'occupied').length;
@@ -10642,8 +10644,7 @@ function runGateMiniApp008BFix3() {
     __odAssert(opsSrc.indexOf('项需要处理') !== -1 && opsSrc.indexOf('已超时 / 今天到期') !== -1 && opsSrc.indexOf('目前没有需要你处理的事项') !== -1, '[FIX3-6] Action Queue：业务摘要 + 已超时/到期组 + 用户语言 Empty');
     __odAssert(propSrc.indexOf('propertyStatusDotOnly') !== -1 && propSrc.indexOf('需要关注') !== -1 && propSrc.indexOf('data-k="v"') !== -1, '[FIX3-7] Properties：右侧纯色点去重 + 默认/需要关注视图');
     __odAssert(finSrc.indexOf('部分付款 · 还欠') !== -1 && finSrc.indexOf('已收 ') !== -1 && finSrc.indexOf('%') !== -1, '[FIX3-8] Finance：部分付款显示剩余 + 已收/应收关系');
-    /* FIX3-D · 模板泄漏由 runner 的 MINIAPP_RENDER_CLEAN backtick 扫描保证（此处标记链路） */
-    __odAssert(true, '[FIX3-9] 模板泄漏扫描由 runner MINIAPP_RENDER_CLEAN（backtick 全量扫描）保证');
+    /* FIX3-D · 模板泄漏验收由 MINIAPP_RENDER_CLEAN_DOM（RENDER-UX-CLOSEOUT-R1 · 真实 render 后 DOM 扫描）负责，不再使用占位断言 */
   } catch (e) {
     results.push({ pass: false, msg: '008B-FIX3 gate threw: ' + (e && e.message ? e.message : e) });
   }
