@@ -332,7 +332,7 @@ const WS_ACCESS_ACTIONS = {
   /* property / tenant creation */
   'add-prop': 1, 'submit-property': 1, 'add-tenant': 1, 'submit-tenant': 1,
   /* rent */
-  'submit-rent': 1, 'submit-payment': 1, 'submit-payment-evidence': 1, 'confirm-rent': 1, 'reject-rent': 1, 'reverse-rent': 1, 'confirm-reverse-rent': 1,
+  'submit-rent': 1, 'submit-payment': 1, 'submit-payment-evidence': 1, 'confirm-rent': 1, 'reject-rent': 1, 'reverse-rent': 1, 'confirm-reverse-rent': 1, 'rent-start-operation': 1,
   /* expense */
   'submit-exp': 1, 'approve-exp': 1, 'reject-exp': 1, 'reverse-exp': 1, 'attach-receipt': 1, 'attach-receipt-new': 1, 'pay-exp': 1,
   /* repair */
@@ -1145,9 +1145,10 @@ function rentsForTenant(tenant_id) {
    · unit 仅为 display / legacy / 搜索辅助，绝非 Rent relation key
    · Draft Lease 不产生 Rent；Ended Lease 不生成未来 Rent
    · 新 Payment 一律经 rentRecordPayment；reversal 改 status='reversed' 保持 history 完整 */
-/* PASAY-TASK-008 · P0 · paymentRecords 一致性查询 + 派生 */
+/* PASAY-TASK-008 · P0 · paymentRecords 一致性查询 + 派生。
+   只有 Owner 已确认的 Payment 才是到账；申报中的付款只进入 pending。 */
 function paymentsForObligation(obId) { return (state.paymentRecords || []).filter(p => p.rent_obligation_id === obId); }
-function paidAmtForObl(obId) { return paymentsForObligation(obId).filter(p => p.status !== 'reversed').reduce((a, p) => a + Number(p.amount || 0), 0); }
+function paidAmtForObl(obId) { return paymentsForObligation(obId).filter(p => p.status === 'confirmed').reduce((a, p) => a + Number(p.amount || 0), 0); }
 /* PASAY-TASK-008 · P0 · 重写 paidAmt 为派生（override 旧实现） */
 function paidAmt(r) {
   if (!r) return 0;
@@ -1160,14 +1161,15 @@ function pendAmt(r) {
 }
 function rentById(id) { return state.rents.find(r => r.id === id); }
 /* PASAY-TASK-008 · P0 · balance = max(amount_due - paid, 0) — 单真相派生 */
-function rentBalance(ob) { if (!ob) return 0; return Math.max(Number(ob.amount || 0) - paidAmt(ob), 0); }
-/* PASAY-TASK-008 · P0 · Lifecycle 派生（业务语言 5 态 + 内部更细）：Paid balance=0；Overdue today>due && balance>0；Due today==due && balance>0；Upcoming today<due && balance>0；Partial 是指标非状态 */
-function _todayDays(iso) { return Math.round((new Date(TODAY) - new Date(iso)) / 86400000); }
+function rentBalance(ob) { if (!ob) return 0; return Math.max(Number(ob.amount_due !== undefined ? ob.amount_due : ob.amount || 0) - paidAmt(ob), 0); }
+/* Lifecycle 是纯派生：Partial 优先于日期，以便尾款在到期后仍保留业务语义。 */
+function _todayDays(iso, today) { return Math.round((new Date(today || TODAY) - new Date(iso)) / 86400000); }
 function rentStatus(ob, today) {
   if (!ob) return 'upcoming';
   const bal = rentBalance(ob);
   const td = today || TODAY;
   if (bal <= 0) return 'paid';
+  if (paidAmt(ob) > 0) return 'partial';
   const d = ob.due || ((ob.period || '').slice(0, 7) + '-05');
   const diff = _todayDays(d, td);
   if (diff > 0) return 'overdue';
@@ -1188,16 +1190,36 @@ function rentEnsureMonthlyObligation(leaseId, billingPeriod) {
   const id = 'R-' + period + '-' + (l.property_id || l.unit) + '-' + (state.rents.filter(r => r.lease_id === leaseId && r.period === period).length ? String(state.rents.filter(r => r.lease_id === leaseId && r.period === period).length + 1) : '01');
   const ob = {
     id, lease_id: leaseId, property_id: l.property_id || null, unit: l.unit,
-    period, amount: Number(l.monthly_rent) || 0, due,
-    status: rentStatus({ amount: l.monthly_rent, due, period }, TODAY),
+    period, amount_due: Number(l.monthly_rent) || 0, amount: Number(l.monthly_rent) || 0, due,
+    status: rentStatus({ amount_due: l.monthly_rent, due, period }, TODAY),
     payments: [],
     created_at: TODAY, created_by: wsCurrentUserId()
   };
   state.rents.push(ob);
   return { ok: true, obligation: ob, created: true };
 }
+/* 每次 render / mutation 前可安全调用：补齐已过的 active lease 月份，并刷新全部派生字段。
+   它绝不为 Draft/Closed lease 创建 obligation，也不覆盖历史 amount_due。 */
+function reconcileRent(today) {
+  const td = today || TODAY;
+  const nowPeriod = td.slice(0, 7);
+  state.leases.filter(l => l.status === 'active').forEach(l => {
+    const start = (l.start_date || td).slice(0, 7);
+    const end = (l.end_date || nowPeriod).slice(0, 7);
+    if (start <= nowPeriod && nowPeriod <= end) rentEnsureMonthlyObligation(l.lease_id, nowPeriod);
+  });
+  state.rents.forEach(ob => {
+    if (ob.amount_due === undefined) ob.amount_due = Number(ob.amount || 0);
+    ob.amount = Number(ob.amount_due || 0); /* legacy projection，非第二真相 */
+    ob.status = rentStatus(ob, td);
+  });
+  state.operations.filter(o => o.kind === 'collect_rent').forEach(o => rentOperationReconcile(o, td));
+  return state.rents;
+}
+function generateMonthlyObligation(leaseId, period) { return rentEnsureMonthlyObligation(leaseId, period); }
 /* PASAY-TASK-008 · P0 · Payment 写入（Secretary 录入 → unconfirmed；Owner 确认 → confirmed）。统一入口，所有 submit-payment / confirm-rent 经此 */
 function rentRecordPayment(obId, amount, by, opts) {
+  if (!wsRequireAccess()) return { ok: false, reason: L('无有效 Membership','No active membership') };
   const ob = rentById(obId);
   if (!ob) return { ok: false, reason: 'obligation not found' };
   const l = state.leases.find(x => x.lease_id === ob.lease_id);
@@ -1221,6 +1243,7 @@ function rentRecordPayment(obId, amount, by, opts) {
 }
 /* PASAY-TASK-008 · P0 · Owner 确认所有 unconfirmed payments（confirm-rent 统一入口） */
 function rentConfirmAllPending(obId) {
+  if (!wsRequireAccess()) return { ok: false, reason: L('无有效 Membership','No active membership') };
   const ob = rentById(obId);
   if (!ob) return { ok: false, reason: 'obligation not found' };
   if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可确认','Owner only') };
@@ -1230,6 +1253,7 @@ function rentConfirmAllPending(obId) {
 }
 /* PASAY-TASK-008 · P0 · 退回首笔 unconfirmed（reject-rent 兼容旧语义） */
 function rentRejectAllPending(obId) {
+  if (!wsRequireAccess()) return { ok: false, reason: L('无有效 Membership','No active membership') };
   const ob = rentById(obId);
   if (!ob) return { ok: false, reason: 'obligation not found' };
   if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可退回','Owner only') };
@@ -1239,6 +1263,7 @@ function rentRejectAllPending(obId) {
 }
 /* PASAY-TASK-008 · P0 · 逆向：status='reversed'（保留 history） */
 function rentReversePayment(pmrId, reason) {
+  if (!wsRequireAccess()) return { ok: false, reason: L('无有效 Membership','No active membership') };
   const p = state.paymentRecords.find(x => x.id === pmrId);
   if (!p) return { ok: false, reason: 'payment record not found' };
   if (currentRole() !== 'owner') return { ok: false, reason: L('仅 Owner 可逆向','Owner only') };
@@ -1259,6 +1284,30 @@ function rentOperationCloseIfPaid(op) {
     return { changed: true, balance: 0 };
   }
   return { changed: false, balance: bal };
+}
+/* 收租 Operation 只为真实 obligation 建立一次；Partial 保持同一 Operation，旧的 stale task 被关闭。 */
+function rentOperationForObligation(ob) { return state.operations.find(o => o.kind === 'collect_rent' && o.domain && o.domain.rent_id === ob.id) || null; }
+function rentOperationReconcile(op, today) {
+  if (!op || !op.domain || !op.domain.rent_id) return { changed:false };
+  const ob = rentById(op.domain.rent_id); if (!ob) return { changed:false };
+  const balance = rentBalance(ob), status = rentStatus(ob, today);
+  if (balance <= 0) return rentOperationCloseIfPaid(op);
+  if (op.esc === 'CLOSED') return { changed:false, stale:true, balance };
+  if (paidAmt(ob) > 0) {
+    op.esc = 'WAITING_EXTERNAL'; op.next_actor = 'tenant-external'; op.next_action_code = 'collect_remaining';
+    op.expected_result = L('收回剩余 ' + money(balance),'Collect remaining ' + money(balance));
+  } else if (status === 'overdue' || status === 'due') {
+    op.esc = 'WAITING_HUMAN'; op.next_actor = 'secretary'; op.next_action_code = 'contact_tenant';
+    op.expected_result = L('联系租客并取得付款安排','Contact tenant and obtain a payment arrangement');
+  }
+  return { changed:true, balance, status };
+}
+function rentStartOperation(obId) {
+  const ob = rentById(obId); if (!ob) return { ok:false, reason:'obligation not found' };
+  const existing = rentOperationForObligation(ob); if (existing) return { ok:true, operation:existing, created:false };
+  const lease = leaseForRent(ob); if (!lease) return { ok:false, reason:'lease not found' };
+  const op = createChildOperation({ id:'OP-RENT-' + ob.id, kind:'collect_rent', objective:L('收回 ' + ob.unit + ' ' + ob.period + ' 租金','Collect rent for ' + ob.unit + ' ' + ob.period), domain:{ rent_id:ob.id, lease_id:lease.lease_id, property_id:lease.property_id, unit:ob.unit, tenant_id:lease.tenant_id }, esc:'WAITING_HUMAN', next_actor:'secretary', next_action_code:'contact_tenant', expected_result:L('联系租客并取得付款安排','Contact tenant and obtain a payment arrangement'), initial_tl:[{ at:TODAY, t:L('创建收租事项','Rent collection operation opened') }] });
+  rentOperationReconcile(op, TODAY); return { ok:true, operation:op, created:true };
 }
 /* PASAY-TASK-008 · P0 · 状态派生刷新（写入 r.status 让既有 FIX2/FIX3 gate 兼容） */
 function rentRefreshStatus(ob) { if (ob) ob.status = rentStatus(ob, TODAY); }
@@ -1646,7 +1695,7 @@ function opMoveOutMoveOutDue(o) {
 function opMoveOutOutstandingRent(o) {
   const l = opMoveOutLease(o); if (!l) return 0;
   return state.rents.filter(r => r.unit === l.unit && r.lease_id === l.lease_id)
-    .reduce((a, r) => a + Math.max(r.amount - paidAmt(r) - pendAmt(r), 0), 0);
+    .reduce((a, r) => a + rentBalance(r), 0);
 }
 /* Outstanding utilities：P0-3 (005B1) — 必须 lease-scoped：
    expense.unit === lease.unit AND expense.lease_id === lease.lease_id。
@@ -4280,9 +4329,10 @@ function viewHome() {
   const wd = state.lang === 'zh' ? ['周日','周一','周二','周三','周四','周五','周六'][new Date(TODAY).getDay()] : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(TODAY).getDay()];
   const pendingExps = state.expenses.filter(e => e.status === 'pending');
   const approvedExps = state.expenses.filter(e => e.status === 'approved');
-  const pendingRents = state.rents.filter(r => r.status === 'pending');
-  const overdueRents = state.rents.filter(r => r.status === 'overdue');
-  const partialRents = state.rents.filter(r => r.status === 'partial');
+  reconcileRent();
+  const pendingRents = state.rents.filter(r => rentStatus(r) === 'due');
+  const overdueRents = state.rents.filter(r => rentStatus(r) === 'overdue');
+  const partialRents = state.rents.filter(r => rentStatus(r) === 'partial');
   const openReps = state.repairs.filter(r => ['reported','assigned','in_progress','waiting_parts'].includes(r.status));
   const waitingParts = state.repairs.filter(r => r.status === 'waiting_parts');
   /* ── 唯一数据源口径（Portfolio Pulse 与全页共用） ── */
@@ -4293,7 +4343,7 @@ function viewHome() {
   const inLifecycle = props.filter(p => ['move_out_pending','inspection','turnover'].includes(p.status)).length;
   const collected = state.rents.reduce((a, r) => a + paidAmt(r), 0);
   const pendingAmt = state.rents.reduce((a, r) => a + pendAmt(r), 0);
-  const outstanding = state.rents.reduce((a, r) => a + Math.max(r.amount - paidAmt(r) - pendAmt(r), 0), 0);
+  const outstanding = state.rents.reduce((a, r) => a + rentBalance(r), 0);
   const expPaid = state.expenses.filter(e => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
   const expToPay = state.expenses.filter(e => e.status === 'approved').reduce((a, e) => a + e.amount, 0);
   /* ── Today：Task Engine 驱动 + 去重（同一相关对象只出现一次；已迁移进 Operation 的不再作为独立待办） ── */
@@ -4490,9 +4540,9 @@ function viewProperty(u, tab) {
   const p = prop(u); if (!p) return viewProps(new URLSearchParams());
   /* PASAY-TASK-007 · Current tenant 派生自 Active Lease（历史 p.tenant 仅作 lifecycle 过渡态 fallback） */
   const t = propCurrentTenant(p) || (p.tenant ? ten(p.tenant) : null);
-  const r = rentByUnit(p.unit);
   const drafts = propLeaseDrafts(p);
   const activeL = propLease(p);
+  const r = activeL ? currentRentForLease(activeL.lease_id) : null;
   const zh = state.lang === 'zh';
   const tabs = [['overview', state.lang === 'zh' ? '总览' : 'Overview'], ['fin', state.lang === 'zh' ? '财务' : 'Financial'], ['lease', state.lang === 'zh' ? '租约' : 'Lease'], ['repair', state.lang === 'zh' ? '维修' : 'Repairs'], ['exp', state.lang === 'zh' ? '支出' : 'Expenses'], ['photos', state.lang === 'zh' ? '照片' : 'Photos'], ['tl', state.lang === 'zh' ? '时间线' : 'Timeline'], ['archive', state.lang === 'zh' ? '档案' : 'Archive']];
   const tb = tabs.find(x => x[0] === tab) || tabs[0];
@@ -4529,7 +4579,7 @@ function viewProperty(u, tab) {
         <button class="btn btn-s" style="flex:1" data-a="nav" data-href="#/exps?act=create&unit=${p.unit}">${state.lang==='zh'?'新增支出':'Add expense'}</button>
         <button class="btn btn-s" style="flex:1" data-a="nav" data-href="#/reps?act=create&unit=${p.unit}">${state.lang==='zh'?'报修':'Report'}</button>
       </div>
-      ${r ? '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'本月租金':'Rent (Jun)') + '</span><span class="v money">' + money(r.amount) + ' ' + rentChip(r) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'已收':'Paid') + '</span><span class="v money pos">' + money(paidAmt(r)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'未收':'Outstanding') + '</span><span class="v money ' + (r.amount - paidAmt(r) > 0 ? 'neg' : '') + '">' + money(Math.max(r.amount - paidAmt(r), 0)) + '</span></div></div>' : ''}
+      ${r ? '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'本月租金':'Rent (Jun)') + '</span><span class="v money">' + money(r.amount_due) + ' ' + rentChip(r) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'已收':'Paid') + '</span><span class="v money pos">' + money(paidAmt(r)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'未收':'Outstanding') + '</span><span class="v money ' + (rentBalance(r) > 0 ? 'neg' : '') + '">' + money(rentBalance(r)) + '</span></div></div>' : ''}
       <div class="dl"><div class="dl-row"><span class="k">${state.lang==='zh'?'本月支出':'Expenses (Jun)'}</span><span class="v money">${money(expTotal)} · ${exps.length}${state.lang==='zh'?' 笔':' items'}</span></div><div class="dl-row"><span class="k">${state.lang==='zh'?'净现金流':'Net cashflow'}</span><span class="v money ${paidThis - expTotal >= 0 ? 'pos' : 'neg'}">${money(paidThis - expTotal)}</span></div></div>
       ${propertyActiveOpsHtml(p, t, r, state.lang === 'zh' ? 'zh' : 'en')}
       ${propertyMissingFieldsHtml(p, t, r, state.lang === 'zh' ? 'zh' : 'en')}
@@ -4537,8 +4587,8 @@ function viewProperty(u, tab) {
     `;
   } else if (tb[0] === 'fin') {
     const exps = expensesFor(p.unit).filter(e => e.status !== 'rejected');
-    const rows = (r ? r.payments.slice().reverse().map(pay => '<div class="row" style="cursor:default"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + money(pay.amount) + '</b><span class="chip st-' + (pay.status === 'confirmed' ? 'ok' : 'pend') + '">' + (pay.status === 'confirmed' ? (state.lang==='zh'?'已确认':'Confirmed') : (state.lang==='zh'?'待确认':'Pending')) + '</span></div><div class="row-l2">' + fmtDate(pay.date) + ' · ' + pay.method + ' · ' + (pay.by === 'Tenant' ? (state.lang==='zh'?'租客':'Tenant') : 'Secretary') + '</div></div></div>') : []) + (exps.map(e => '<div class="row" data-a="nav" data-href="#/expense/' + e.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + e.id + '</b><span class="sub">' + e.purpose + '</span></div><div class="row-l2">' + e.category + ' · ' + fmtDate(e.at) + '</div></div><div class="row-r">' + expChip(e) + '<span class="money">' + money(e.amount) + '</span>' + ic('chev', 15) + '</div></div>')).join('');
-    body = sec(state.lang==='zh'?'本月财务':'June financials') + (r ? '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'应收':'Rent due') + '</span><span class="v money">' + money(r.amount) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'实收':'Received') + '</span><span class="v money pos">' + money(paidAmt(r)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'未收':'Outstanding') + '</span><span class="v money ' + (r.amount - paidAmt(r) > 0 ? 'neg' : '') + '">' + money(Math.max(r.amount - paidAmt(r), 0)) + '</span></div></div>' : '') + sec(state.lang==='zh'?'累计收入（本租约）':'Cumulative (this lease)') + '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'累计租金':'Cumulative rent') + '</span><span class="v money pos">' + money((r ? r.amount : propMonthlyRent(p)) * (propLeaseStart(p) ? Math.max(Math.min(daysSince(propLeaseStart(p)) / 30, 18), 1) : 1)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'本月支出':'Expenses (Jun)') + '</span><span class="v money">' + money(exps.reduce((a, e) => a + e.amount, 0)) + '</span></div></div>' + sec(state.lang==='zh'?'付款记录':'Payment history') + '<div class="list" style="margin-top:8px">' + rows + '</div>';
+    const rows = (r ? paymentsForObligation(r.id).slice().reverse().map(pay => '<div class="row" style="cursor:default"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + money(pay.amount) + '</b><span class="chip st-' + (pay.status === 'confirmed' ? 'ok' : 'pend') + '">' + (pay.status === 'confirmed' ? (state.lang==='zh'?'已确认':'Confirmed') : (state.lang==='zh'?'待确认':'Pending')) + '</span></div><div class="row-l2">' + fmtDate(pay.paid_at) + ' · ' + pay.method + ' · ' + pay.recorded_by + '</div></div></div>') : []) + (exps.map(e => '<div class="row" data-a="nav" data-href="#/expense/' + e.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + e.id + '</b><span class="sub">' + e.purpose + '</span></div><div class="row-l2">' + e.category + ' · ' + fmtDate(e.at) + '</div></div><div class="row-r">' + expChip(e) + '<span class="money">' + money(e.amount) + '</span>' + ic('chev', 15) + '</div></div>')).join('');
+    body = sec(state.lang==='zh'?'本月财务':'June financials') + (r ? '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'应收':'Rent due') + '</span><span class="v money">' + money(r.amount_due) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'实收':'Received') + '</span><span class="v money pos">' + money(paidAmt(r)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'未收':'Outstanding') + '</span><span class="v money ' + (rentBalance(r) > 0 ? 'neg' : '') + '">' + money(rentBalance(r)) + '</span></div></div>' : '') + sec(state.lang==='zh'?'累计收入（本租约）':'Cumulative (this lease)') + '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'累计租金':'Cumulative rent') + '</span><span class="v money pos">' + money((r ? r.amount_due : propMonthlyRent(p)) * (propLeaseStart(p) ? Math.max(Math.min(daysSince(propLeaseStart(p)) / 30, 18), 1) : 1)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'本月支出':'Expenses (Jun)') + '</span><span class="v money">' + money(exps.reduce((a, e) => a + e.amount, 0)) + '</span></div></div>' + sec(state.lang==='zh'?'付款记录':'Payment history') + '<div class="list" style="margin-top:8px">' + rows + '</div>';
   } else if (tb[0] === 'lease') {
     /* PASAY-TASK-007 · Lease tab 全部读取 Lease truth（Active Lease 或 Draft），不读 Property 独立字段 */
     const lsDate = propLeaseStart(p), leDate = propLeaseEnd(p);
@@ -4627,17 +4677,18 @@ const initials = n => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCa
 
 /* ── Rents ── */
 function viewRents(q) {
+  reconcileRent();
   const f = q.get('f') || 'all';
   const filters = [['all', tr('all')], ['paid', L('已收','Paid')], ['partial', L('部分','Partial')], ['pending', L('待确认','Pending')], ['overdue', L('逾期','Overdue')], ['upcoming', L('待收','Upcoming')]];
   let list = state.rents.slice();
-  if (f !== 'all') list = list.filter(r => r.status === f);
+  if (f !== 'all') list = list.filter(r => rentStatus(r) === f);
   const rows = list.map(r => {
     const p = rentProperty(r), t = tenantForRent(r);
     const tname = t ? t.name : L('未知','Unknown');
-    const out = Math.max(r.amount - paidAmt(r) - pendAmt(r), 0);
+    const out = rentBalance(r);
     return '<div class="row" data-a="nav" data-href="#/rent/' + r.id + '" data-od-id="rent-row-' + r.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + r.unit + '</span><b style="font-size:14px">' + money(r.amount) + '</b></div><div class="row-l2"><span class="who">' + tname + '</span><span class="dot"></span><span>' + (state.lang==='zh'?'到期 ':'due ') + fmtDate(r.due) + '</span></div></div><div class="row-r">' + rentChip(r) + (out > 0 ? '<span class="money neg" style="font-size:12.5px">' + money(out) + '</span>' : '') + ic('chev', 15) + '</div></div>';
   }).join('');
-  const c = s => list.filter(r => r.status === s).length;
+  const c = s => list.filter(r => rentStatus(r) === s).length;
   return shell('cash', tr('nav_rent'), '2026-06', `
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 16px 6px">
       <div class="kpi"><div class="kv num" style="color:var(--ok)">${c('paid')}</div><div class="kl">${L('已收','Paid')}</div></div>
@@ -4659,10 +4710,11 @@ function viewRent(id) {
   /* F3-4 · Rent → Property 权威解析（rent.property_id / lease.property_id），禁止 prop(r.unit) 串房 */
   const p = rentProperty(r), t = tenantForRent(r);
   const rtname = t ? t.name : L('未知','Unknown');
-  const out = Math.max(r.amount - paidAmt(r) - pendAmt(r), 0);
-  const hasUnconfirmed = r.payments.some(x => x.status === 'unconfirmed');
+  const out = rentBalance(r);
+  const paymentRows = paymentsForObligation(r.id);
+  const hasUnconfirmed = paymentRows.some(x => x.status === 'unconfirmed');
   const ownerOnly = roleIs('owner');
-  const pays = r.payments.slice().reverse().map(pay => '<div class="row" style="cursor:default"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + money(pay.amount) + '</b><span class="chip st-' + (pay.status === 'confirmed' ? 'ok' : 'pend') + '">' + (pay.status === 'confirmed' ? (state.lang==='zh'?'已确认':'Confirmed') : (state.lang==='zh'?'待确认':'Pending')) + '</span>' + (pay.evidence ? '<span class="tag">' + (state.lang==='zh'?'有凭证':'evidence') + '</span>' : '<span class="tag">' + (state.lang==='zh'?'无凭证':'no evidence') + '</span>') + '</div><div class="row-l2">' + fmtDate(pay.date) + ' · ' + pay.method + ' · ' + (pay.by === 'Tenant' ? (state.lang==='zh'?'租客':'Tenant') : 'Secretary') + (pay.note ? ' · ' + pay.note : '') + '</div></div></div>').join('');
+  const pays = paymentRows.slice().reverse().map(pay => '<div class="row" style="cursor:default"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + money(pay.amount) + '</b><span class="chip st-' + (pay.status === 'confirmed' ? 'ok' : 'pend') + '">' + (pay.status === 'confirmed' ? (state.lang==='zh'?'已确认':'Confirmed') : (state.lang==='zh'?'待确认':'Pending')) + '</span>' + (pay.evidence ? '<span class="tag">' + (state.lang==='zh'?'有凭证':'evidence') + '</span>' : '<span class="tag">' + (state.lang==='zh'?'无凭证':'no evidence') + '</span>') + '</div><div class="row-l2">' + fmtDate(pay.paid_at) + ' · ' + pay.method + ' · ' + pay.recorded_by + (pay.note ? ' · ' + pay.note : '') + '</div></div></div>').join('');
   let appr = '';
   if (hasUnconfirmed) {
     appr = ownerOnly
@@ -4681,7 +4733,7 @@ function viewRent(id) {
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">
         <div class="kpi" style="padding:10px 12px"><div class="kv num money pos" style="font-size:17px">${money(paidAmt(r))}</div><div class="kl">${state.lang==='zh'?'已收':'Paid'}</div></div>
         <div class="kpi" style="padding:10px 12px"><div class="kv num money neg" style="font-size:17px">${money(out)}</div><div class="kl">${state.lang==='zh'?'未收':'Outstanding'}</div></div>
-        <div class="kpi" style="padding:10px 12px"><div class="kv num" style="font-size:17px">${r.payments.length}</div><div class="kl">${state.lang==='zh'?'笔记录':'payments'}</div></div>
+         <div class="kpi" style="padding:10px 12px"><div class="kv num" style="font-size:17px">${paymentRows.length}</div><div class="kl">${state.lang==='zh'?'笔记录':'payments'}</div></div>
       </div>
     </div>
     ${appr}
@@ -4695,7 +4747,7 @@ function viewRent(id) {
     ${sec(state.lang==='zh'?'付款记录':'Payment history')}
     <div class="list">${pays || emptyState('cash', state.lang==='zh'?'暂无付款记录':'No payments yet', state.lang==='zh'?'登记第一笔付款后，Owner 确认即入账。':'Register a payment; it posts once the Owner confirms.')}</div>
     ${sec(state.lang==='zh'?'凭证 · 每笔付款独立':'Evidence · per payment')}
-    <div style="padding:0 16px;display:flex;gap:8px;flex-wrap:wrap">${r.payments.length ? r.payments.map(p => '<span class="attach" style="cursor:pointer" data-a="payment-evidence" data-rid="' + r.id + '" data-pid="' + p.id + '">' + ic('cam', 15) + (p.evidence ? (state.lang==='zh'?'凭证 ':'evi ') + p.id + ' ✓' : (state.lang==='zh'?'补凭证 ':'add ') + p.id) + '</span>').join('') : '<span class="meta">—</span>'}</div>
+    <div style="padding:0 16px;display:flex;gap:8px;flex-wrap:wrap">${paymentRows.length ? paymentRows.map(p => '<span class="attach" style="cursor:pointer" data-a="payment-evidence" data-rid="' + r.id + '" data-pid="' + p.id + '">' + ic('cam', 15) + (p.evidence ? (state.lang==='zh'?'凭证 ':'evi ') + p.id + ' ✓' : (state.lang==='zh'?'补凭证 ':'add ') + p.id) + '</span>').join('') : '<span class="meta">—</span>'}</div>
     <div style="display:flex;gap:8px;padding:14px 16px">
       <button class="btn btn-p" style="flex:1.4" data-a="add-payment" data-id="${r.id}" data-od-id="rent-register-pay">${state.lang==='zh'?'登记付款':'Register payment'}</button>
       <button class="btn btn-s" style="flex:1" data-a="add-payment-evidence" data-id="${r.id}">${state.lang==='zh'?'添加凭证':'Add evidence'}</button>
@@ -4756,13 +4808,13 @@ function finSnapshot(q) {
     exps = baseExps.filter(e => e.status === 'pending' || e.status === 'approved');
   }
   /* KPI（全部基于当前筛选后的集合） */
-  const dueAmt = rents.reduce((a, r) => a + r.amount, 0);
+  const dueAmt = rents.reduce((a, r) => a + Number(r.amount_due !== undefined ? r.amount_due : r.amount || 0), 0);
   const paidAmtSum = rents.reduce((a, r) => a + paidAmt(r), 0);
   const overdue = rents.filter(r => r.status === 'overdue' || (r.status === 'partial' && r.due && daysSince(r.due) > 0));
-  const overdueAmt = overdue.reduce((a, r) => a + Math.max(r.amount - paidAmt(r), 0), 0);
+  const overdueAmt = overdue.reduce((a, r) => a + rentBalance(r), 0);
   const expPaid = exps.filter(e => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
   const expPending = exps.filter(e => e.status === 'pending' || e.status === 'approved').reduce((a, e) => a + e.amount, 0);
-  const payCount = rents.reduce((a, r) => a + (r.payments || []).filter(p => p.status === 'confirmed').length, 0);
+  const payCount = rents.reduce((a, r) => a + paymentsForObligation(r.id).filter(p => p.status === 'confirmed').length, 0);
   /* Property 选项基于 Property truth（state.props），不依赖“当月有没有 Rent” */
   const propOpts = ['', ...state.props.map(p => p.unit)];
   /* Empty Truth（FINANCE-FILTER-CLOSEOUT-001 · §2）：基于最终筛选后的集合 rents + exps（非 base 集） */
@@ -7168,8 +7220,8 @@ const __odClickHandler = function(e) {
     const unit = $('#cr-unit').value; const amt = +($('#cr-amount').value || 0); const method = $('#cr-method').value; const note = $('#cr-note').value;
     const p = prop(unit); const r = rentByUnit(unit);
     if (!r || !p) { toast((state.lang==='zh'?'请先为这套物业建立租金记录':'no rent record for this unit')); return; }
-    const pay = { id: 'P-' + uid('pay'), amount: amt, date: TODAY, method, by: 'Secretary', status: 'unconfirmed', note };
-    r.payments.push(pay); r.status = 'pending';
+    const rec = rentRecordPayment(r.id, amt, 'secretary', { method, note });
+    if (!rec.ok) { toast(rec.reason); return; }
     const tid = 'T-' + uid('task');
     state.tasks.unshift({ id: tid, type: 'confirm_rent', subject: '', object: { kind: 'rent', id: r.id }, assignee: 'owner', status: 'todo', priority: 'high', due: TODAY, nextAction: '', nextActionCode: 'CONFIRM_RENT', source: 'AI', related: r.id, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
     addEvent('RENT_PAYMENT_REGISTERED', 'secretary', 'rent', r.id, { ref: unit });
@@ -7191,6 +7243,7 @@ const __odClickHandler = function(e) {
       const tid = 'T-' + uid('task');
       state.tasks.unshift({ id: tid, type: 'confirm_rent', subject: '', object: { kind: 'rent', id: r.id }, assignee: 'owner', status: 'todo', priority: 'high', due: TODAY, nextAction: '', source: 'AI', related: r.id, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
     }
+    rentStartOperation(r.id);
     addEvent('RENT_PAYMENT_REGISTERED', 'secretary', 'rent', r.id, { ref: r.unit });
     save(); closeSheet(); render(); toast((state.lang==='zh'?'已登记付款 · 等待 Owner 确认':'Payment registered — awaiting Owner confirmation'));
     msgTip('rent_registered');
@@ -7206,6 +7259,7 @@ const __odClickHandler = function(e) {
     /* PASAY-TASK-008 · P0-29 · Paid 后 Rent Operation 可关闭 */
     const op = state.operations.find(o => o.domain && o.domain.rent_id === r.id);
     const closed = op ? rentOperationCloseIfPaid(op) : { changed: false };
+    if (op && !closed.changed) rentOperationReconcile(op, TODAY);
     const t = state.tasks.find(x => x.related === r.id && x.type === 'confirm_rent' && x.status !== 'done'); if (t) taskDone(t.id);
     if (earn('first_approve')) earnToast(BADGES.find(b => b.id === 'first_approve'));
     addEvent('RENT_PAYMENT_CONFIRMED', 'owner', 'rent', r.id, { ref: r.unit, balance_after: rentBalance(r) });
