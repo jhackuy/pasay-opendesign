@@ -339,6 +339,8 @@ const WS_ACCESS_ACTIONS = {
   'start-repair': 1, 'submit-repair': 1, 'assign-repair': 1, 'complete-repair': 1, 'close-repair': 1, 'wait-repair': 1,
   /* repair · PASAY-TASK-009 · 报价 / 快速收尾（business mutation，需 access） */
   'add-repair-quote': 1, 'submit-repair-quote': 1, 'quick-close-repair': 1, 'submit-repair-quick': 1,
+  /* expense · PASAY-TASK-010 · 小额直接支出快速路径 */
+  'quick-expense': 1, 'submit-expense-quick': 1,
   /* task / inspection */
   'submit-inspect': 1, 'submit-inspection': 1, 'inspection-start': 1, 'inspection-photos': 1, 'follow-task': 1, 'follow-tenant': 1, 'confirm-follow': 1, 'confirm-follow-tenant': 1, 'take-task': 1, 'complete-task': 1, 'snooze-task': 1, 'quiet-task': 1, 'turnover-done': 1, 'submit-request': 1, 'confirm-reject': 1,
   /* media / evidence */
@@ -6572,6 +6574,18 @@ function sheetCreateExp(unitSel) {
     '<button class="btn btn-s block" data-a="attach-receipt-new">' + ic('cam', 15) + (state.lang==='zh'?'添加凭证照片（模拟）':'Attach receipt (simulated)') + '</button>' +
     '<button class="btn btn-p block" style="margin-top:10px" data-a="submit-exp">' + (state.lang==='zh'?'提交 · 进入 Owner 审批':'Submit · to Owner approval') + '</button>');
 }
+/* PASAY-TASK-010 · 小额直接支出快速路径：小额支出不经多层审批，记录 + 付款 + 凭证一条流（避免小业务被流程拖死） */
+function sheetQuickExpense() {
+  const zh = state.lang === 'zh';
+  const cats = ['Cleaning','Supplies','Utilities','Other'];
+  openSheet(sheetHead(zh ? '快速记录小额支出' : 'Quick small expense', zh ? '小额支出直接记录并标记已付' : 'small spend recorded directly as paid') +
+    field('qe-unit', zh ? '物业 / 单元（可选）' : 'Property / unit (optional)', '<select id="qe-unit" class="select">' + unitOptions(null) + '</select>') +
+    field('qe-cat', zh ? '类别' : 'Category', '<select id="qe-cat" class="select">' + cats.map(c => '<option>' + c + '</option>').join('') + '</select>') +
+    field('qe-purpose', zh ? '用途' : 'Purpose', '<input id="qe-purpose" class="input" placeholder="'+(zh?'清洁用品…':'cleaning supplies…')+'"/>') +
+    field('qe-amount', zh ? '金额 (₱)' : 'Amount (₱)', '<input id="qe-amount" class="input num" inputmode="numeric" placeholder="350"/>') +
+    field('qe-vendor', zh ? '收款方 / 商家' : 'Vendor / payee', '<input id="qe-vendor" class="input" placeholder="'+(zh?'本地五金店…':'local hardware store…')+'"/>') +
+    '<button class="btn btn-p block" data-a="submit-expense-quick">' + (zh ? '记录并标记已付' : 'Record & mark paid') + '</button>');
+}
 function sheetReportRepair(unitSel) {  openSheet(sheetHead(state.lang==='zh'?'报修':'Report repair', state.lang==='zh'?'运营事件 — 与支出分开管理':'operational event — kept separate from expenses') +
     field('rr-unit', state.lang==='zh'?'物业':'Property', '<select id="rr-unit" class="select">' + unitOptions(unitSel) + '</select>') +
     field('rr-issue', state.lang==='zh'?'问题':'Issue', '<input id="rr-issue" class="input" placeholder="Aircon leaking water"/>') +
@@ -7389,6 +7403,23 @@ const __odClickHandler = function(e) {
     if (earn('first_expense')) earnToast(BADGES.find(b => b.id === 'first_expense'));
     save(); closeSheet(); render(); toast((state.lang==='zh'?'已创建 ' : 'Created ') + id + ' · ' + (state.lang==='zh'?'等待 Owner 审批':'awaiting Owner approval'));
     msgTip('expense_created');
+    return;
+  }
+  /* PASAY-TASK-010 · 小额直接支出快速路径 */
+  if (a === 'quick-expense') { sheetQuickExpense(); return; }
+  if (a === 'submit-expense-quick') {
+    const unit = $('#qe-unit') ? $('#qe-unit').value : null;
+    const cat = $('#qe-cat') ? $('#qe-cat').value : 'Other';
+    const purpose = $('#qe-purpose') ? $('#qe-purpose').value.trim() : '';
+    const amt = +($('#qe-amount') ? $('#qe-amount').value : 0) || 0;
+    const vendor = $('#qe-vendor') ? $('#qe-vendor').value.trim() : '';
+    if (!purpose || !(amt > 0)) { toast((state.lang==='zh'?'请填写用途与金额':'purpose and amount required')); return; }
+    const id = 'EXP-' + fmtId4(uid('exp'));
+    state.expenses.unshift({ id, unit: unit || null, category: cat, purpose, amount: amt, by: 'Secretary', at: TODAY, status: 'paid', paidVia: 'Cash', paid_at: TODAY, vendor: vendor || null, receipt: 'quick-' + id, relatedRepair: null, tl: [{ code: 'EXPENSE_CREATED', actor: 'secretary', entity_type: 'expense', entity_id: id, metadata: { ref: id }, at: TODAY }, { code: 'EXPENSE_PAID', actor: 'secretary', entity_type: 'expense', entity_id: id, metadata: { ref: id, quick: true }, at: TODAY }] });
+    addEvent('EXPENSE_CREATED', 'secretary', 'expense', id, { ref: id });
+    addEvent('EXPENSE_PAID', 'secretary', 'expense', id, { ref: id });
+    if (earn('first_expense')) earnToast(BADGES.find(b => b.id === 'first_expense'));
+    save(); closeSheet(); render(); toast((state.lang==='zh'?'小额支出已记录并付款 ✓':'Small expense recorded & paid ✓'));
     return;
   }
   if (a === 'approve-exp') {
