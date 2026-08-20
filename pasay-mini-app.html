@@ -11040,15 +11040,24 @@ function runGateRenderUxCloseoutR1() {
     __odAssert(propHtml.indexOf('class="dot"') !== -1 && propHtml.indexOf('🟡') === -1 && propHtml.indexOf('🟢') === -1 && propHtml.indexOf('class="chip"') === -1, '[R1-2c] Property Row 右侧单一纯色状态点 + chevron（无 emoji 双状态 / 无 Badge 重复）');
     /* ── adversarial fixture：长租客名 / 大金额不挤压 ── */
     const savedTenantName = p1608 ? (p1608.tenant ? (ten(p1608.tenant) ? ten(p1608.tenant).name : null) : null) : null;
-    const savedRent = p1608 ? p1608.rent : null;
+    /* PASAY-TASK-007 · 月租 truth = Active Lease（fixture 写 lease，不写 Property 第二真相）；
+       1608 无 active lease（如已 move-out）时用真实 open_lease 建立，保证 Property Detail 有合法 rent 来源可渲染 */
+    const savedLease1608 = active_lease('1608');
+    const savedLeaseRent = savedLease1608 ? savedLease1608.monthly_rent : null;
     if (p1608 && p1608.tenant) { const t = ten(p1608.tenant); if (t) t.name = 'Christopher Dela Cruz'; }
-    if (p1608) p1608.rent = 128500;
+    if (p1608) {
+      if (savedLease1608) { savedLease1608.monthly_rent = 128500; }
+      else {
+        const tid = p1608.tenant || (state.tenants[0] && state.tenants[0].id);
+        open_lease('1608', tid, p1608.ls || '2025-01-01', p1608.le || '2026-12-31', 128500, p1608.deposit || 0, p1608.ls || '2025-01-01');
+      }
+    }
     const propHtmlFx = viewProps(new URLSearchParams());
     __odAssert(propHtmlFx.indexOf('Christopher Dela Cruz') !== -1 && propHtmlFx.indexOf('min-width:0') !== -1 && propHtmlFx.indexOf('text-overflow:ellipsis') !== -1, '[R1-3] 长租客名 fixture：完整渲染 + who flex 截断（不挤压右侧状态）');
     const propDetailFx = viewProperty('1608', 'overview');
-    __odAssert(propDetailFx.indexOf('128,500') !== -1 || propDetailFx.indexOf('128500') !== -1, '[R1-3b] 大金额 ₱128,500 在 Property Detail 完整渲染');
+    __odAssert(propDetailFx.indexOf('128,500') !== -1 || propDetailFx.indexOf('128500') !== -1, '[R1-3b] 大金额 ₱128,500 在 Property Detail 完整渲染（来自 Active Lease truth）');
     if (p1608 && p1608.tenant) { const t = ten(p1608.tenant); if (t) t.name = savedTenantName; }
-    if (p1608) p1608.rent = savedRent;
+    if (savedLease1608) savedLease1608.monthly_rent = savedLeaseRent;
     /* ── 390 / 430 布局结构验收（DOM 结构 + 固定宽度扫描） ── */
     [390, 430].forEach(function(vw) {
       var okVw = true, why = [];
