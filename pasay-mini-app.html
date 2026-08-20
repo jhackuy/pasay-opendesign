@@ -11462,6 +11462,8 @@ function runGatePropertyTenantLeaseBootstrapP0() {
     __odAssert(propOccupancy(P(U)) === 'vacant' && propCurrentTenant(P(U)) === null, '[PTLB-10] Tenant 联系资料编辑不改变 occupancy（合同真相未动）');
 
     /* ═══ Lease Truth（Draft 语义） ═══ */
+    try { console.log('[PTLB-DBG] leases=' + JSON.stringify(state.leases.map(function(l){ return l.unit + ':' + l.status; })) + ' active2010=' + (active_lease(U) ? active_lease(U).lease_id : 'null') + ' t1lease=' + (t1 && t1.lease ? t1.lease.lease_id + ':' + t1.lease.status : 'undef') + ' U=' + U); } catch (e2) {}
+    try { console.log('[PTLB-DBG2] c1=' + (active_lease(U) === null) + ' c2=' + (propOccupancy(P(U)) === 'vacant') + ' occ=' + propOccupancy(P(U)) + ' pExists=' + !!P(U)); } catch (e3) { console.log('[PTLB-DBG2] threw ' + e3.message); }
     __odAssert(active_lease(U) === null && propOccupancy(P(U)) === 'vacant', '[PTLB-11] Lease Draft 不占用物业（occupancy 仍 Vacant）');
     __odAssert(!state.rents.some(r => r.lease_id === t1.lease.lease_id), '[PTLB-12] Lease Draft 不产生 Active Rent truth（无 rent 记录）');
 
