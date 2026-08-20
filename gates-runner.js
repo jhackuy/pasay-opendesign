@@ -895,6 +895,42 @@ try {
   }
 }
 
+/* ─────────────── Run Mini App 008B-FIX1 Gate (PASAY-TASK-004-FIX1 · UX Closeout) ─────────────── */
+{
+  const gateFix1 = ctx.window.__OD_GATE_MINAPP_008B_FIX1;
+  if (typeof gateFix1 === 'function') {
+    try {
+      const r = gateFix1();
+      console.log('\n═══════ Mini App 008B-FIX1 Gate (PASAY-TASK-004-FIX1 · UX Closeout) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('MiniApp-008B-FIX1', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('MiniApp-008B-FIX1 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('MiniApp-008B-FIX1 gate not exposed on window (__OD_GATE_MINAPP_008B_FIX1 = ' + typeof gateFix1 + ')');
+    allPass = false;
+  }
+
+  /* 静态断言：Bottom Nav label ≥11px + 无自然语言搜索文案 */
+  try {
+    const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
+    const checks = [
+      { n: 1, cond: miniSrc.indexOf('.nav-i .nl { font-size: 11px;') !== -1, msg: '[FIX1-s1] Bottom Nav label ≥11px（.nav-i .nl font-size 11px）' },
+      { n: 2, cond: miniSrc.indexOf('或输入自然语言') === -1 && miniSrc.indexOf('or ask') === -1 && miniSrc.indexOf('自然语言指令') === -1, msg: '[FIX1-s2] Mini App 全站无「输入自然语言 / or ask」搜索文案' }
+    ];
+    let statAll = true;
+    checks.forEach(c => { const ok = c.cond; statAll = statAll && ok; console.log('  ' + (ok ? '✓' : '✗') + '  ' + c.msg); });
+    console.log(format('MiniApp-008B-FIX1-static', { gate: 'MiniApp-008B-FIX1-static', pass: statAll, total: checks.length, passed: checks.filter(c => c.cond).length, results: [] }));
+    allPass = allPass && statAll;
+  } catch (e) {
+    console.error('MiniApp-008B-FIX1 static assertions threw:', e && e.stack ? e.stack : e);
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);

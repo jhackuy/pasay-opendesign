@@ -63,8 +63,9 @@ p, h1, h2, h3, h4, h5 { margin: 0; text-wrap: pretty; }
 .nav { flex-shrink: 0; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--border); background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
 .nav-i { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 8px; min-height: 56px; min-width: 44px; color: var(--muted); }
 .nav-i svg { width: 22px; height: 22px; }
-.nav-i .nl { font-size: 10px; font-weight: 550; letter-spacing: 0.01em; }
+.nav-i .nl { font-size: 11px; font-weight: 550; letter-spacing: 0.01em; }
 .nav-i.on { color: var(--accent); }
+.nav-i.on .nl { font-weight: 700; }
 
 /* ─── type ───────────────────────────────────────────── */
 .h1 { font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
@@ -4334,22 +4335,25 @@ function viewFinance(q) {
 /* ═══ 008B · More（低频管理入口，按真实使用价值分组）═══ */
 function viewMore() {
   const zh = state.lang === 'zh';
+  const me = wsEffectiveRole() || 'secretary';
+  const isOwner = me === 'owner';
   const group = (t, rows) => sec(t) + '<div class="list" style="margin-top:6px">' + rows.join('') + '</div>';
   const entry = (icon, title, sub, href, od) => '<div class="row" data-a="nav" data-href="' + href + '" data-od-id="' + od + '" style="padding:11px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(icon, 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + title + '</b></div><div class="row-l2">' + sub + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>';
+  /* 008B-FIX1 · More role-aware：Owner-only 管理入口按 Membership 权限显示；Secretary 只读/隐藏 */
   return shell('more', tr('nav_more'), zh ? '低频管理 · 档案 / 团队 / 权限 / 设置' : 'low-frequency management', `
     ${group(zh ? '经营档案' : 'ARCHIVE', [
       entry('archive', zh ? '档案' : 'Archive', zh ? '维修记录 · 付款凭证 · 合同 · 照片 · 历史' : 'repairs · receipts · contracts · photos · history', '#/archive', 'more-archive'),
       entry('download', zh ? '导出中心' : 'Exports', zh ? '经营报告 CSV（只读导出）' : 'operating reports (read-only)', '#/docs', 'more-docs')
     ])}
     ${group(zh ? '团队与工作区' : 'TEAM & WORKSPACE', [
-      entry('users', zh ? '团队' : 'Team', zh ? '成员 · 邀请 · 角色' : 'members · invites · roles', '#/team', 'more-team'),
+      entry('users', zh ? '团队' : 'Team', isOwner ? (zh ? '成员 · 邀请 · 角色' : 'members · invites · roles') : (zh ? '查看成员（只读）' : 'view members (read-only)'), '#/team', 'more-team'),
       entry('swap', zh ? '工作区 / 权限' : 'Workspace / access', zh ? '切换工作区 · 我的权限' : 'switch workspace · my access', '#/switch', 'more-switch'),
       entry('bot', zh ? 'Telegram 办公' : 'Telegram office', zh ? '打开 Pasay 群 · 自然语言办公' : 'open Pasay group · natural-language work', '#/telegram', 'more-telegram')
     ])}
     ${group(zh ? '系统' : 'SYSTEM', [
-      entry('gear', zh ? '设置' : 'Settings', zh ? '语言 · 收付款方式 · 重置演示' : 'language · payment methods · reset demo', '#/settings', 'more-settings'),
-      entry('star', zh ? '学习旅程' : 'Learning journey', zh ? '完成真实操作获得徽章' : 'badges from real work', '#/learning', 'more-learning')
+      entry('gear', zh ? '设置' : 'Settings', zh ? '语言 · 收付款方式 · 重置演示' : 'language · payment methods · reset demo', '#/settings', 'more-settings')
     ])}
+    ${isOwner ? '' : '<div class="card" style="margin:12px 16px 0;padding:12px 14px"><div style="font-size:12.5px;line-height:1.6;color:var(--muted)">' + (zh ? '你以员工身份查看。邀请、移除成员与权限管理由 Owner 负责；需要帮助时在 Telegram 群找 Owner。' : 'You are viewing as a team member. Invites, removal and access management belong to the Owner — reach out in the Telegram group if needed.') + '</div></div>'}
   `, { root: true });
 }
 
@@ -10439,9 +10443,10 @@ function runGateMiniApp008B() {
     __odAssert(propsSrc.indexOf('class="fab"') === -1 && propsSrc.indexOf('新增物业') !== -1, '[008B-8] 物业页无裸 + FAB · 明确「+ 新增物业」动作（Owner-only）');
     /* 9 · 连续处理 next-item workflow（Demo E） */
     __odAssert(cfSrc.indexOf('已完成 ') !== -1 && cfSrc.indexOf('自动进入下一条') !== -1, '[008B-9] 连续处理：进度「已完成 N / M」+ 自动进入下一条');
-    /* 10 · Archive 普通用户界面无工程术语 */
-    const bannedTerms = ['Workspace Archive Channel', 'master post', 'Master post', 'MASTER POST', 'Snapshot Policy', 'CHANNEL CONTRACT', 'Operation / Claim / Evidence'];
-    __odAssert(bannedTerms.every(t => archSrc.indexOf(t) === -1), '[008B-10] Archive 用户界面无工程术语（Workspace Channel / master post / Snapshot Policy / Claim 等）');
+    /* 10 · Archive 普通用户界面无工程术语（viewArchive + Property Detail Archive 分支） */
+    const propSrc = typeof viewProperty === 'function' ? viewProperty.toString() : '';
+    const bannedTerms = ['Workspace Archive Channel', 'master post', 'Master post', 'MASTER POST', 'Snapshot Policy', 'CHANNEL CONTRACT', 'Operation / Claim / Evidence', 'primary category', 'Documents · 文档分层', '手动快照', 'Reclassify'];
+    __odAssert(bannedTerms.every(t => archSrc.indexOf(t) === -1 && propSrc.indexOf(t) === -1), '[008B-10] Archive 用户界面无工程术语（viewArchive + Property Archive 分支：Workspace Channel / master post / Snapshot Policy / primary category / 手动快照 / Reclassify 等）');
     /* 11 · touch target >= 44×44（Bottom Nav CSS：.nav-i min-height 56px + min-width 44px — 由 runner 静态断言） */
     __odAssert(true, '[008B-11] touch target 44×44（CSS .nav-i min-height 56px / min-width 44px — runner 静态断言）');
     /* 12 · 冻结：Telegram 3×2 与业务状态机由既有 Gate 链保障 */
@@ -10452,6 +10457,46 @@ function runGateMiniApp008B() {
   return { gate: 'MiniApp-008B', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_MINAPP_008B = runGateMiniApp008B;
+/* PASAY-TASK-004-FIX1 · Mini App 008B UX Closeout Gate（Home Search/优先级 · 连续处理真实化 · Finance 三筛选 · More role-aware · Nav label） */
+function runGateMiniApp008BFix1() {
+  const results = [];
+  const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
+  try {
+    const homeSrc = viewHome.toString();
+    const opsSrc = viewOps.toString();
+    const cfSrc = typeof viewConfirmFlow === 'function' ? viewConfirmFlow.toString() : '';
+    const finSrc = viewFinance.toString();
+    const moreSrc = viewMore.toString();
+    /* 1 · Home 只剩一个结构化 Search 入口（顶部 navBar icon；Home 内无第二个） */
+    __odAssert(homeSrc.indexOf('data-href="#/search"') === -1, '[FIX1-1] Home 仅保留顶部全局 Search 入口（页面内无第二个 Search）');
+    /* 2 · Home 无「输入自然语言 / or ask」提示 */
+    __odAssert(homeSrc.indexOf('输入自然语言') === -1 && homeSrc.indexOf('or ask') === -1, '[FIX1-2] Home 无自然语言 / ask 提示');
+    /* 3 · Home 动态优先级：有 urgent 时 Needs You / Attention 在财务摘要之前 */
+    __odAssert(homeSrc.indexOf('hasUrgent') !== -1 && homeSrc.indexOf('needsSection + riskSection + finSection + aiSection') !== -1, '[FIX1-3] Home 有异常时：需你处理 → 需要关注 → 本月经营 → AI 一句（财务不压住业务）');
+    /* 4 · 连续处理不再常驻伪造 5 条：入口按真实同类数量（>1 连续 · =1 普通 · =0 消失） */
+    __odAssert(opsSrc.indexOf('collectConfirmCandidates') !== -1 && opsSrc.indexOf('confirmList.length > 1') !== -1 && opsSrc.indexOf('confirmList.length === 1') !== -1, '[FIX1-4] 连续处理入口按真实待处理数量（>1 连续处理 · =1 普通 · =0 消失）');
+    /* 5 · demo 5 条为隔离 prototype fixture（isFixture，不写真实 Queue truth） */
+    __odAssert(cfSrc.indexOf('isFixture') !== -1, '[FIX1-5] 演示 5 条为隔离 fixture（isFixture 标记 · #/confirm-flow?demo=1）不污染真实 Queue');
+    /* 6 · next-item 自动下一条 + 进度保留 */
+    __odAssert(cfSrc.indexOf('已完成 ') !== -1 && cfSrc.indexOf('auto-advance') !== -1, '[FIX1-6] 连续处理自动进入下一条 + 进度「已完成 N / M」保留');
+    /* 7 · Finance = Month + Property + Status 三类筛选 */
+    __odAssert(finSrc.indexOf('act=month') !== -1 && finSrc.indexOf('act=prop') !== -1 && finSrc.indexOf('act=status') !== -1 && finSrc.indexOf('选择月份') !== -1 && finSrc.indexOf('筛选物业') !== -1 && finSrc.indexOf('筛选状态') !== -1, '[FIX1-7] Finance 提供 Month / Property / Status 三类筛选');
+    /* 8 · 空月份可打开且有 Empty State（连续月份不跳） */
+    __odAssert(finSrc.indexOf('本期没有数据') !== -1 && finSrc.indexOf('mm <= 8') !== -1, '[FIX1-8] 月份连续（2026-01..08 不跳月）· 空月显示 Empty State');
+    /* 9 · Archive 首页 + Property Detail Archive 分支均无工程术语（008B-10 已扩展 propSrc 覆盖） */
+    __odAssert(true, '[FIX1-9] Archive 术语检查已扩展覆盖 Property Detail Archive 分支（008B-10 断言 propSrc）');
+    /* 10 · More role-aware + Learning 降级 */
+    __odAssert(moreSrc.indexOf('wsEffectiveRole') !== -1 && moreSrc.indexOf('isOwner') !== -1 && moreSrc.indexOf('#/learning') === -1, '[FIX1-10] More 按 Membership 权限区分 Owner/Secretary · Learning Journey 已从主功能降级移除');
+    /* 11 · 中文 UI 无不必要中英混杂工程语言（AUTO-PILOT 等已移除） */
+    __odAssert(opsSrc.indexOf('AUTO-PILOT') === -1, '[FIX1-11] 无 AUTO-PILOT 等非必要内部语言（英文分组改 IN MOTION）');
+    /* 12 · Bottom Nav label ≥11px（CSS 由 runner 静态断言） */
+    __odAssert(true, '[FIX1-12] Bottom Nav label ≥11px（.nav-i .nl font-size 11px — runner 静态断言）');
+  } catch (e) {
+    results.push({ pass: false, msg: '008B-FIX1 gate threw: ' + (e && e.message ? e.message : e) });
+  }
+  return { gate: 'MiniApp-008B-FIX1', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_MINAPP_008B_FIX1 = runGateMiniApp008BFix1;
 window.__OD_RUN_GATES = function() {
   const a = runGateA();
   const b = runGateB();
