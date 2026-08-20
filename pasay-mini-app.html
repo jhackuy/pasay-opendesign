@@ -337,6 +337,8 @@ const WS_ACCESS_ACTIONS = {
   'submit-exp': 1, 'approve-exp': 1, 'reject-exp': 1, 'reverse-exp': 1, 'attach-receipt': 1, 'attach-receipt-new': 1, 'pay-exp': 1,
   /* repair */
   'start-repair': 1, 'submit-repair': 1, 'assign-repair': 1, 'complete-repair': 1, 'close-repair': 1, 'wait-repair': 1,
+  /* repair · PASAY-TASK-009 · 报价 / 快速收尾（business mutation，需 access） */
+  'add-repair-quote': 1, 'submit-repair-quote': 1, 'quick-close-repair': 1, 'submit-repair-quick': 1,
   /* task / inspection */
   'submit-inspect': 1, 'submit-inspection': 1, 'inspection-start': 1, 'inspection-photos': 1, 'follow-task': 1, 'follow-tenant': 1, 'confirm-follow': 1, 'confirm-follow-tenant': 1, 'take-task': 1, 'complete-task': 1, 'snooze-task': 1, 'quiet-task': 1, 'turnover-done': 1, 'submit-request': 1, 'confirm-reject': 1,
   /* media / evidence */
@@ -6529,13 +6531,32 @@ function sheetCreateExp(unitSel) {
     '<button class="btn btn-s block" data-a="attach-receipt-new">' + ic('cam', 15) + (state.lang==='zh'?'添加凭证照片（模拟）':'Attach receipt (simulated)') + '</button>' +
     '<button class="btn btn-p block" style="margin-top:10px" data-a="submit-exp">' + (state.lang==='zh'?'提交 · 进入 Owner 审批':'Submit · to Owner approval') + '</button>');
 }
-function sheetReportRepair(unitSel) {
-  openSheet(sheetHead(state.lang==='zh'?'报修':'Report repair', state.lang==='zh'?'运营事件 — 与支出分开管理':'operational event — kept separate from expenses') +
+function sheetReportRepair(unitSel) {  openSheet(sheetHead(state.lang==='zh'?'报修':'Report repair', state.lang==='zh'?'运营事件 — 与支出分开管理':'operational event — kept separate from expenses') +
     field('rr-unit', state.lang==='zh'?'物业':'Property', '<select id="rr-unit" class="select">' + unitOptions(unitSel) + '</select>') +
     field('rr-issue', state.lang==='zh'?'问题':'Issue', '<input id="rr-issue" class="input" placeholder="Aircon leaking water"/>') +
     field('rr-desc', state.lang==='zh'?'描述':'Description', '<textarea id="rr-desc" class="textarea" placeholder="'+(state.lang==='zh'?'检查后确认需更换压缩机…':'e.g. confirmed needs new compressor…')+'"></textarea>') +
     field('rr-pri', state.lang==='zh'?'优先级':'Priority', '<div class="seg">' + [['high', state.lang==='zh'?'高':'High'], ['medium', state.lang==='zh'?'中':'Medium'], ['low', state.lang==='zh'?'低':'Low']].map(p => '<button type="button" class="' + (p[0] === 'medium' ? 'on' : '') + '" data-a="pri-seg" data-p="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>') +
     '<button class="btn btn-p block" data-a="submit-repair">' + (state.lang==='zh'?'提交报修':'Submit repair') + '</button>');
+}
+/* PASAY-TASK-009 · Secretary · 登记报价业务入口（真实业务，非 demo 模拟师傅报价） */
+function sheetRepairAddQuote(opId) {
+  const op = op(opId); if (!op) return;
+  const zh = state.lang === 'zh';
+  const u = opRepairUnit(op);
+  openSheet(sheetHead(zh ? '登记维修报价 · ' + u : 'Add repair quote · ' + u, zh ? '报价是独立事实，不等于支出或付款' : 'a quote is its own truth — not an expense or payment') +
+    field('rq-provider', zh ? '维修商 / 技术人员' : 'Contractor / provider', '<input id="rq-provider" class="input" placeholder="Metro Manila Cooling & Refrigeration"/>') +
+    field('rq-amount', zh ? '报价金额 (₱)' : 'Quote amount (₱)', '<input id="rq-amount" class="input num" inputmode="numeric" placeholder="8500"/>') +
+    field('rq-scope', zh ? '工作范围' : 'Scope of work', '<textarea id="rq-scope" class="textarea" placeholder="'+(zh?'更换空调压缩机，含零件与安装…':'e.g. replace AC compressor, parts & install…')+'"></textarea>') +
+    '<button class="btn btn-p block" data-a="submit-repair-quote" data-id="' + op.id + '">' + (zh ? '保存报价 · 交 Owner 审批' : 'Save quote · send to Owner') + '</button>');
+}
+function sheetRepairQuickClose(opId) {
+  const op = op(opId); if (!op) return;
+  const zh = state.lang === 'zh';
+  const u = opRepairUnit(op);
+  openSheet(sheetHead(zh ? '记录完成 · ' + u : 'Log completion · ' + u, zh ? '小维修快速收尾' : 'quick close for small repairs') +
+    field('rc-note', zh ? '完成说明' : 'Completion note', '<textarea id="rc-note" class="textarea" placeholder="'+(zh?'更换了密封垫，不再漏水…':'e.g. replaced gasket, no longer leaking…')+'"></textarea>') +
+    field('rc-amt', zh ? '实际费用 (₱ · 可选)' : 'Actual cost (₱ · optional)', '<input id="rc-amt" class="input num" inputmode="numeric" placeholder="1200"/>') +
+    '<button class="btn btn-p block" data-a="submit-repair-quick" data-id="' + op.id + '">' + (zh ? '确认完成' : 'Confirm complete') + '</button>');
 }
 function sheetPayment(rentId) {
   const r = state.rents.find(x => x.id === rentId); if (!r) return;
@@ -7396,6 +7417,43 @@ const __odClickHandler = function(e) {
     addEvent('REPAIR_REPORTED', roleIs('owner') ? 'owner' : 'secretary', 'repair', id, { ref: id });
     if (earn('first_repair')) earnToast(BADGES.find(b => b.id === 'first_repair'));
     save(); closeSheet(); render(); toast((state.lang==='zh'?'已报修 ':'Reported ') + id + ' · ' + (state.lang==='zh'?'等待指派':'waiting assignment'));
+    return;
+  }
+  /* PASAY-TASK-009 · Secretary · 登记报价 / 小维修快速收尾（业务入口，非 demo 模拟） */
+  if (a === 'add-repair-quote') { const o2 = op(el.dataset.id); if (o2) sheetRepairAddQuote(o2.id); return; }
+  if (a === 'submit-repair-quote') {
+    const o2 = op(el.dataset.id); if (!o2) return;
+    const provider = ($('#rq-provider') ? $('#rq-provider').value.trim() : '') || 'Contractor';
+    const amount = +($('#rq-amount') ? $('#rq-amount').value : 0) || 0;
+    const scope = $('#rq-scope') ? $('#rq-scope').value.trim() : '';
+    if (!(amount > 0)) { toast((state.lang==='zh'?'请填写报价金额':'quote amount required')); return; }
+    const rr = opRepair(o2); const unit = rr ? rr.unit : (o2.domain ? o2.domain.unit : '');
+    o2.quotes = o2.quotes || [];
+    const version = (o2.quotes.length || 0) + 1;
+    const created = createExpenseRecord({ unit, category: 'Repair', purpose: (state.lang==='zh' ? (unit + ' 维修报价 v' + version) : (unit + ' repair quote v' + version)), amount, by: provider, at: TODAY, relatedRepair: rr ? rr.id : null, tl: [{ at: TODAY, t: '维修报价', d: 'QUOTE' }] });
+    o2.quotes.push({ expenseId: created.id, amount, version, status: 'pending', at: TODAY, provider });
+    o2.quote_amount = amount; o2.currentQuoteExpense = created.id;
+    const childOp = state.operations.find(x => x.kind === 'settle_expense' && x.domain && x.domain.expense_id === created.id);
+    if (o2.esc !== 'CLOSED') { o2.esc = 'WAITING_EXTERNAL'; o2.next_actor = 'child-operation'; o2.next_action_code = 'await_quote_approval'; o2.wake_at = null; }
+    o2.tl = o2.tl || []; o2.tl.push({ at: TODAY, t: (state.lang==='zh' ? ('秘书登记报价 · ' + provider + ' · ' + money(amount) + ' · 待 Owner 审批（报价 ≠ 支出 ≠ 付款）') : (provider + ' quoted ' + money(amount) + ' — awaiting Owner approval (quote ≠ expense ≠ payment)')) });
+    save(); closeSheet(); render(); toast((state.lang==='zh'?'报价已登记 · 交 Owner 审批':'Quote saved — sent to Owner'));
+    return;
+  }
+  if (a === 'quick-close-repair') { const o2 = op(el.dataset.id); if (o2) sheetRepairQuickClose(o2.id); return; }
+  if (a === 'submit-repair-quick') {
+    const o2 = op(el.dataset.id); if (!o2 || o2.esc === 'CLOSED') return;
+    const note = $('#rc-note') ? $('#rc-note').value.trim() : (state.lang==='zh'?'小维修完成':'small repair done');
+    const amt = +($('#rc-amount') ? $('#rc-amount').value : 0) || 0;
+    const rr = opRepair(o2); const unit = rr ? rr.unit : (o2.domain ? o2.domain.unit : '');
+    if (amt > 0) {
+      const created = createExpenseRecord({ unit, category: 'Repair', purpose: (state.lang==='zh' ? (unit + ' 小维修完成费用') : (unit + ' small repair cost')), amount: amt, by: 'Secretary', at: TODAY, relatedRepair: rr ? rr.id : null, tl: [{ at: TODAY, t: '小维修完成', d: 'COMPLETED' }] });
+      if (rr) { rr.relatedExpenses = rr.relatedExpenses || []; if (rr.relatedExpenses.indexOf(created.id) < 0) rr.relatedExpenses.push(created.id); }
+    }
+    if (rr) { rr.status = 'completed'; rr.tl = rr.tl || []; rr.tl.push({ at: TODAY, t: (state.lang==='zh' ? '小维修完成并核验 · ' + note : 'small repair verified complete · ' + note) }); }
+    o2.completionEvidence = o2.completionEvidence || []; o2.completionEvidence.push({ id:'RE-Q'+Date.now(), kind:'quick_close', source:'secretary', provided_by:'secretary', status:'verified', note });
+    o2.esc = 'CLOSED'; o2.close_outcome = 'COMPLETED'; o2.close_reason = (state.lang==='zh' ? ('小维修完成 · ' + note) : ('small repair complete · ' + note));
+    o2.tl = o2.tl || []; o2.tl.push({ at: TODAY, t: (state.lang==='zh' ? '小维修快速收尾 · Repair CLOSED' : 'small repair closed') });
+    save(); closeSheet(); render(); toast((state.lang==='zh'?'已完成并收尾 ✓':'Completed & closed ✓'));
     return;
   }
   if (a === 'assign-repair') {
