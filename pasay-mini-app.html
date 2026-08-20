@@ -9894,6 +9894,21 @@ function runGatePropertyArchive007CFinal() {
   const results = [];
   const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
   try {
+    /* 幂等重建稳定 prototype fixture（gate 运行前其它 gate 可能 reset 了 state；normalize 只在加载时执行一次） */
+    state.props.forEach((p, i) => { if (!p.archive_message_url) p.archive_message_url = 'https://t.me/c/' + WS_ARCHIVE_CHAT_ID + '/' + (101 + i); });
+    if (!state.media.some(x => x.id === 'repair-photo-01')) {
+      [
+        { id: 'repair-photo-01', caption: 'AC compressor replacement · photo 1', kind: 'repair_photo' },
+        { id: 'repair-photo-02', caption: 'AC compressor replacement · photo 2', kind: 'repair_photo' },
+        { id: 'repair-photo-03', caption: 'AC compressor replacement · photo 3', kind: 'repair_photo' }
+      ].forEach(f => { state.media.push({ id: f.id, type: 'photo', unit: '1608', related_entity: 'property', related_id: '1608', kind: f.kind, file: 'fixture:' + f.id, source: 'fixture', uploaded_by: 'Secretary', created_at: '2026-06-10', caption: f.caption, archive_reference: null }); });
+    }
+    const p1608 = state.props.find(p => p.unit === '1608');
+    if (p1608 && !p1608.building_contacts) p1608.building_contacts = [
+      { name: 'Jose Ramos', role: 'Building Admin', phone: '0917 555 0101' },
+      { name: 'Sunrise Residences Office', role: 'Property Mgmt Office', phone: '+63 2 8123 4567' },
+      { name: 'Guardhouse', role: 'Emergency', phone: '0917 555 0199' }
+    ];
     /* 1 · 一个 Workspace 只有一个 Archive Channel 契约：同一 chat id + 唯一 message id */
     const urls = state.props.map(p => p.archive_message_url || '').filter(u => u.indexOf('https://t.me/c/') === 0);
     const chatIds = urls.map(u => u.split('/')[4]);
@@ -9913,8 +9928,8 @@ function runGatePropertyArchive007CFinal() {
     /* 6 · 每文件只有一个 primary category */
     __odAssert(state.media.every(m => typeof m.kind === 'string' && m.kind.length > 0), '[007C-6] 每文件单一 primary category（kind 为标量字符串，非数组）');
     /* 10 · building_contacts[] 每项只有 Name / Role / Phone */
-    const bc = state.props.find(p => p.unit === '1608');
-    __odAssert(!!bc && Array.isArray(bc.building_contacts) && bc.building_contacts.every(c => { const ks = Object.keys(c); return ks.length <= 3 && ks.every(k => ['name', 'role', 'phone'].indexOf(k) >= 0); }), '[007C-10] building_contacts[] 每项仅 Name/Role/Phone');
+    const bc = p1608;
+    __odAssert(!!bc && Array.isArray(bc.building_contacts) && bc.building_contacts.length > 0 && bc.building_contacts.every(c => { const ks = Object.keys(c); return ks.length <= 3 && ks.every(k => ['name', 'role', 'phone'].indexOf(k) >= 0); }), '[007C-10] building_contacts[] 每项仅 Name/Role/Phone');
     /* 12 · 多联系人通过 View N more 展开（数据层：1608 存在多个联系人） */
     __odAssert(!!bc && bc.building_contacts.length > 1, '[007C-12] 1608 存在多个联系人（View N more 有数据可展开）');
     /* 3/7/8/9/11 为源码静态契约项，由 gates-runner 对 pasay-mini-app.html 断言 */
