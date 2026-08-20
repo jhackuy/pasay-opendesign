@@ -1498,8 +1498,48 @@
   ✓  [RC-6] Upcoming 由 today < due 派生
   ✓  [RC-7] Due 由 today = due 派生
   ✓  [RC-8] Overdue 由 today > due 派生
-  ✗  RENT_COLLECTION_TRUTH_P0 gate threw: Cannot read properties of undefined (reading 'push')
-[RENT_COLLECTION_TRUTH_P0] pass=false  8/9
+  ✓  [RC-9] 未确认 Payment 不计入 paid / balance
+  ✓  [RC-10] confirmed Payment sum 驱动 Partial / balance
+  ✓  [RC-11] 同一 obligation 只启动一个 Rent Operation
+  ✓  [RC-12] Partial 保持同一 Operation 并续收尾款
+  ✓  [RC-13] Payment sum 收齐后派生 Paid
+  ✓  [RC-14] Paid 关闭既有 Operation
+  ✓  [RC-15] 已关闭 Operation 不会被 stale reconcile 重新打开
+  ✓  [RC-16] amount_paid 只由 Payment confirmed sum 派生
+  ✓  [RC-17] reverse 保留记录并重派生余额/Partial
+  ✓  [RC-18] reverse 不删除 Payment history
+  ✓  [RC-19] Removed Member 无法登记付款
+  ✓  [RC-20] Removed mutation = zero
+  ✓  [RC-21] 同 unit 不同 Property 的 obligation 完全隔离
+  ✓  [RC-22] Rent Detail 只解析自身 Property
+  ✓  [RC-23] Finance 同源读取 amount_due
+  ✓  [RC-24] Rent / Property / Home 渲染无 undefined
+  ✓  [RC-25 lease A relation]
+  ✓  [RC-26 lease B relation]
+  ✓  [RC-27 A period]
+  ✓  [RC-28 B period]
+  ✓  [RC-29 A Lease amount]
+  ✓  [RC-30 B Lease amount]
+  ✓  [RC-31 A initial balance]
+  ✓  [RC-32 B initial balance]
+  ✓  [RC-33 A initial paid]
+  ✓  [RC-34 B initial paid]
+  ✓  [RC-35 A Payment isolation]
+  ✓  [RC-36 B Payment isolation]
+  ✓  [RC-37 A due lifecycle]
+  ✓  [RC-38 B overdue lifecycle]
+  ✓  [RC-39 A idempotent identity]
+  ✓  [RC-40 B idempotent identity]
+  ✓  [RC-41 A unique]
+  ✓  [RC-42 B unique]
+  ✓  [RC-43 A property label]
+  ✓  [RC-44 B property label]
+  ✓  [RC-45 A tenant relation]
+  ✓  [RC-46 B tenant relation]
+  ✓  [RC-47 A current rent]
+  ✓  [RC-48 B current rent]
+  ✓  [RC-49 finance due aggregates obligations]
+[RENT_COLLECTION_TRUTH_P0] pass=true  49/49
   1. ✓  [RC-1] Active Lease 激活生成首月 obligation
   2. ✓  [RC-2] amount_due 唯一来自 Lease（legacy amount 仅投影）
   3. ✓  [RC-3] lease_id + period 唯一且幂等
@@ -1508,7 +1548,47 @@
   6. ✓  [RC-6] Upcoming 由 today < due 派生
   7. ✓  [RC-7] Due 由 today = due 派生
   8. ✓  [RC-8] Overdue 由 today > due 派生
-  9. ✗  RENT_COLLECTION_TRUTH_P0 gate threw: Cannot read properties of undefined (reading 'push')
+  9. ✓  [RC-9] 未确认 Payment 不计入 paid / balance
+  10. ✓  [RC-10] confirmed Payment sum 驱动 Partial / balance
+  11. ✓  [RC-11] 同一 obligation 只启动一个 Rent Operation
+  12. ✓  [RC-12] Partial 保持同一 Operation 并续收尾款
+  13. ✓  [RC-13] Payment sum 收齐后派生 Paid
+  14. ✓  [RC-14] Paid 关闭既有 Operation
+  15. ✓  [RC-15] 已关闭 Operation 不会被 stale reconcile 重新打开
+  16. ✓  [RC-16] amount_paid 只由 Payment confirmed sum 派生
+  17. ✓  [RC-17] reverse 保留记录并重派生余额/Partial
+  18. ✓  [RC-18] reverse 不删除 Payment history
+  19. ✓  [RC-19] Removed Member 无法登记付款
+  20. ✓  [RC-20] Removed mutation = zero
+  21. ✓  [RC-21] 同 unit 不同 Property 的 obligation 完全隔离
+  22. ✓  [RC-22] Rent Detail 只解析自身 Property
+  23. ✓  [RC-23] Finance 同源读取 amount_due
+  24. ✓  [RC-24] Rent / Property / Home 渲染无 undefined
+  25. ✓  [RC-25 lease A relation]
+  26. ✓  [RC-26 lease B relation]
+  27. ✓  [RC-27 A period]
+  28. ✓  [RC-28 B period]
+  29. ✓  [RC-29 A Lease amount]
+  30. ✓  [RC-30 B Lease amount]
+  31. ✓  [RC-31 A initial balance]
+  32. ✓  [RC-32 B initial balance]
+  33. ✓  [RC-33 A initial paid]
+  34. ✓  [RC-34 B initial paid]
+  35. ✓  [RC-35 A Payment isolation]
+  36. ✓  [RC-36 B Payment isolation]
+  37. ✓  [RC-37 A due lifecycle]
+  38. ✓  [RC-38 B overdue lifecycle]
+  39. ✓  [RC-39 A idempotent identity]
+  40. ✓  [RC-40 B idempotent identity]
+  41. ✓  [RC-41 A unique]
+  42. ✓  [RC-42 B unique]
+  43. ✓  [RC-43 A property label]
+  44. ✓  [RC-44 B property label]
+  45. ✓  [RC-45 A tenant relation]
+  46. ✓  [RC-46 B tenant relation]
+  47. ✓  [RC-47 A current rent]
+  48. ✓  [RC-48 B current rent]
+  49. ✓  [RC-49 finance due aggregates obligations]
 
 ═══════ Summary ═══════
 ✗ GATES FAILED
