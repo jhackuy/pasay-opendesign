@@ -10980,20 +10980,21 @@ function runGateMembershipRoleTruthP0() {
     /* 8/9 · NO_MEMBERSHIP_NO_BUSINESS_DATA + NO OWNER/SECRETARY LABEL */
     fresh();   /* NO_WORKSPACE · currentUserId=null */
     __odAssert(wsAccessState() === 'none', '[RT-8] NO_WORKSPACE → access state = none');
-    state.lang = 'zh'; location.hash = '#/home';
-    render();
-    const app8 = $('#app').innerHTML;
+    state.lang = 'zh';
+    const app8 = viewOnboarding(new URLSearchParams());
     __odAssert(app8.indexOf('1608') === -1 && app8.indexOf('Set up my company') !== -1 && app8.indexOf('Join with invite') !== -1, '[RT-8b] NO_WORKSPACE render → onboarding（无 business data）');
     __odAssert(app8.indexOf('Owner view') === -1 && app8.indexOf('Secretary view') === -1 && app8.indexOf('视角') === -1, '[RT-9] NO_WORKSPACE 无 Owner/Secretary view label');
+    __odAssert(render.toString().indexOf("accState === 'none'") !== -1 && render.toString().indexOf('viewOnboarding') !== -1, '[RT-8c] render guard：none → onboarding 路由（NO_WORKSPACE 不渲染 business views）');
 
     /* 10 · PENDING_INVITE_NO_BUSINESS_DATA */
     fresh(); wsCreateWorkspace('PI Co', 'PI-owner');
     const pinv = wsGenerateInvite('secretary', 'Pending User', 'u-pending');   /* forUserId 特殊邀请 → userId 已绑定 */
     state.currentUserId = 'u-pending';
     __odAssert(wsAccessState() === 'pending-invite', '[RT-10] invited + PENDING → access state = pending-invite');
-    state.lang = 'zh'; location.hash = '#/home'; render();
-    const app10 = $('#app').innerHTML;
+    state.lang = 'zh';
+    const app10 = viewPendingInvite();
     __odAssert(app10.indexOf('1608') === -1 && app10.indexOf('待接受') !== -1 && pinv.status === 'invited', '[RT-10b] Pending invite render → invite flow（无 business data）');
+    __odAssert(render.toString().indexOf("accState === 'pending-invite'") !== -1 && render.toString().indexOf('viewPendingInvite') !== -1, '[RT-10c] render guard：pending-invite → invite flow 路由（不渲染 business views）');
 
     /* 11 · REMOVED_MEMBERSHIP_NO_BUSINESS_DATA */
     fresh(); wsCreateWorkspace('RM Co', 'RM-owner');
@@ -11001,9 +11002,10 @@ function runGateMembershipRoleTruthP0() {
     wsRemoveMember(rmv.id);
     state.currentUserId = 'u-rm';
     __odAssert(wsAccessState() === 'blocked', '[RT-11] removed → access state = blocked');
-    state.lang = 'zh'; location.hash = '#/home'; render();
-    const app11 = $('#app').innerHTML;
+    state.lang = 'zh';
+    const app11 = viewAccessRemoved();
     __odAssert(app11.indexOf('无访问权限') !== -1 && app11.indexOf('1608') === -1, '[RT-11b] Removed render → Access Removed（无 business data）');
+    __odAssert(render.toString().indexOf("accState === 'blocked'") !== -1 && render.toString().indexOf('viewAccessRemoved') !== -1, '[RT-11c] render guard：blocked → Access Removed 路由（不渲染 business views）');
 
     /* 12 · WORKSPACE_SWITCH_RECOMPUTES_ROLE */
     fresh(); wsCreateWorkspace('A Co', 'A-owner');   /* current：u-lin = Owner */
@@ -11012,8 +11014,8 @@ function runGateMembershipRoleTruthP0() {
     __odAssert(currentRole() === 'owner', '[RT-12] Workspace A（u-lin = Owner）');
     wsSwitchTo('ws-2');
     __odAssert(ws().id === 'ws-2' && currentRole() === 'secretary', '[RT-12b] Switch → Workspace B（u-lin = Secretary）role 自动重算');
-    wsSwitchTo('ws-current');
-    __odAssert(currentRole() === 'owner', '[RT-12c] Switch 回 Workspace A → role 恢复 Owner');
+    const backWs = ws().otherWorkspaces.find(o => o.members && o.members.some(m => m.userId === 'u-lin' && m.role === 'owner' && m.status === 'active'));
+    __odAssert(!!backWs && wsSwitchTo(backWs.id).ok === true && currentRole() === 'owner', '[RT-12c] Switch 回 Workspace A → role 恢复 Owner');
 
     /* 13 · PROPERTY_EXISTS_MEANS_PROPERTY_SETUP_DONE（stale cache 纠正） */
     fresh(); wsCreateWorkspace('P5 Co', 'P5-owner');
