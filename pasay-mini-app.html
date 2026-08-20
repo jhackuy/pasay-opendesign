@@ -4009,10 +4009,21 @@ function viewHome() {
 }
 
 /* ── Properties ── */
+/* 008B-FIX3 · 纯色状态点（右侧不重复文字异常 · 去重） */
+function propertyStatusDotOnly(p) {
+  const r = rentByUnit(p.unit);
+  const overdue = r && r.status === 'overdue';
+  const openRep = openRepairs(p.unit).length > 0;
+  const partial = r && r.status === 'partial';
+  const expiring = p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30;
+  const c = overdue ? 'var(--crit)' : (openRep || partial) ? 'var(--warn)' : expiring ? 'var(--pend)' : p.status === 'vacant' ? 'var(--muted)' : 'var(--ok)';
+  return '<span class="dot" style="background:' + c + ';width:8px;height:8px;border-radius:50%;display:inline-block" aria-hidden="true"></span>';
+}
 function viewProps(q) {
   const zh = state.lang === 'zh';
   const f = q.get('f') || 'all';          /* occupancy：all / occupied / vacant */
   const x = q.get('x') || '';             /* 异常维度：overdue / repair / lease_soon / moveout / other */
+  const v = q.get('v') || '';             /* 视图：'' 默认（资产目录）/ attention（需要关注） */
   const occTabs = [['all', tr('all')], ['occupied', tr('occupied')], ['vacant', tr('vacant')]];
   const xFilters = [
     ['overdue', zh ? '租金逾期' : 'Rent overdue'],
@@ -4022,23 +4033,42 @@ function viewProps(q) {
     ['other', zh ? '其他异常' : 'Other issues']
   ];
   let list = state.props.slice();
-  if (f === 'occupied') list = list.filter(p => p.status === 'occupied');
-  if (f === 'vacant') list = list.filter(p => p.status === 'vacant');
-  if (x === 'overdue') list = list.filter(p => { const r = rentByUnit(p.unit); return r && r.status === 'overdue'; });
-  if (x === 'repair') list = list.filter(p => openRepairs(p.unit).length > 0);
-  if (x === 'lease_soon') list = list.filter(p => p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30);
-  if (x === 'moveout') list = list.filter(p => ['move_out_pending', 'inspection', 'turnover'].includes(p.status));
-  if (x === 'other') list = list.filter(p => p.status === 'vacant' && p.photos && p.photos.length === 0);
+  if (v === 'attention') {
+    /* 008B-FIX3 · 需要关注 = 真实异常聚合（逾期/维修/租约到期/搬出） */
+    list = list.filter(p => {
+      const r = rentByUnit(p.unit);
+      if (r && r.status === 'overdue') return true;
+      if (openRepairs(p.unit).length > 0) return true;
+      if (p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30) return true;
+      if (['move_out_pending', 'inspection', 'turnover'].includes(p.status)) return true;
+      return false;
+    });
+  } else {
+    if (f === 'occupied') list = list.filter(p => p.status === 'occupied');
+    if (f === 'vacant') list = list.filter(p => p.status === 'vacant');
+    if (x === 'overdue') list = list.filter(p => { const r = rentByUnit(p.unit); return r && r.status === 'overdue'; });
+    if (x === 'repair') list = list.filter(p => openRepairs(p.unit).length > 0);
+    if (x === 'lease_soon') list = list.filter(p => p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30);
+    if (x === 'moveout') list = list.filter(p => ['move_out_pending', 'inspection', 'turnover'].includes(p.status));
+    if (x === 'other') list = list.filter(p => p.status === 'vacant' && p.photos && p.photos.length === 0);
+  }
   const rows = list.map(p => {
     const t = p.tenant ? ten(p.tenant) : null;
-    /* 008B · Asset Directory Row 信息上限：Unit / 1 行辅助 / Tenant / 一个最重要状态或异常 */
+    /* 008B-FIX3 · Row 两层：Unit / 1 行辅助 / Tenant · 一个最重要异常；右侧只放纯色状态点 + chevron（去重） */
     const subStatus = propertyRowSub(p);
-    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span></div><div class="row-l2"><span class="who">' + (t ? t.name : (zh ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (subStatus ? '<span class="dot"></span><span class="num" style="font-weight:600">' + subStatus + '</span>' : '') + '</div></div><div class="row-r">' + propertyStatusDot(p) + ic('chev', 15) + '</div></div>';
+    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span></div><div class="row-l2"><span class="who">' + (t ? t.name : (zh ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (subStatus ? '<span class="dot"></span><span class="num" style="font-weight:600">' + subStatus + '</span>' : '') + '</div></div><div class="row-r">' + propertyStatusDotOnly(p) + ic('chev', 15) + '</div></div>';
   }).join('');
   const xName = xFilters.find(z => z[0] === x);
+  const occupiedN = state.props.filter(p => p.status === 'occupied').length;
+  const vacantN = state.props.filter(p => p.status === 'vacant').length;
+  const countLine = (v === 'attention')
+    ? '<div class="count-line" style="color:var(--crit)">' + (zh ? '需要关注 · ' : 'Attention · ') + list.length + ' ' + (zh ? '套' : 'units') + '</div>'
+    : x
+      ? '<div class="count-line" style="color:var(--crit)">' + (zh ? '异常筛选：' : 'Filter: ') + (xName ? xName[1] : x) + ' · ' + list.length + ' ' + (zh ? '套' : 'units') + ' <button style="text-decoration:underline" data-a="filter" data-k="x" data-f="" data-base="#/props">' + (zh ? '清除' : 'clear') + '</button></div>'
+      : '<div class="count-line">' + (zh ? '全部 ' + state.props.length + ' / 已出租 ' + occupiedN + ' / 空置 ' + vacantN : 'All ' + state.props.length + ' / occupied ' + occupiedN + ' / vacant ' + vacantN) + '</div>';
   return shell('building', tr('nav_props'), totalOccupied() + ' / ' + state.props.length + ' ' + L('已出租','occupied'), `
-    <div class="filters" data-od-id="props-filters">${occTabs.map(xx => '<button class="fchip' + (f === xx[0] && !x ? ' on' : '') + '" data-a="filter" data-f="' + xx[0] + '" data-base="#/props">' + xx[1] + '</button>').join('')}<button class="fchip' + (x ? ' on' : '') + '" data-a="props-filter" data-od-id="props-filter-btn">' + (x ? (xName ? xName[1] : x) : (zh ? '筛选' : 'Filter')) + '</button></div>
-    ${x ? '<div class="count-line" style="color:var(--crit)">' + (zh ? '异常筛选：' : 'Filter: ') + (xName ? xName[1] : x) + ' · ' + list.length + ' ' + (zh ? '套' : 'units') + ' <button style="text-decoration:underline" data-a="filter" data-k="x" data-f="" data-base="#/props">' + (zh ? '清除' : 'clear') + '</button></div>' : '<div class="count-line">' + list.length + ' ' + (zh ? '套物业' : 'properties') + '</div>'}
+    <div class="filters" data-od-id="props-filters"><button class="fchip' + (!v ? ' on' : '') + '" data-a="filter" data-k="v" data-f="" data-base="#/props">' + (zh ? '默认' : 'Default') + '</button><button class="fchip' + (v === 'attention' ? ' on' : '') + '" data-a="filter" data-k="v" data-f="attention" data-base="#/props">' + (zh ? '需要关注' : 'Attention') + '</button>' + (v !== 'attention' ? occTabs.map(xx => '<button class="fchip' + (f === xx[0] && !x ? ' on' : '') + '" data-a="filter" data-f="' + xx[0] + '" data-base="#/props">' + xx[1] + '</button>').join('') + '<button class="fchip' + (x ? ' on' : '') + '" data-a="props-filter" data-od-id="props-filter-btn">' + (x ? (xName ? xName[1] : x) : (zh ? '筛选' : 'Filter')) + '</button>' : '') + '</div>
+    ${countLine}
     <div class="list" style="margin-top:8px">${rows || emptyState('building', zh ? '没有符合条件的物业' : 'No matching properties', '')}</div>
     ${roleIs('owner') ? '<div style="padding:14px 16px 0"><button class="btn btn-s block" data-a="add-prop" data-od-id="add-prop-explicit" style="justify-content:flex-start">' + ic('plus', 15) + ' ' + (zh ? '新增物业' : 'Add property') + '</button></div>' : ''}
   `, { root: true });
@@ -4311,9 +4341,10 @@ function viewFinance(q) {
   const f = finSnapshot(q);
   const period = f.period, unitF = f.unit, statusF = f.status;
   const card = (label, val, sub, href) => '<div class="row" data-a="nav" data-href="' + href + '" style="padding:12px 14px;border:1px solid var(--border);border-radius:12px;flex-direction:column;align-items:flex-start;gap:4px"><div class="meta" style="font-size:11px">' + label + '</div><div style="font-size:17px;font-weight:700;font-family:var(--font-mono);letter-spacing:-0.01em">' + val + '</div>' + (sub ? '<div class="meta" style="font-size:10.5px">' + sub + '</div>' : '') + '</div>';
+  const pct = f.dueAmt > 0 ? Math.round((f.paidAmtSum / f.dueAmt) * 100) : 0;
   const grid = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:12px 16px 0">' +
     card(zh ? '本月应收' : 'Due this month', money(f.dueAmt), zh ? '共 ' + f.rents.length + ' 期' : f.rents.length + ' periods', '#/rents') +
-    card(zh ? '已收' : 'Received', money(f.paidAmtSum), zh ? '已确认付款 ' + f.payCount + ' 笔' : f.payCount + ' confirmed payments', '#/rents?f=paid') +
+    card(zh ? '已收' : 'Received', money(f.paidAmtSum), (zh ? '已收 ' + money(f.paidAmtSum) + ' / 应收 ' + money(f.dueAmt) + ' · ' : 'received ') + pct + '%', '#/rents?f=paid') +
     card(zh ? '逾期未收' : 'Overdue', money(f.overdueAmt), f.overdue.length + (zh ? ' 期逾期' : ' overdue'), '#/rents?f=overdue') +
     card(zh ? '本月支出' : 'Spending', money(f.expPaid), (zh ? '待付 ' : 'to pay ') + money(f.expPending), '#/exps') +
     '</div>';
@@ -4335,7 +4366,11 @@ function viewFinance(q) {
   }
   const overdueRows = f.overdue.map(r => {
     const t = tenantForRent(r);
-    return '<div class="row" data-a="nav" data-href="#/rent/' + r.id + '" data-od-id="fin-overdue-' + r.id + '" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + r.unit + ' · ' + (t ? t.name : (zh ? '未知租客' : 'Unknown')) + '</b></div><div class="row-l2">' + (zh ? '逾期 ' : 'overdue ') + (r.due ? daysSince(r.due) : 0) + (zh ? ' 天' : 'd') + ' · ' + (zh ? '还欠 ' : 'remaining ') + money(Math.max(r.amount - paidAmt(r), 0)) + '</div></div><div class="row-r">' + rentChip(r) + ic('chev', 15) + '</div></div>';
+    const rem = Math.max(r.amount - paidAmt(r), 0);
+    const sub = r.status === 'partial'
+      ? (zh ? '部分付款 · 还欠 ' : 'Partial · owes ') + money(rem)
+      : (zh ? '逾期 ' : 'overdue ') + (r.due ? daysSince(r.due) : 0) + (zh ? ' 天 · 还欠 ' : 'd · owes ') + money(rem);
+    return '<div class="row" data-a="nav" data-href="#/rent/' + r.id + '" data-od-id="fin-overdue-' + r.id + '" style="padding:11px 16px"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + r.unit + ' · ' + (t ? t.name : (zh ? '未知租客' : 'Unknown')) + '</b></div><div class="row-l2">' + sub + '</div></div><div class="row-r">' + rentChip(r) + ic('chev', 15) + '</div></div>';
   }).join('');
   /* 008B-FIX2 · Empty State Truth：基于当前筛选后的完整财务记录集（Rent + Expense） */
   const emptyBlock = f.empty
@@ -4815,6 +4850,11 @@ function viewOps() {
   const secWrap = (t, g, extra) => (g.length ? sec(t, extra) + block(g) : '');
   const waitingHtml = Object.keys(waitingGroups).map(k => secWrap(k, waitingGroups[k], '<span class="meta">' + waitingGroups[k].length + '</span>')).join('');
   const live = actNow.length + aiWorking.length + waiting.length + attention.length;
+  /* 008B-FIX3 · 行动优先级：需要我处理 > 已超时/今天到期 > 等待他人 > 自动跟进中 */
+  const dueSoon = ops.filter(o => !opNextIsMine(o) && o.esc !== 'CLOSED' && o.esc !== 'BLOCKED' && !!(o.due_at || o.wake_at) && String(o.due_at || o.wake_at) <= TODAY);
+  const needCnt = actNow.length + attention.length;
+  const followCnt = aiWorking.length + waiting.length;
+  const summary = (zh ? needCnt + ' 项需要处理 · ' + followCnt + ' 项跟进中' : needCnt + ' to handle · ' + followCnt + ' in motion');
   /* 008B-FIX1 · 连续处理真实化：入口仅当真实同类待处理记录存在时显示；
      >1 显示「连续处理 N 条」（自动下一条）· =1 按普通事项显示 · =0 完全消失。
      演示 5 条样例隔离为 prototype fixture（#/confirm-flow?demo=1），不污染真实 Queue truth */
@@ -4824,15 +4864,16 @@ function viewOps() {
     : confirmList.length === 1
       ? '<div class="row" data-a="nav" data-href="#/confirm-flow" data-od-id="confirm-flow-entry" style="padding:12px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 12%, transparent);color:var(--accent);border-radius:10px">' + ic('check', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '待确认付款 · ' + confirmList[0].unit + ' · ' + confirmList[0].tenant : 'Confirm payment · ' + confirmList[0].unit + ' · ' + confirmList[0].tenant) + '</b></div><div class="row-l2">' + money(confirmList[0].amount) + (zh ? ' · 待确认' : ' · unconfirmed') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>'
       : '';
-  return shell('ops', tr('nav_ops'), live + (zh ? ' 个进行中事项' : ' live operations'), `
+  return shell('ops', tr('nav_ops'), summary, `
     <div class="count-line" style="padding-top:14px">${zh ? '需要人处理的在这里 · AI 自动推进的不打扰你' : 'What needs a human is here — AI-driven work stays quiet'}</div>
     ${confirmEntry}
     ${secWrap(zh ? '需要你处理' : 'NEEDS YOU', actNow, '<span class="meta">' + actNow.length + '</span>')}
-    ${secWrap(zh ? '自动推进中' : 'IN MOTION', aiWorking, '<span class="meta">' + aiWorking.length + '</span>')}
+    ${secWrap(zh ? '已超时 / 今天到期' : 'OVERDUE / DUE TODAY', dueSoon, '<span class="meta">' + dueSoon.length + '</span>')}
     ${waitingHtml || ''}
+    ${secWrap(zh ? '自动跟进中' : 'IN MOTION', aiWorking, '<span class="meta">' + aiWorking.length + '</span>')}
     ${secWrap(zh ? '需要关注' : 'NEEDS ATTENTION', attention, '<span class="meta">' + attention.length + '</span>')}
     ${secWrap(zh ? '今天完成' : 'DONE TODAY', doneToday, '<span class="meta">' + doneToday.length + '</span>')}
-    ${ops.length ? '' : emptyState('tasks', zh ? '暂无进行中的事项' : 'No live operations', zh ? 'AI 会在出现异常时自动创建并推进事项。' : 'AI creates & drives an operation when an anomaly appears.')}
+    ${ops.length ? '' : emptyState('tasks', zh ? '目前没有需要你处理的事项' : 'Nothing needs you right now', zh ? '自动跟进仍会继续运行。' : 'Auto-follow-up keeps running.')}
   `, { root: true });
 }
 
