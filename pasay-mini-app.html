@@ -359,8 +359,10 @@ const WS_ACCESS_ACTIONS = {
   'export': 1
 };
 function wsEffectiveRole() {
+  /* PASAY-TASK-006-FIX1 · P0-A · ROLE 必须只来自 ACTIVE Membership：
+     invited / removed / left / inactive 一律返回 null —— 无 Active Membership = 无 Owner/Secretary 身份。 */
   const m = wsCurrentMember();
-  return m ? m.role : null;
+  return m && m.status === 'active' ? m.role : null;
 }
 /* ── PASAY-TASK-006 · P0-1 · UNIQUE ROLE AUTHORITY ──
    currentMembership / currentRole / hasActiveMembership = 唯一角色/权限事实源，
@@ -614,7 +616,9 @@ function setupStepLabel(id) {
 /* ── PASAY-TASK-006 · P0-4 · SETUP STEPS = UI PROJECTION（Domain Truth reconcile） ──
    setupSteps 不是独立持久化真相；render / mutation / reload 后统一按真实业务 truth 重算：
    workspace = 工作区已存在 + Active Owner；group = groupConnected===true；
-   team = 存在 PENDING 邀请 或 第二个 Active Member；property = state.props.length > 0。
+   team = 存在 真正 PENDING 邀请（invited + invite.status===PENDING）或 第二个 Active Member；
+          REVOKED / EXPIRED 邀请一律不算（stale team.done=true 会被 reconcile 回 false）；
+   property = state.props.length > 0。
    杜绝 stale setupSteps.done 与业务事实冲突（如已有 Property 仍提示 Add first property）。 */
 function wsReconcileSetupSteps() {
   const w = ws();
@@ -622,7 +626,8 @@ function wsReconcileSetupSteps() {
   const set = (id, done) => { const s = w.setupSteps.find(x => x.id === id); if (s) s.done = !!done; };
   set('workspace', w.status === 'ready' && wsActiveOwners().length > 0);
   set('group', w.groupConnected === true);
-  set('team', (w.members || []).some(m => m.status === 'invited') || wsActiveMembers().length > 1);
+  const hasPendingInvite = (w.members || []).some(m => m.status === 'invited' && m.invite && m.invite.status === 'PENDING');
+  set('team', hasPendingInvite || wsActiveMembers().length > 1);
   set('property', state.props.length > 0);
   return w.setupSteps;
 }
@@ -5945,7 +5950,8 @@ function viewAccessRemoved() {
       <div style="display:flex;justify-content:center">${ic('shield', 42)}</div>
       <div class="h3" style="margin-top:12px">${zh ? 'You no longer have access to this workspace.' : 'You no longer have access to this workspace.'}</div>
       <div class="meta" style="margin-top:8px">${zh ? '你的 Membership 已失效（被移除 / 退出 / 过期）。历史记录保留，但无法再读取或操作该公司数据。' : 'Your membership is no longer active (removed / left / expired). History is kept, but you cannot read or act on this workspace anymore.'}</div>
-      ${m ? '<div class="meta" style="margin-top:6px">' + m.name + ' · ' + wsRoleLabel(m) + ' · ' + L('已失效','inactive') + '</div>' : ''}
+      ${/* PASAY-TASK-006-FIX1 · P0-A · Access Removed 不泄漏有效角色徽章：只显示身份名 + 已失效，不显示 OW/SC 或角色标签 */ ''}
+      ${m ? '<div class="meta" style="margin-top:6px">' + m.name + ' · ' + L('已失效','inactive') + '</div>' : ''}
     </div>
     <div style="padding:14px 16px"><button class="btn btn-p block" data-a="nav" data-href="#/switch">${ic('swap', 16)}${zh ? '切换工作区' : 'Switch workspace'}</button></div>
     <div style="padding:0 16px 14px"><button class="btn btn-s block" data-a="ws-join">${zh ? '加入其他公司（用邀请链接）' : 'Join a company with an invite'}</button></div>
