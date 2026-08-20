@@ -1400,7 +1400,8 @@ function ensureMoveOutSeedFixtures() {
 function ensureMoveOutOperationSeed(source_op_id) {
   const lease = active_lease('1608') || state.leases.find(l => l.unit === '1608');
   if (!lease) return;
-  const tenant = state.tenants.find(t => t.unit === '1608') || null;
+  /* P0-2 · Current Tenant 只从 Active Lease 派生（不按 tenant.unit 猜） */
+  const tenant = (lease && lease.tenant_id && ten(lease.tenant_id)) || state.tenants.find(t => t.unit === '1608') || null;
   /* P0-1 (005B2) — Continuity backfill：MOVEOUT-OP-1 已被 discovery 路径（ensureMoveOutSeedFixtures → ending → 无 source）预先创建；
      之后 lx-tenant-notrenew 通过 ensureMoveOutOperationSeed('LEASE-OP-1') 显式传 source_op_id 续接。
      已存在的 op 必须补齐 follow_up_of + domain.follow_up_of 并写 timeline；同 source 幂等；异 source 拒绝静默覆盖。 */
@@ -5759,11 +5760,14 @@ function viewTenants() {
 
 function viewTenant(id) {
   const t = ten(id); if (!t) return viewTenants();
-  const p = prop(t.unit);
+  /* P0-2 · Current Property / Rent 只从 Active Lease 派生（tenant.unit 仅 legacy 显示） */
+  const curProp = tenantCurrentProperty(t) || prop(t.unit);
+  const curLease = tenantCurrentLease(t);
+  const p = curProp;
   const tLeases = state.leases.filter(l => l.tenant_id === id);
   const tRents = rentsForTenant(id);
   /* 当前租客按其 active lease 显示当期租金；历史/迁出租客显示自己 lease 的最后一条租金（不串到新租客） */
-  const r = t.status === 'active' ? rentByUnit(t.unit) : (tRents[tRents.length - 1] || null);
+  const r = curLease ? (currentRentForLease(curLease.lease_id) || null) : (t.status === 'active' ? rentByUnit(p ? p.unit : t.unit) : (tRents[tRents.length - 1] || null));
   const relatedTasks = state.tasks.filter(x => x.related === t.unit || x.subject.includes(t.name));
   const isOwner = roleIs('owner');
   let actionBlock = '';
@@ -7305,9 +7309,10 @@ const __odClickHandler = function(e) {
     t.status = 'move_out_notice';
     t.moveOut = { date: $('#mo-date') ? $('#mo-date').value : '2026-07-15', reason: $('#mo-reason') ? $('#mo-reason').value : '', noticeDate: $('#mo-notice') ? $('#mo-notice').value : TODAY };
     t.history = t.history || []; t.history.push({ code: 'TENANT_MOVE_OUT_NOTICE', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { name: t.name, unit: t.unit, reason: t.moveOut.reason || '' } });
-    const p = prop(t.unit); if (p) p.status = 'move_out_pending';
+    /* P0-2 · 迁出作用于 Current Property（由 Active Lease 派生，不按 tenant.unit 猜） */
+    const cp = tenantCurrentProperty(t) || prop(t.unit); if (cp) cp.status = 'move_out_pending';
     const tid = 'T-' + uid('task');
-    state.tasks.unshift({ id: tid, type: 'move_out', subject: '', object: { kind: 'property', id: t.unit }, assignee: 'secretary', status: 'todo', priority: 'high', due: TODAY, nextAction: '', source: 'system', related: t.unit, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
+    state.tasks.unshift({ id: tid, type: 'move_out', subject: '', object: { kind: 'property', id: (cp && cp.unit) || t.unit }, assignee: 'secretary', status: 'todo', priority: 'high', due: TODAY, nextAction: '', source: 'system', related: (cp && cp.unit) || t.unit, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
     addEvent('TENANT_MOVE_OUT_NOTICE', roleIs('owner') ? 'owner' : 'secretary', 'tenant', t.id, { name: t.name, unit: t.unit });
     save(); closeSheet(); render(); msgTip('moveout_started'); toast((state.lang==='zh'?'已发起迁出 · 物业进入「准备迁出」':'Move-out started'));
     return;
@@ -7323,7 +7328,7 @@ const __odClickHandler = function(e) {
     t.status = 'inspection';
     t.inspection = { furniture: $('#inp-furn') ? $('#inp-furn').value : '', damage: $('#inp-damage') ? $('#inp-damage').value : '', keys: ($('#inp-key') ? $('#inp-key').value : 'returned'), at: TODAY };
     t.history = t.history || []; t.history.push({ code: 'INSPECTION_COMPLETED', actor: roleIs('owner') ? 'owner' : 'secretary', at: TODAY, metadata: { unit: t.unit } });
-    const p = prop(t.unit); if (p) p.status = 'inspection';
+    const p = tenantCurrentProperty(t) || prop(t.unit); if (p) p.status = 'inspection';
     addMedia('inspection', t.id, 'move_out', 'system:move_out');
     addEvent('INSPECTION_COMPLETED', roleIs('owner') ? 'owner' : 'secretary', 'tenant', t.id, { unit: t.unit });
     save(); closeSheet(); render(); toast((state.lang==='zh'?'验房完成 · 下一步：押金结算':'Inspection done — next: deposit settlement'));
@@ -7347,9 +7352,9 @@ const __odClickHandler = function(e) {
     const refund = t.deposit - (s.unpaidRent||0) - (s.utilities||0) - (s.repairs||0) - (s.other||0);
     t.status = 'moved_out';
     t.history = t.history || []; t.history.push({ code: 'TENANT_MOVED_OUT', actor: 'owner', at: TODAY, metadata: { name: t.name } });
-    const p = prop(t.unit);
-    /* 关闭租约（lease → closed），租客迁出 */
-    const al = active_lease(t.unit); if (al) { al.status = 'closed'; al.move_out_at = TODAY; }
+    /* P0-2 · 关闭的是该租客的 Current Active Lease（不按 tenant.unit 猜） */
+    const p = tenantCurrentProperty(t) || prop(t.unit);
+    const cl = tenantCurrentLease(t) || active_lease(t.unit); if (cl) { cl.status = 'closed'; cl.move_out_at = TODAY; }
     if (p) { p.status = 'turnover'; p.tenant = null; p.moveOut = p.moveOut || {}; p.moveOut.completedAt = TODAY;
       const tid = 'T-' + uid('task');
       state.tasks.unshift({ id: tid, type: 'turnover', subject: '', object: { kind: 'property', id: p.unit }, assignee: 'secretary', status: 'todo', priority: 'medium', due: TODAY, nextAction: '', source: 'system', related: p.unit, reminder: { state: 'active', snoozeUntil: null, lastAt: null }, tl: [] });
