@@ -8234,20 +8234,9 @@ window.addEventListener('hashchange', render);
    - 同源复刻 click handler 内对应 rx-/exop- 行为的"headless" 路径，直接调用既有 helpers
      （createChildOperation / createExpenseRecord / approveExpenseFromOperation / rejectExpenseFromOperation
      / completeCurrentProjectedTask / opSimDate 等）保证与生产路径语义一致。 */
-function __odResetSeedForGates() {
-  /* 重置为全新 seed：绕开 localStorage 持久化，保证 test 干净。
-     注意：必须在 ensure*Seed 之前把 operations 重置（避免旧 OP-R2/OP-EX99 命中 createChildOperation 幂等返回）。 */
-  state = seed();
-  state.leases = [];
-  state.paymentRecords = [];
-  __isFreshSeed = true;
-  /* 重新跑既有 ensureVNextSeed / ensureExpenseOperationSeed / ensureRepairOperationSeed
-     → 让 seed 幂等路径在干净 state 上跑一次，拿到稳定 baseline。 */
-  if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
-  if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
-  if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
-  /* PASAY-TASK-008 · seed 后重跑 Rent→Payment 迁移（让 paymentRecords 与 seed rents 一致；
-     反向同步：state.paymentRecords 必须与 seed rents.payments 一致） */
+/* PASAY-TASK-008 · seed 后重建 paymentRecords：让 paymentRecords 与 r.payments 同步。
+   每次 state.rents 重建（seed 或 reset）后调用；幂等。 */
+function __odRebuildPaymentRecords() {
   state.rents.forEach(r => {
     if (!r.lease_id) return;
     (r.payments || []).forEach(p => {
@@ -8261,6 +8250,24 @@ function __odResetSeedForGates() {
       });
     });
   });
+}
+function __odResetSeedForGates() {
+  /* 重置为全新 seed：绕开 localStorage 持久化，保证 test 干净。
+     注意：必须在 ensure*Seed 之前把 operations 重置（避免旧 OP-R2/OP-EX99 命中 createChildOperation 幂等返回）。 */
+  state = seed();
+  state.leases = [];
+  state.paymentRecords = [];
+  __isFreshSeed = true;
+  /* 重新跑既有 ensureVNextSeed / ensureExpenseOperationSeed / ensureRepairOperationSeed
+     → 让 seed 幂等路径在干净 state 上跑一次，拿到稳定 baseline。 */
+  if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
+  if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
+  if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
+  /* assembleSeedLeases 由调用者（__odSetupMoveOutGates 等）在 ensure*Seed 后调用，
+     这里等调用者跑完 assembleSeedLeases 后再 __odRebuildPaymentRecords()。
+     兼容 fallback：如果 resetSeedForGates 直接被调用，先尝试 assembleSeedLeases。 */
+  if (typeof assembleSeedLeases === 'function') assembleSeedLeases();
+  __odRebuildPaymentRecords();
   /* 投影 task 同步（syncOperationTasks）让 ACTIVE state 下的 task 一致 */
   if (typeof syncOperationTasks === 'function') syncOperationTasks();
 }

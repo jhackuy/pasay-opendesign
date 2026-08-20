@@ -32,12 +32,22 @@ try {
   console.log('SCRIPT ERR:', e.message);
   process.exit(1);
 }
+// Debug BEFORE the gate
+vm.runInContext(`
+  var orig = console.log;
+  __odResetSeedForGates();
+  orig('After resetSeed: paymentRecords.length=', state.paymentRecords.length);
+  state.tenants.forEach(function(t){ if (!t.status) t.status = 'active'; });
+  assembleSeedLeases();
+  orig('After assembleSeedLeases: paymentRecords.length=', state.paymentRecords.length);
+  orig('R-2026-06-1608.payments=', JSON.stringify(state.rents.find(function(r){ return r.id === 'R-2026-06-1608'; }).payments));
+  orig('R-2026-06-1608.lease_id=', state.rents.find(function(r){ return r.id === 'R-2026-06-1608'; }).lease_id);
+`, ctx, { filename: 'debug1' });
+
 const r = sandbox.window.__OD_MOVEOUT_GATE_E ? sandbox.window.__OD_MOVEOUT_GATE_E() : null;
 if (!r) { console.log('no gate; trying ME call directly'); process.exit(1); }
 console.log('Pass:', r.pass, 'Total:', r.results.length);
 r.results.forEach(x => { if (!x.pass) console.log('FAIL:', x.msg); });
-
-// Debug: call __odSetupMoveOutGates + manual sequence
 console.log('--- debugging ME/1 ---');
 try {
   vm.runInContext(`
@@ -53,6 +63,12 @@ try {
     orig('settlement:', JSON.stringify({deductions: op1.settlement.deductions, total: op1.settlement.total_deductions, refund: op1.settlement.refund_amount, balance: op1.settlement.tenant_balance_due}));
     orig('R-2026-07-1608:', JSON.stringify(state.rents.find(function(r){ return r.id === 'R-2026-07-1608'; })));
     orig('paidAmt(R-2026-07-1608):', paidAmt(state.rents.find(function(r){ return r.id === 'R-2026-07-1608'; })));
+    orig('R-2026-06-1608:', JSON.stringify(state.rents.find(function(r){ return r.id === 'R-2026-06-1608'; })));
+    orig('paidAmt(R-2026-06-1608):', paidAmt(state.rents.find(function(r){ return r.id === 'R-2026-06-1608'; })));
+    orig('paymentRecords count:', state.paymentRecords.length);
+    orig('paymentRecords for R-2026-06-1608:', state.paymentRecords.filter(function(p){ return p.rent_obligation_id === 'R-2026-06-1608'; }).length);
+    orig('R-2026-06-1608.lease_id:', state.rents.find(function(r){ return r.id === 'R-2026-06-1608'; }).lease_id);
+    orig('R-2026-06-1608.payments:', JSON.stringify(state.rents.find(function(r){ return r.id === 'R-2026-06-1608'; }).payments));
   `, ctx, { filename: 'debug-me' });
 } catch (e) {
   console.log('DEBUG ERR:', e.message);
