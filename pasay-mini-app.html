@@ -1487,7 +1487,7 @@ function propertyActiveOps(p) {
   /* Open repairs → 来自 state.repairs */
   const reps = repairsFor(p.unit).filter(r2 => ['reported','assigned','in_progress','waiting_parts'].includes(r2.status));
   reps.forEach(rp => {
-    ops.push({ level: 'warn', icon: 'wrench', title: rp.id + ' · ' + rp.issue, sub: (zh ? '维修状态：' + repairStatusLabel(rp.status) : 'Status: ' + repairStatusLabel(rp.status)), href: '#/repair/' + rp.id });
+    ops.push({ level: 'warn', icon: 'wrench', title: rp.id + ' · ' + rp.issue, sub: (zh ? '维修进行中' : 'Repair in progress'), href: '#/repair/' + rp.id });
   });
   /* Lease expiring */
   if (p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30) {
@@ -3892,8 +3892,11 @@ function viewProps(q) {
     const t = p.tenant ? ten(p.tenant) : null;
     const r = rentByUnit(p.unit);
     const opr = openRepairs(p.unit);
-    const chips = (p.status === 'occupied' ? '<span class="chip st-ok">' + (state.lang === 'zh' ? '已出租' : 'Occupied') + '</span>' : '<span class="chip st-neu">' + (state.lang === 'zh' ? '空置' : 'Vacant') + '</span>') + (r ? rentChip(r) : '') + (opr.length ? '<span class="chip st-warn">' + (state.lang === 'zh' ? '维修 ' : 'Fix ') + opr.length + '</span>' : '');
-    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span>' + propertyStatusDot(p) + '</div><div class="row-l2"><span class="who">' + (t ? t.name : (state.lang === 'zh' ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (r ? '<span class="dot"></span><span>' + (state.lang === 'zh' ? '租金 ' : 'Rent ') + money(r.amount) + '</span>' : '') + (r && r.status !== 'paid' && r.status !== 'upcoming' ? '<span class="dot"></span><span class="num">' + (state.lang === 'zh' ? '欠 ' : 'due ') + money(Math.max(r.amount - paidAmt(r) - pendAmt(r), 0)) + '</span>' : '') + '</div></div><div class="row-r" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">' + chips + ic('chev', 15) + '</div></div>';
+    /* 007C · 行内副标题压缩：异常展开（直接说人话），正常显示租客 / 物业类型
+       健康度 chip 移至 .row-r，避免占用主内容；副标题统一为 propertyRowSub 业务化语言 */
+    const subStatus = propertyRowSub(p);
+    const chips = propertyStatusDot(p) + (r ? rentChip(r) : '') + (opr.length ? '<span class="chip st-warn">' + (state.lang === 'zh' ? '维修 ' : 'Fix ') + opr.length + '</span>' : '');
+    return '<div class="row" data-a="nav" data-href="#/property/' + p.unit + '" data-od-id="property-row-' + p.unit + '"><div class="row-main"><div class="row-l1"><span class="unit-badge">' + p.unit + '</span><span class="sub">' + p.tower + ' · ' + p.type + '</span></div><div class="row-l2"><span class="who">' + (t ? t.name : (state.lang === 'zh' ? '空置 · 待租' : 'Vacant · for lease')) + '</span>' + (subStatus ? '<span class="dot"></span><span class="num" style="color:var(--crit);font-weight:600">' + subStatus + '</span>' : '') + '</div></div><div class="row-r" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">' + chips + ic('chev', 15) + '</div></div>';
   }).join('');
   return shell('building', tr('nav_props'), totalOccupied() + ' / ' + state.props.length + ' ' + L('已出租','occupied'), `
     <div class="filters" data-od-id="props-filters">${filters.map(x => '<button class="fchip' + (f === x[0] ? ' on' : '') + '" data-a="filter" data-f="' + x[0] + '" data-base="#/props">' + x[1] + '</button>').join('')}</div>
@@ -3940,6 +3943,9 @@ function viewProperty(u, tab) {
       </div>
       ${r ? '<div class="dl"><div class="dl-row"><span class="k">' + (state.lang==='zh'?'本月租金':'Rent (Jun)') + '</span><span class="v money">' + money(r.amount) + ' ' + rentChip(r) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'已收':'Paid') + '</span><span class="v money pos">' + money(paidAmt(r)) + '</span></div><div class="dl-row"><span class="k">' + (state.lang==='zh'?'未收':'Outstanding') + '</span><span class="v money ' + (r.amount - paidAmt(r) > 0 ? 'neg' : '') + '">' + money(Math.max(r.amount - paidAmt(r), 0)) + '</span></div></div>' : ''}
       <div class="dl"><div class="dl-row"><span class="k">${state.lang==='zh'?'本月支出':'Expenses (Jun)'}</span><span class="v money">${money(expTotal)} · ${exps.length}${state.lang==='zh'?' 笔':' items'}</span></div><div class="dl-row"><span class="k">${state.lang==='zh'?'净现金流':'Net cashflow'}</span><span class="v money ${paidThis - expTotal >= 0 ? 'pos' : 'neg'}">${money(paidThis - expTotal)}</span></div></div>
+      ${propertyActiveOpsHtml(p, t, r, state.lang === 'zh' ? 'zh' : 'en')}
+      ${propertyMissingFieldsHtml(p, t, r, state.lang === 'zh' ? 'zh' : 'en')}
+      ${propertyBuildingContact(p)}
     `;
   } else if (tb[0] === 'fin') {
     const exps = expensesFor(p.unit).filter(e => e.status !== 'rejected');
