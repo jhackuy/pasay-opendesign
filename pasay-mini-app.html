@@ -3976,9 +3976,21 @@ function viewHome() {
     '</div></div>';
 
   const totalCards = needsYou.length + risks.length;
+  const hasUrgent = needsYou.length > 0 || risks.length > 0;
   const normalBlock = (!totalCards)
     ? '<div class="card" style="margin:10px 16px 0;padding:18px 16px;text-align:center" data-od-id="home-normal"><div style="display:flex;justify-content:center">' + ic('check', 28) + '</div><div style="font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-0.01em;margin-top:8px">' + (state.lang==='zh' ? '一切正常' : 'Everything looks good') + '</div><p style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.55">' + (state.lang==='zh' ? '所有 ' + state.props.length + ' 套物业运营正常 · AI 持续监控租金 / 维修 / 事项。' : 'All ' + state.props.length + ' properties are running normally · AI is monitoring rent, repairs and operations.') + '</p></div>'
     : '';
+
+  /* 008B-FIX1 · Home 动态优先级：
+     有需人工处理 / 严重异常时 → 需你处理 → 需要关注 → 本月经营 → AI 一句；
+     没有时 → 本月经营 → 正常状态 → AI 一句。禁止财务摘要压住真正需要立即处理的业务。 */
+  const finSection = sec(state.lang==='zh' ? '本月经营' : 'THIS MONTH') + '<div class="list" style="margin-top:6px">' + finSummary + '</div>';
+  const needsSection = sec(state.lang==='zh' ? '需你处理' : 'NEEDS YOU', '<span class="meta">' + needsYou.length + '</span>') + (needsYou.length ? '<div class="list" style="margin-top:8px">' + needsYou.map(n => rowHtml(n, 'home-needs-you')).join('') + '</div>' : emptyNeeds);
+  const riskSection = sec(state.lang==='zh' ? '需要关注' : 'RISKS · ATTENTION', '<span class="meta">' + risks.length + '</span>') + (risks.length ? risks.map(riskHtml).join('') : '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('shield', 17) + '<div class="row-l1" style="font-size:13px">' + (state.lang==='zh' ? '当前没有需要关注的风险' : 'No risks to flag right now') + '</div></div></div>');
+  const aiSection = sec(state.lang==='zh' ? 'AI 推进中' : 'AI WORKING', '<span class="meta">' + aiWorking.length + '</span>') + '<div class="list" style="margin-top:8px">' + aiOneLiner + '</div>';
+  const bodySections = hasUrgent
+    ? needsSection + riskSection + finSection + aiSection
+    : finSection + normalBlock + aiSection;
 
   return shell('home', 'Pasay AI', MERCHANT.name, `
     ${setupBannerHtml()}
@@ -3990,17 +4002,8 @@ function viewHome() {
         </div>
         <span class="tag accent">${state.lang==='zh' ? '今日' : 'Today'} · ${TODAY.split('-')[2]}/${TODAY.split('-')[1]}</span>
       </div>
-      <div style="margin-top:12px"><button class="btn btn-s block" data-a="nav" data-href="#/search" style="justify-content:flex-start;color:var(--muted);font-weight:500">${ic('search',17)} ${state.lang==='zh' ? '搜索物业 / 租客 / 单据，或输入自然语言…' : 'Search property / tenant / docs, or ask…'}</button></div>
     </div>
-    ${sec(state.lang==='zh' ? '本月经营' : 'THIS MONTH')}
-    <div class="list" style="margin-top:6px">${finSummary}</div>
-    ${sec(state.lang==='zh' ? '需你处理' : 'NEEDS YOU', '<span class="meta">' + needsYou.length + '</span>')}
-    ${needsYou.length ? '<div class="list" style="margin-top:8px">' + needsYou.map(n => rowHtml(n, 'home-needs-you')).join('') + '</div>' : emptyNeeds}
-    ${normalBlock}
-    ${sec(state.lang==='zh' ? 'AI 推进中' : 'AI WORKING', '<span class="meta">' + aiWorking.length + '</span>')}
-    <div class="list" style="margin-top:8px">${aiOneLiner}</div>
-    ${sec(state.lang==='zh' ? '需要关注' : 'RISKS · ATTENTION', '<span class="meta">' + risks.length + '</span>')}
-    ${risks.length ? risks.map(riskHtml).join('') : '<div class="row" style="padding:11px 16px;color:var(--muted)"><div class="row-main" style="display:flex;align-items:center;gap:8px">' + ic('shield', 17) + '<div class="row-l1" style="font-size:13px">' + (state.lang==='zh' ? '当前没有需要关注的风险' : 'No risks to flag right now') + '</div></div></div>'}
+    ${bodySections}
   `, { root: true });
 }
 
@@ -4753,18 +4756,44 @@ function viewOps() {
   const secWrap = (t, g, extra) => (g.length ? sec(t, extra) + block(g) : '');
   const waitingHtml = Object.keys(waitingGroups).map(k => secWrap(k, waitingGroups[k], '<span class="meta">' + waitingGroups[k].length + '</span>')).join('');
   const live = actNow.length + aiWorking.length + waiting.length + attention.length;
-  /* 008B · 连续处理 next-item workflow 入口（Demo E：待确认付款队列） */
-  const confirmEntry = '<div class="row" data-a="nav" data-href="#/confirm-flow" data-od-id="confirm-flow-entry" style="padding:12px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 12%, transparent);color:var(--accent);border-radius:10px">' + ic('check', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '待确认付款 · 连续处理' : 'Confirm payments · next-item flow') + '</b></div><div class="row-l2">' + (zh ? '5 条待处理 · 完成后自动进入下一条' : '5 pending · auto-advance to next') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>';
+  /* 008B-FIX1 · 连续处理真实化：入口仅当真实同类待处理记录存在时显示；
+     >1 显示「连续处理 N 条」（自动下一条）· =1 按普通事项显示 · =0 完全消失。
+     演示 5 条样例隔离为 prototype fixture（#/confirm-flow?demo=1），不污染真实 Queue truth */
+  const confirmList = collectConfirmCandidates();
+  const confirmEntry = confirmList.length > 1
+    ? '<div class="row" data-a="nav" data-href="#/confirm-flow" data-od-id="confirm-flow-entry" style="padding:12px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 12%, transparent);color:var(--accent);border-radius:10px">' + ic('check', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '连续处理 · 待确认付款 ' + confirmList.length + ' 条' : 'Bulk confirm · ' + confirmList.length + ' payments') + '</b></div><div class="row-l2">' + (zh ? '完成后自动进入下一条' : 'auto-advance to next') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>'
+    : confirmList.length === 1
+      ? '<div class="row" data-a="nav" data-href="#/confirm-flow" data-od-id="confirm-flow-entry" style="padding:12px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 12%, transparent);color:var(--accent);border-radius:10px">' + ic('check', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + (zh ? '待确认付款 · ' + confirmList[0].unit + ' · ' + confirmList[0].tenant : 'Confirm payment · ' + confirmList[0].unit + ' · ' + confirmList[0].tenant) + '</b></div><div class="row-l2">' + money(confirmList[0].amount) + (zh ? ' · 待确认' : ' · unconfirmed') + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>'
+      : '';
   return shell('ops', tr('nav_ops'), live + (zh ? ' 个进行中事项' : ' live operations'), `
     <div class="count-line" style="padding-top:14px">${zh ? '需要人处理的在这里 · AI 自动推进的不打扰你' : 'What needs a human is here — AI-driven work stays quiet'}</div>
     ${confirmEntry}
     ${secWrap(zh ? '需要你处理' : 'NEEDS YOU', actNow, '<span class="meta">' + actNow.length + '</span>')}
-    ${secWrap(zh ? '自动推进中' : 'AUTO-PILOT', aiWorking, '<span class="meta">' + aiWorking.length + '</span>')}
+    ${secWrap(zh ? '自动推进中' : 'IN MOTION', aiWorking, '<span class="meta">' + aiWorking.length + '</span>')}
     ${waitingHtml || ''}
     ${secWrap(zh ? '需要关注' : 'NEEDS ATTENTION', attention, '<span class="meta">' + attention.length + '</span>')}
     ${secWrap(zh ? '今天完成' : 'DONE TODAY', doneToday, '<span class="meta">' + doneToday.length + '</span>')}
     ${ops.length ? '' : emptyState('tasks', zh ? '暂无进行中的事项' : 'No live operations', zh ? 'AI 会在出现异常时自动创建并推进事项。' : 'AI creates & drives an operation when an anomaly appears.')}
   `, { root: true });
+}
+
+/* 008B-FIX1 · 真实「待确认付款」候选：从 Rent 单一 truth 收集 unconfirmed/pending 付款记录（不伪造） */
+function collectConfirmCandidates() {
+  const zh = state.lang === 'zh';
+  const list = [];
+  state.rents.forEach(r => {
+    const t = tenantForRent(r);
+    const tname = t ? t.name : (zh ? '未知租客' : 'Unknown');
+    (r.payments || []).forEach(p => {
+      if (p.status === 'unconfirmed' || p.status === 'pending') {
+        list.push({ id: r.id + '-' + p.id, unit: r.unit, tenant: tname, amount: p.amount || r.amount, method: p.method || '', period: r.period || '' });
+      }
+    });
+    if (r.status === 'pending' && !(r.payments || []).some(p => p.status === 'unconfirmed' || p.status === 'pending')) {
+      list.push({ id: r.id + '-pending', unit: r.unit, tenant: tname, amount: r.amount, method: '', period: r.period || '', pending: true });
+    }
+  });
+  return list;
 }
 
 /* 008B · 连续处理 next-item workflow（Demo E）：同类待确认付款记录逐条处理，完成后自动下一条 */
@@ -5757,12 +5786,12 @@ function viewSearch(q) {
     results = groups.length ? groups.map(g => sec(g[0]) + '<div class="list" style="margin-top:8px">' + g[1] + '</div>').join('') : emptyState('search', state.lang==='zh'?'未找到匹配结果':'No results', state.lang==='zh'?'试试「1608」「Paolo」「unpaid」「aircon」。':'Try "1608", "Paolo", "unpaid", "aircon".');
   }
   const chips = [['1608', '#/property/1608'], ['Paolo', '#/search?q=Paolo'], ['unpaid', '#/rents?f=overdue'], ['aircon', '#/reps?f=open'], ['expenses June', '#/exps?f=all']];
-  return shell('search', state.lang==='zh'?'全局搜索 · AI 指令':'Search · AI command', state.lang==='zh'?'物业 / 租客 / 单据 / 自然语言':'properties · tenants · docs · NL', `
+  return shell('search', state.lang==='zh'?'全局搜索':'Search', state.lang==='zh'?'物业 / 租客 / 付款 / 单据 / 记录':'units · tenants · payments · records', `
     <div class="pad" style="padding-bottom:4px">
       <div style="display:flex;gap:8px"><input id="gs-input" class="input" placeholder="1608 / Paolo / unpaid / aircon…" value="${query.replace(/"/g, '&quot;')}" style="flex:1" autocomplete="off"/><button class="btn btn-p" data-a="go-search">${ic('search', 17)}</button></div>
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${chips.map(c => '<button class="fchip" data-a="nav" data-href="' + c[1] + '">' + c[0] + '</button>').join('')}</div>
     </div>
-    ${results || emptyState('search', state.lang==='zh'?'输入关键词或自然语言指令':'Type a keyword or natural-language command', state.lang==='zh'?'AI 会理解意图并跳转到对应明细。':'AI understands intent and jumps to the right detail screen.')}
+    ${results || emptyState('search', state.lang==='zh'?'输入物业、租客、付款或单据关键词':'Search units, tenants, payments or records', state.lang==='zh'?'例如：1608 · Paolo · unpaid · aircon':'e.g. 1608 · Paolo · unpaid · aircon')}
   `);
 }
 
