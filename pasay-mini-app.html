@@ -1146,7 +1146,7 @@ function rentsForTenant(tenant_id) {
    · Draft Lease 不产生 Rent；Ended Lease 不生成未来 Rent
    · 新 Payment 一律经 rentRecordPayment；reversal 改 status='reversed' 保持 history 完整 */
 /* PASAY-TASK-008 · P0 · paymentRecords 一致性查询 + 派生 */
-function paymentsForObligation(obId) { return state.paymentRecords.filter(p => p.rent_obligation_id === obId); }
+function paymentsForObligation(obId) { return (state.paymentRecords || []).filter(p => p.rent_obligation_id === obId); }
 function paidAmtForObl(obId) { return paymentsForObligation(obId).filter(p => p.status !== 'reversed').reduce((a, p) => a + Number(p.amount || 0), 0); }
 /* PASAY-TASK-008 · P0 · 重写 paidAmt 为派生（override 旧实现） */
 function paidAmt(r) {
