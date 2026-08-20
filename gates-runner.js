@@ -951,6 +951,55 @@ try {
   }
 }
 
+/* ─────────────── Run Mini App 008B-FIX3 Gate (PASAY-TASK-004-FIX3 · Status/Empty Truth + Closeout) ─────────────── */
+{
+  const gateFix3 = ctx.window.__OD_GATE_MINAPP_008B_FIX3;
+  if (typeof gateFix3 === 'function') {
+    try {
+      const r = gateFix3();
+      console.log('\n═══════ Mini App 008B-FIX3 Gate (PASAY-TASK-004-FIX3 · Status/Empty Truth + Closeout) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('MiniApp-008B-FIX3', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('MiniApp-008B-FIX3 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('MiniApp-008B-FIX3 gate not exposed on window (__OD_GATE_MINAPP_008B_FIX3 = ' + typeof gateFix3 + ')');
+    allPass = false;
+  }
+}
+
+/* ─────────────── MINIAPP_RENDER_CLEAN Gate (PASAY-TASK-004-FIX3 · 模板泄漏全量扫描) ─────────────── */
+{
+  try {
+    const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
+    const script = miniSrc.match(/<script>([\s\S]*?)<\/script>/i);
+    const code = script ? script[1] : miniSrc;
+    /* backtick 模板内（去掉 ${} 插值后）不得出现裸 `'+` 字符串拼接 */
+    const re = /`([^`]*)`/g;
+    let t, leakSites = 0;
+    while ((t = re.exec(code)) !== null) {
+      const stripped = t[1].replace(/\$\{[^}]*\}/g, '${X}');
+      const bad = stripped.match(/'\+/g);
+      if (bad) { leakSites += bad.length; }
+    }
+    const checks = [
+      { n: 1, cond: leakSites === 0, msg: '[RENDER-1] backtick 模板内裸字符串拼接（\x27+）泄漏 = ' + leakSites + '（必须 0）' },
+      { n: 2, cond: code.indexOf('${undefined}') === -1 && code.indexOf('${null}') === -1 && code.indexOf('${[object') === -1, msg: '[RENDER-2] 无 ${undefined} / ${null} / ${[object Object]} 直出' },
+      { n: 3, cond: code.indexOf('"undefined"') === -1 && code.indexOf('>undefined<') === -1 && code.indexOf('>null<') === -1, msg: '[RENDER-3] 无 >undefined< / >null< 直出标记' }
+    ];
+    let statAll = true;
+    checks.forEach(c => { const ok = c.cond; statAll = statAll && ok; console.log('  ' + (ok ? '✓' : '✗') + '  ' + c.msg); });
+    console.log(format('MINIAPP_RENDER_CLEAN', { gate: 'MINIAPP_RENDER_CLEAN', pass: statAll, total: checks.length, passed: checks.filter(c => c.cond).length, results: [] }));
+    allPass = allPass && statAll;
+  } catch (e) {
+    console.error('MINIAPP_RENDER_CLEAN gate threw:', e && e.stack ? e.stack : e);
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
