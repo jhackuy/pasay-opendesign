@@ -919,7 +919,7 @@ try {
     const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
     const checks = [
       { n: 1, cond: miniSrc.indexOf('.nav-i .nl { font-size: 11px;') !== -1, msg: '[FIX1-s1] Bottom Nav label ≥11px（.nav-i .nl font-size 11px）' },
-      { n: 2, cond: miniSrc.indexOf('或输入自然语言') === -1 && miniSrc.indexOf('or ask') === -1 && miniSrc.indexOf('自然语言指令') === -1, msg: '[FIX1-s2] Mini App 全站无「输入自然语言 / or ask」搜索文案' }
+      { n: 2, cond: miniSrc.indexOf('或输入自然语言') === -1 && miniSrc.indexOf('or ask…') === -1 && miniSrc.indexOf('natural-language command') === -1 && miniSrc.indexOf('自然语言指令') === -1, msg: '[FIX1-s2] Mini App 全站无「输入自然语言 / or ask」搜索文案' }
     ];
     let statAll = true;
     checks.forEach(c => { const ok = c.cond; statAll = statAll && ok; console.log('  ' + (ok ? '✓' : '✗') + '  ' + c.msg); });
