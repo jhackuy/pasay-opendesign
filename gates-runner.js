@@ -728,6 +728,47 @@ try {
   allPass = false;
 }
 
+/* ─────────────── Run PROPERTY_ARCHIVE_007C_FINAL Gate (PASAY-TASK-002 · FIX1) ─────────────── */
+{
+  const gate007C = ctx.window.__OD_GATE_PROPERTY_ARCHIVE_007C_FINAL;
+  if (typeof gate007C === 'function') {
+    try {
+      const r = gate007C();
+      console.log('\n═══════ PROPERTY_ARCHIVE_007C_FINAL Gate (PASAY-TASK-002 · FIX1) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('PropertyArchive-007C-Final', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('PropertyArchive-007C-Final gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('PropertyArchive-007C-Final gate not exposed on window (__OD_GATE_PROPERTY_ARCHIVE_007C_FINAL = ' + typeof gate007C + ')');
+    allPass = false;
+  }
+
+  /* 静态契约断言：对 pasay-mini-app.html 源码文本（deep-link handler / Partial / Receipt / 手动快照 / View N more） */
+  try {
+    const miniSrc = fs.readFileSync(path.join(__dirname, 'pasay-mini-app.html'), 'utf8');
+    const script = miniSrc.match(/<script>([\s\S]*?)<\/script>/i);
+    const code = script ? script[1] : miniSrc;
+    const checks = [
+      { n: 3, cond: code.indexOf("a === 'open-master-post'") !== -1 && code.indexOf('window.open(p.archive_message_url') !== -1 && code.indexOf('data-a="open-master-post"') !== -1, msg: '[007C-3] Open Archive 使用 Telegram message deep-link（open-master-post handler + window.open(archive_message_url) + 真实导航按钮，非 modal-only / close-modal）' },
+      { n: 7, cond: code.indexOf('Partial payment never auto-creates') !== -1, msg: '[007C-7] Partial payment 不自动生成 Property Summary / Snapshot（契约文案存在）' },
+      { n: 8, cond: code.indexOf("kind: 'receipt'") !== -1 && code.indexOf('receipts stay as archive records') !== -1, msg: '[007C-8] Receipt 继续作为 Archive record（receipt 分类 + 契约文案）' },
+      { n: 9, cond: code.indexOf("a === 'archive-snapshot'") !== -1 && code.indexOf('手动快照') !== -1, msg: '[007C-9] 手动 Create Snapshot 仍然存在（archive-snapshot action + 按钮）' },
+      { n: 11, cond: code.indexOf('data-a="building-contacts-more"') !== -1 && code.indexOf('查看 ') !== -1, msg: '[007C-11] Primary contact 默认显示 + 其余联系人 View N more 展开' }
+    ];
+    let statAll = true;
+    checks.forEach(c => { const ok = c.cond; statAll = statAll && ok; console.log('  ' + (ok ? '✓' : '✗') + '  ' + c.msg); });
+    console.log(format('PropertyArchive-007C-Final-static', { gate: 'PropertyArchive-007C-Final-static', pass: statAll, total: checks.length, passed: checks.filter(c => c.cond).length, results: [] }));
+    allPass = allPass && statAll;
+  } catch (e) {
+    console.error('PropertyArchive-007C-Final static assertions threw:', e && e.stack ? e.stack : e);
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);

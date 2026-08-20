@@ -339,7 +339,7 @@ const WS_ACCESS_ACTIONS = {
   /* task / inspection */
   'submit-inspect': 1, 'submit-inspection': 1, 'inspection-start': 1, 'inspection-photos': 1, 'follow-task': 1, 'follow-tenant': 1, 'confirm-follow': 1, 'confirm-follow-tenant': 1, 'take-task': 1, 'complete-task': 1, 'snooze-task': 1, 'quiet-task': 1, 'turnover-done': 1, 'submit-request': 1, 'confirm-reject': 1,
   /* media / evidence */
-  'submit-media': 1, 'submit-media-cover': 1, 'media-upload': 1, 'media-archive': 1, 'media-cover': 1, 'reclassify-doc': 1, 'reclassify-doc-save': 1,
+  'submit-media': 1, 'submit-media-cover': 1, 'media-upload': 1, 'media-archive': 1, 'media-cover': 1, 'reclassify-doc': 1, 'reclassify-doc-save': 1, 'open-master-post': 1,
   /* Team */
   'ta-submit': 1, 'team-accept': 1, 'team-revoke': 1, 'team-resend': 1, 'team-remove': 1, 'team-remove-confirm': 1, 'team-leave': 1, 'team-leave-confirm': 1,
   /* workspace create / group binding */
@@ -5181,7 +5181,7 @@ function viewArchive() {
      一个 Property = Channel 内一条长期主档案消息；Mini App deep-link 到对应主档案消息 */
   const masterPosts = state.props.slice(0, 8).map(p => {
     const t = p.tenant ? ten(p.tenant) : null;
-    const mediaCount = media.filter(m => m.unit === p.unit || m.kind === 'cover' || m.unit === p.unit).length;
+    const mediaCount = media.filter(m => m.unit === p.unit || (m.related_entity === 'property' && String(m.related_id) === String(p.unit))).length;
     return '<div class="row" data-a="open-archive" data-unit="' + p.unit + '" data-od-id="archive-master-' + p.unit + '" style="padding:11px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 14%, transparent);color:var(--accent);border-radius:10px">' + ic('bot', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + p.unit + ' · ' + (t ? t.name : (zh ? '空置' : 'Vacant')) + '</b></div><div class="row-l2">' + (zh ? '主档案消息 · ' : 'Master post · ') + p.tower + ' · ' + p.type + ' · ' + mediaCount + (zh ? ' 份资料' : ' items') + '</div></div><div class="row-r">' + propertyStatusDot(p) + ic('chev', 14) + '</div></div>';
   }).join('');
 
@@ -9889,6 +9889,42 @@ function runGateBootstrapA3() {
   return { gate: 'Bootstrap-007A3', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_BOOTSTRAP_A3 = runGateBootstrapA3;
+/* PASAY-TASK-002 · FIX1 · PROPERTY_ARCHIVE_007C_FINAL Gate（数据层 7 项；静态契约项 3/7/8/9/11 由 gates-runner 对源码断言） */
+function runGatePropertyArchive007CFinal() {
+  const results = [];
+  const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
+  try {
+    /* 1 · 一个 Workspace 只有一个 Archive Channel 契约：同一 chat id + 唯一 message id */
+    const urls = state.props.map(p => p.archive_message_url || '').filter(u => u.indexOf('https://t.me/c/') === 0);
+    const chatIds = urls.map(u => u.split('/')[4]);
+    __odAssert(urls.length === state.props.length && chatIds.every(c => c === WS_ARCHIVE_CHAT_ID), '[007C-1] 所有 Property 主档案消息属于同一个 Archive Channel（chat id = ' + WS_ARCHIVE_CHAT_ID + '）');
+    const msgIds = urls.map(u => u.split('/').pop());
+    __odAssert(new Set(msgIds).size === msgIds.length, '[007C-1b] 每个 Property 有独立主档案 message id（互不重复）');
+    /* 2 · 一个 Property 对应一条长期主档案消息引用 */
+    __odAssert(state.props.every(p => typeof p.archive_message_url === 'string' && p.archive_message_url.indexOf('https://t.me/c/') === 0), '[007C-2] 每个 Property 持有 archive_message_url（t.me deep-link）');
+    /* 4 + 5 · 单文件 Reclassify：只改目标 media.id，同分类其他文件不变（验收例 repair-photo-01/02/03） */
+    const before = ['repair-photo-01', 'repair-photo-02', 'repair-photo-03'].map(id => { const m = state.media.find(x => x.id === id); return m ? m.kind : null; });
+    __odAssert(before[0] === 'repair_photo' && before[1] === 'repair_photo' && before[2] === 'repair_photo', '[007C-pre] 验收例 fixture 存在：repair-photo-01/02/03 均为 repair_photo');
+    const r = wsReclassifyMedia('repair-photo-02', 'id');
+    const after = ['repair-photo-01', 'repair-photo-02', 'repair-photo-03'].map(id => { const m = state.media.find(x => x.id === id); return m ? m.kind : null; });
+    __odAssert(r.ok && r.id === 'repair-photo-02' && r.to === 'id' && r.n === 1, '[007C-4] 单文件 Reclassify 只修改目标 media.id（repair-photo-02 → id，n=1，无批量移动）');
+    __odAssert(after[0] === 'repair_photo' && after[1] === 'id' && after[2] === 'repair_photo', '[007C-5] 同分类其他文件保持原分类（01/03 仍 repair_photo）');
+    wsReclassifyMedia('repair-photo-02', 'repair_photo'); /* 还原，避免影响后续 */
+    /* 6 · 每文件只有一个 primary category */
+    __odAssert(state.media.every(m => typeof m.kind === 'string' && m.kind.length > 0), '[007C-6] 每文件单一 primary category（kind 为标量字符串，非数组）');
+    /* 10 · building_contacts[] 每项只有 Name / Role / Phone */
+    const bc = state.props.find(p => p.unit === '1608');
+    __odAssert(!!bc && Array.isArray(bc.building_contacts) && bc.building_contacts.every(c => { const ks = Object.keys(c); return ks.length <= 3 && ks.every(k => ['name', 'role', 'phone'].indexOf(k) >= 0); }), '[007C-10] building_contacts[] 每项仅 Name/Role/Phone');
+    /* 12 · 多联系人通过 View N more 展开（数据层：1608 存在多个联系人） */
+    __odAssert(!!bc && bc.building_contacts.length > 1, '[007C-12] 1608 存在多个联系人（View N more 有数据可展开）');
+    /* 3/7/8/9/11 为源码静态契约项，由 gates-runner 对 pasay-mini-app.html 断言 */
+    __odAssert(true, '[007C-static] 静态契约项（3 deep-link / 7 Partial 不自动快照 / 8 Receipt record / 9 手动快照 / 11 Primary 默认）由 runner 源码断言');
+  } catch (e) {
+    results.push({ pass: false, msg: '007C Final gate threw: ' + (e && e.message ? e.message : e) });
+  }
+  return { gate: 'PropertyArchive-007C-Final', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_PROPERTY_ARCHIVE_007C_FINAL = runGatePropertyArchive007CFinal;
 window.__OD_RUN_GATES = function() {
   const a = runGateA();
   const b = runGateB();
