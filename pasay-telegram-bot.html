@@ -624,53 +624,74 @@ code { font-family: var(--font-mono); font-size: 12px; background: var(--fg-soft
     </div>
   </section>
 
-  <!-- 14 · OpenDesign Source of Truth · 007C · Per-Property Archive Channel · 一房一档 -->
+  <!-- 14 · OpenDesign Source of Truth · 007C Final · Workspace Archive Channel · 主档案消息 -->
   <section class="section" data-od-id="telegram-channel-007c" id="telegram-channel-007c" style="padding-top:0">
     <div class="container">
-      <p class="eyebrow">VNEXT · 007C · PER-PROPERTY ARCHIVE CHANNEL · 一房一档</p>
+      <p class="eyebrow">VNEXT · 007C FINAL · WORKSPACE ARCHIVE CHANNEL · 一 Workspace 一频道</p>
       <div class="sec-h">
-        <h2 class="h2">每套房对应一个长期 Telegram Channel 档案入口<br>Mini App 永远是最新事实入口</h2>
+        <h2 class="h2">一个 Workspace = 一个 Telegram Archive Channel<br>每套房 = 一条长期主档案消息</h2>
       </div>
       <div class="banner info">
-        一个 Property = 一个长期存在的频道档案入口。频道是<b>人类可读资料层</b>，不是数据库；Mini App / backend 是最新业务事实入口。Owner / Secretary <b>不必</b>懂 Telegram chat_id / property_id / internal status code — 一房一档解决"上传资料去哪 / 怎么找"的问题。
+        <b>Owner 最终决策（PASAY-TASK-002）</b>：废弃「一房一个独立 Channel」。最终事实：<b>一个 Workspace = 一个 Telegram Archive Channel</b>；<b>一个 Property = Channel 内一条长期 Property 主档案消息</b>；Mini App 的 Open Archive deep-link 到对应 Property 主档案消息。历史 Snapshot / Receipt / Contract / Photo 等保留为独立消息。频道是<b>人类可读资料层</b>，不是数据库；Mini App / backend 是最新业务事实入口。Owner / Secretary <b>不必</b>懂 chat_id / property_id / internal status code。
       </div>
 
       <div class="grid-2" style="margin-top:18px;gap:var(--gap-lg)">
         <div class="card">
-          <div class="h3">频道档案文章（长期置顶）</div>
+          <div class="h3">Channel 结构 · 一 Workspace 一频道</div>
           <div class="demo-d" style="margin-top:8px">
-            🏠 <b>Solemare 1608</b><br><br>
-            房源 · Sunrise Residences · Tower A · 1BR · 40㎡<br>
-            租客 · Paolo · 入住 2025-10-01<br>
-            月租 ₱30,000 · 押金 ₱60,000<br>
-            租约 2025-10-01 → 2026-09-30<br>
-            状态 · 🟢 正常 · Mini App 入口 / 频道更新于 2026-08-20<br><br>
-            <b>频道不做的事</b>：删除旧消息 / 覆盖 history / 自动修复 Mini App 业务状态。<br>
-            <b>频道做的事</b>：每套房一份长期存在的事实摘要 + 重要状态变化自动重发摘要。
+            <b>Workspace Archive Channel</b>（每公司一个）<br>
+            · 📌 可选 <b>Property Archive Index</b>（pinned · 索引全部房产主档案）<br>
+            · 🏠 <b>Solemare 1608 主档案消息</b>（长期存在 · 持续更新）<br>
+            · 🏠 <b>2103 主档案消息</b> · …<br><br>
+            <b>保留为独立消息</b>：历史 Snapshot · Receipt · Contract · Repair Photo · Inspection Photo。<br>
+            <b>Mini App deep-link</b>：Open Archive → 直接打开对应 Property 主档案消息。
           </div>
         </div>
         <div class="card">
-          <div class="h3">图片 / 文件归档 · 自然语言</div>
+          <div class="h3">Pin / Edit 契约</div>
+          <div class="demo-d" style="margin-top:8px">
+            Pasay Bot 在拥有对应 Channel <b>admin 权限</b>时，可以 <b>pin 消息</b>并执行<b>允许的消息编辑</b>。<br><br>
+            · 一个 Archive Channel<br>
+            · 一条可选的 <b>Property Archive Index pinned message</b><br>
+            · Property 主档案<b>可持续更新</b><br>
+            · <b>不要求</b>每个 Property 消息全部 pin<br><br>
+            Channel 旧消息会被新消息淹没 → 主档案消息与 Index 解决「资料去哪找」；无需为「永远只有一条消息」设计复杂同步机制。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">图片 / 文件归档 · 自然语言 + 单分类</div>
           <div class="demo-d" style="margin-top:8px">
             在业务过程中上传（由用户说"这是什么"决定归档位置，<b>不要求用户理解 DB 字段名</b>）：<br><br>
-            · <code>1608 rent receipt</code> → 自动归档到 Solemare 1608 频道的「收据」分组<br>
-            · <code>1608 tenant ID</code> → 自动归档到「租客身份证」分组<br>
-            · <code>1608 contract</code> → 自动归档到「租约 / 合同」分组<br>
-            · <code>1608 repair photo</code> → 自动归档到「维修照片」分组<br>
-            · <code>1608 inspection photo</code> → 自动归档到「验房照片」分组<br>
-            · <code>1608 building notice</code> → 自动归档到「楼宇公告」分组<br><br>
-            <b>禁止</b>要求用户记忆：property_id · Telegram numeric ID · chat_id · 内部 status code。
+            · <code>1608 rent receipt</code> → 归档到 1608 主档案「收据」<br>
+            · <code>1608 tenant ID</code> → 归档到「租客身份证」<br>
+            · <code>1608 contract</code> → 归档到「租约 / 合同」<br>
+            · <code>1608 repair photo</code> → 归档到「维修照片」<br>
+            · <code>1608 inspection photo</code> → 归档到「验房照片」<br><br>
+            <b>Document Classification</b>：每个文件只有<b>一个 primary category</b>（禁止多标签）；允许之后 <b>Move category / Reclassify</b> —— 首次分类<b>不锁死</b>。
           </div>
         </div>
         <div class="card">
-          <div class="h3">频道内容老化 · 解决方式</div>
+          <div class="h3">Snapshot Policy · 自动里程碑 + 手动</div>
           <div class="demo-d" style="margin-top:8px">
-            <b>Telegram Channel 旧文章会被新消息淹没</b>。解决方式（按优先级）：<br><br>
-            ① 房源主档案长期置顶，不被新消息刷掉<br>
-            ② 重要状态变化后系统<b>重新生成 Summary</b>，置顶发布<br>
-            ③ 必要时新增 Snapshot（Latest Snapshot + 历史可见）<br>
-            ④ Mini App 永远是最新的事实入口 — 频道只承担人类可读资料层<br><br>
-            <b>不</b>为"永远只保留一条 Telegram 消息"设计复杂同步机制。Telegram Channel = Archive，Mini App / backend = Source of Truth。
+            Property 主档案在<b>重要事实变化</b>时自动更新。仅以下业务里程碑自动创建历史 Snapshot：<br><br>
+            · Rent 变为 Overdue<br>
+            · Overdue 变为 Paid<br>
+            · Repair Open / Closed<br>
+            · Lease Start / Renew / End<br>
+            · Tenant Move-in / Move-out<br>
+            · Property Vacant / Occupied<br>
+            · Major Property information change<br><br>
+            <b>Partial payment 不自动创建 Property Summary</b>；Receipt 本身作为 Archive record，Property 主档案同步更新。<br>
+            <b>手动 Create Snapshot</b> 保留。
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">Building Contacts（可选）</div>
+          <div class="demo-d" style="margin-top:8px">
+            <code>building_contacts[]</code> · 每项仅 <b>Name / Role / Phone</b>。<br><br>
+            · Property Detail 默认显示 <b>Primary contact</b><br>
+            · 其余联系人折叠为 <b>View N more</b><br><br>
+            <b>本 Slice 不创建复杂 Building 管理模块</b>。
           </div>
         </div>
         <div class="card">

@@ -887,16 +887,16 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
     </div>
   </section>
 
-  <!-- 15 · OpenDesign Source of Truth · 007C · Property 一房一档 + Telegram Archive Channel -->
+  <!-- 15 · OpenDesign Source of Truth · 007C Final · Property Truth + Workspace Archive Channel -->
   <section class="section" data-od-id="vnext-property-007c" id="vnext-property-007c" style="padding-top:0">
     <div class="container">
-      <p class="eyebrow">VNEXT · 007C · PER-PROPERTY TRUTH + TELEGRAM ARCHIVE CHANNEL · 一房一档</p>
+      <p class="eyebrow">VNEXT · 007C FINAL · PROPERTY TRUTH + WORKSPACE ARCHIVE CHANNEL · 主档案消息</p>
       <div class="sec-h">
-        <h2 class="h2">每个 Property 是长期业务对象<br>一房一档 · 几秒内知道这个房子现在发生什么</h2>
+        <h2 class="h2">每个 Property 是长期业务对象<br>一个 Workspace = 一个 Archive Channel · 每房一条主档案消息</h2>
         <span class="tag">Property = Truth · Channel = Archive</span>
       </div>
       <div class="banner info">
-        <b>一个屏幕优先回答三件事</b>：What's wrong? · Who acts next? · What should they do? —— Property List 每套只显示一个汇总健康状态（🟢 正常 / 🟡 需要关注 / 🔴 需要立即处理）；正常信息压缩，异常信息展开；禁止把 Rent / Repair / Expense / Task 做成多个互相竞争的状态。
+        <b>一个屏幕优先回答三件事</b>：What's wrong? · Who acts next? · What should they do? —— Property List 每套只显示一个汇总健康状态（🟢 正常 / 🟡 需要关注 / 🔴 需要立即处理）；正常信息压缩，异常信息展开；禁止把 Rent / Repair / Expense / Task 做成多个互相竞争的状态。<br><br><b>Owner 最终决策（PASAY-TASK-002）</b>：废弃「一房一个独立 Channel」。一个 Workspace = 一个 Telegram Archive Channel；一个 Property = Channel 内一条长期主档案消息；Mini App deep-link 到对应主档案消息。
       </div>
 
       <div class="card" style="margin-top:18px;border-left:3px solid var(--accent)">
@@ -905,15 +905,17 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
           <div class="fc-item"><span class="fc-n">02</span><b>Property Detail = 聚合入口，不是子系统</b><span>房源页展示本期租金 / Due date / Paid-Partial-Overdue / 已收未收 / 最近付款 / Active Operations / Documents；点击进入对应 Operation / History。禁止在 Property 内复制完整 Rent / Repair / Expense 系统。</span></div>
           <div class="fc-item"><span class="fc-n">03</span><b>Active Operations 独立成行，不互相覆盖</b><span>同一房源多个事件并存（如 Rent overdue + Repair active + Building dues pending）时逐行展示，各自给出 next_actor 与 next_action（业务语言：Waiting for Secretary to call tenant，而非 WAITING_HUMAN）。</span></div>
           <div class="fc-item"><span class="fc-n">04</span><b>Missing-data prompts</b><span>缺少重要资料必须明确提示并给解决方式：<code>Missing tenant phone</code> → 「Add phone」入口；而不是只显示错误。租客基本资料：姓名 / 电话 / 证件 / 照片 / 入住日 / 合同起止 / 租金 / 押金 / Due date。</span></div>
-          <div class="fc-item"><span class="fc-n">05</span><b>Documents 属于 Property</b><span>租约合同 / 租客证件 / 收据 / 维修照片 / 验房照片 / 楼宇公告 / 其他 / 备注 按业务对象组织，附属于房源，不散落在聊天记录里。</span></div>
-          <div class="fc-item"><span class="fc-n">06</span><b>一房一档 · Channel = 人类可读资料层</b><span>一个 Property 对应一个长期存在的 Telegram Channel 档案入口。频道不是数据库：<b>不删除旧消息 / 不覆盖 history / 不自动修复 Mini App 业务状态</b>；Mini App / backend 永远是最新业务事实入口。</span></div>
-          <div class="fc-item"><span class="fc-n">07</span><b>自然语言归档，禁止技术 ID</b><span>秘书说 <code>1608 rent receipt</code> → 自动归档到 Solemare 1608 频道「收据」分组；<code>1608 tenant ID</code> → 「租客证件」；<code>1608 contract</code> → 「租约/合同」；<code>1608 repair photo</code> → 「维修照片」。用户只懂 <code>1608 · Paolo · 30,000 · 0917 555 0000</code>，永不要求 property_id / telegram_id / chat_id / status code。</span></div>
-          <div class="fc-item"><span class="fc-n">08</span><b>Channel 老化解决</b><span>① 房源主档案长期置顶；② 重要状态变化后系统重新生成 Summary 置顶发布；③ 必要时产生新 Snapshot（最新 + 历史可见）；④ Mini App 始终为最新事实入口。不为「永远只有一条消息」设计复杂同步机制。</span></div>
-          <div class="fc-item"><span class="fc-n">09</span><b>模块化编辑，零学习成本</b><span>Edit Property 按业务模块编辑：Property / Tenant / Rent / Contract / Contacts / Notes —— 不做几十字段的大表单；不暴露 property_id / tenant_id / internal status code。</span></div>
-          <div class="fc-item"><span class="fc-n">10</span><b>Building Contact 为次级信息</b><span>楼宇管理员 / 物业管理处 / 电话 / 邮箱 / 紧急联系人 / 备注 为可选资料，折叠存放，不抢占 Property 主视图。</span></div>
+          <div class="fc-item"><span class="fc-n">05</span><b>Documents 属于 Property · 每文件单一 primary category</b><span>租约合同 / 租客证件 / 收据 / 维修照片 / 验房照片 / 楼宇公告 / 其他 / 备注 按业务对象组织，附属于房源，不散落在聊天记录里。每个文件只有一个 primary category（禁止多标签）。</span></div>
+          <div class="fc-item"><span class="fc-n">06</span><b>Channel 结构：一个 Workspace = 一个 Archive Channel</b><span>废弃「一房一个独立 Channel」。一个 Workspace = 一个长期 Telegram Archive Channel；一个 Property = Channel 内一条长期 Property 主档案消息；历史 Snapshot / Receipt / Contract / Photo 保留为独立消息。Mini App 的 Open Archive deep-link 到对应 Property 主档案消息。频道不是数据库：不删除旧消息 / 不覆盖 history / 不自动修复 Mini App 业务状态；Mini App / backend 永远是最新业务事实入口。</span></div>
+          <div class="fc-item"><span class="fc-n">07</span><b>Pin / Edit 契约（Bot administrator 事实）</b><span>Pasay Bot 在拥有对应 Channel admin 权限时，可以 pin 消息并执行允许的消息编辑：一个 Archive Channel + 一条可选的 Property Archive Index pinned message + Property 主档案可持续更新 + 不要求每个 Property 消息全部 pin。旧消息被新消息淹没 → 由主档案消息与 Index 解决「资料去哪找」，不为「永远只有一条消息」设计复杂同步机制。</span></div>
+          <div class="fc-item"><span class="fc-n">08</span><b>自然语言归档，禁止技术 ID</b><span>秘书说 <code>1608 rent receipt</code> → 自动归档到 1608 主档案「收据」；<code>1608 tenant ID</code> → 「租客证件」；<code>1608 contract</code> → 「租约/合同」；<code>1608 repair photo</code> → 「维修照片」。用户只懂 <code>1608 · Paolo · 30,000 · 0917 555 0000</code>，永不要求 property_id / telegram_id / chat_id / status code。</span></div>
+          <div class="fc-item"><span class="fc-n">09</span><b>Snapshot Policy：里程碑自动 + 手动保留</b><span>Property 主档案在重要事实变化时自动更新。仅以下业务里程碑自动创建历史 Snapshot：Rent 变为 Overdue / Overdue 变为 Paid / Repair Open 或 Closed / Lease Start-Renew-End / Tenant Move-in 或 Move-out / Property Vacant 或 Occupied / Major Property information change。<b>Partial payment 不自动创建 Property Summary</b>；Receipt 本身作为 Archive record，主档案同步更新。手动 Create Snapshot 保留。</span></div>
+          <div class="fc-item"><span class="fc-n">10</span><b>Document Classification：单分类 + Reclassify</b><span>每个文件只有一个 primary category（禁止 P0 多标签）。允许后续重新分类：Move category / Reclassify —— 首次分类<b>不锁死</b>。</span></div>
+          <div class="fc-item"><span class="fc-n">11</span><b>模块化编辑，零学习成本</b><span>Edit Property 按业务模块编辑：Property / Tenant / Rent / Contract / Contacts / Notes —— 不做几十字段的大表单；不暴露 property_id / tenant_id / internal status code。</span></div>
+          <div class="fc-item"><span class="fc-n">12</span><b>Building Contacts：building_contacts[]</b><span><code>building_contacts[]</code> · 每项仅 Name / Role / Phone。Property Detail 默认显示 Primary contact，其余联系人折叠为 View N more。本 Slice 不创建复杂 Building 管理模块；联系人信息为可选次级资料，不抢占 Property 主视图。</span></div>
         </div>
       </div>
-      <p class="meta" style="margin-top:14px">007C 契约独立于 Operation Foundation / Identity 层：Property Truth + Channel Archive 是新的业务对象层，不改动 Operation 语义、不动 Telegram 6 按钮 3×2 冻结菜单（Team / Setup 管理功能仍只在 Mini App / Settings）。</p>
+      <p class="meta" style="margin-top:14px">007C 契约独立于 Operation Foundation / Identity 层：Property Truth + Workspace Archive Channel 是新的业务对象层，不改动 Operation 语义、不动 Telegram 6 按钮 3×2 冻结菜单（Team / Setup 管理功能仍只在 Mini App / Settings）。</p>
     </div>
   </section>
 </main>
