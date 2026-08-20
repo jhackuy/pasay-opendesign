@@ -1538,6 +1538,24 @@ function propertyBuildingContact(p) {
     '</div></details>';
 }
 
+/* Issue#3 + 007C · Active Operations HTML 渲染（每个独立成行，Scenario D 不互相覆盖） */
+function propertyActiveOpsHtml(p, t, r, lang) {
+  const ops = propertyActiveOps(p);
+  if (!ops.length) return '';
+  const zh = lang === 'zh';
+  const rows = ops.map(o => '<div class="row" data-a="nav" data-href="' + o.href + '" data-od-id="prop-active-' + o.title.split(' ·')[0].replace(/\s+/g,'-').toLowerCase() + '" style="padding:10px 16px"><div class="row-main"><div class="row-l1"><span class="chip" style="background:color-mix(in oklch, var(--' + (o.level === 'crit' ? 'crit' : o.level === 'warn' ? 'warn' : 'neu') + ' 12%, transparent);color:var(--' + (o.level === 'crit' ? 'crit' : o.level === 'warn' ? 'warn' : 'neu') + ');border-color:color-mix(in oklch, var(--' + (o.level === 'crit' ? 'crit' : o.level === 'warn' ? 'warn' : 'neu') + ' 30%, var(--border));margin-right:6px">' + (o.level === 'crit' ? (zh ? '需立即处理' : 'Act now') : o.level === 'warn' ? (zh ? '需关注' : 'Watch') : (zh ? 'AI 处理' : 'AI handling')) + '</span><b style="font-size:13.5px">' + o.title + '</b></div><div class="row-l2">' + o.sub + '</div></div><div class="row-r">' + ic('chev', 14) + '</div></div>').join('');
+  return '<div style="margin:14px 16px 0"><div class="sec"><span class="sec-t">' + (zh ? '正在发生' : 'ACTIVE OPERATIONS') + '</span><span class="meta">' + ops.length + '</span></div><div class="list" style="margin-top:6px">' + rows + '</div></div>';
+}
+
+/* Issue#3 + 007C · Missing-fields prompt HTML（直接告诉用户缺什么、怎么补） */
+function propertyMissingFieldsHtml(p, t, r, lang) {
+  const missing = propertyMissingFields(p, t, r);
+  if (!missing.length) return '';
+  const zh = lang === 'zh';
+  const items = missing.map(m => '<div class="row" style="padding:9px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--pend) 14%, transparent);color:var(--pend);border-radius:10px">' + ic('alert', 16) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:13px">' + m.msg + '</b></div><div class="row-l2">' + (zh ? '解决：点击右侧前往补全' : 'How: tap right to fix') + '</div></div><div class="row-r"><button class="btn btn-s sm" data-a="nav" data-href="' + m.fix + '">' + (m.fixText || (zh ? '去补全' : 'Fix')) + '</button></div></div>').join('');
+  return '<div style="margin:14px 16px 0"><div class="sec"><span class="sec-t">' + (zh ? '资料补全 · 阻塞风险' : 'MISSING FIELDS · BLOCKING') + '</span><span class="meta">' + missing.length + '</span></div><div class="list" style="margin-top:6px">' + items + '</div></div>';
+}
+
 /* 系统生成的 nextAction 持久化为 nextActionCode，展示层按 locale 渲染；用户自由文本 nextAction 保持原样 */
 const NEXT_ACTION_I18N = {
   CONFIRM_RENT:           { zh: '确认租金', en: 'Confirm rent' },
@@ -5090,11 +5108,10 @@ function viewPayments() {
   `);
 }
 
-/* ── Archive（Issue#3 · 恢复一级入口） ── */
+/* ── Archive（Issue#3 + 007C · 恢复一级入口 + 一房一档 Per-Property Channel） ── */
 function viewArchive() {
   const zh = state.lang === 'zh';
   const media = state.media || [];
-  const mediaByKind = (kind) => media.filter(m => m.kind === kind).length;
   const sections = [
     { id: 'props', icon: 'building', title: zh ? '物业档案' : 'Properties', sub: zh ? '长期档案 / 装修 / 历史' : 'long-term archive / renovations / history', href: '#/props', count: state.props.length },
     { id: 'tenants', icon: 'users', title: zh ? '租客 / 租约' : 'Tenants & Leases', sub: zh ? '生命周期、押金、合同' : 'lifecycle, deposit, contracts', href: '#/tenants', count: state.tenants.length + state.leases.length },
@@ -5105,9 +5122,26 @@ function viewArchive() {
     { id: 'documents', icon: 'doc', title: zh ? '文档' : 'Documents', sub: zh ? '合同 / 报告 / 导出' : 'contracts / reports / exports', href: '#/docs', count: state.exportLog.length }
   ];
   const cards = sections.map(s => '<div class="row" data-a="nav" data-href="' + s.href + '" data-od-id="archive-' + s.id + '" style="padding:12px 16px"><div class="iconb" style="background:var(--fg-soft);border-radius:10px;color:var(--accent)">' + ic(s.icon, 18) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + s.title + '</b><span class="chip" style="margin-left:6px">' + s.count + '</span></div><div class="row-l2">' + s.sub + '</div></div><div class="row-r">' + ic('chev', 15) + '</div></div>').join('');
+
+  /* 007C · 一房一档 Per-Property Archive Channel 入口
+     每套房对应一个长期 Telegram Channel 档案入口；Mini App 永远是最新事实入口 */
+  const propertyChannels = state.props.slice(0, 8).map(p => {
+    const t = p.tenant ? ten(p.tenant) : null;
+    const mediaCount = media.filter(m => m.unit === p.unit || m.kind === 'cover' || m.unit === p.unit).length;
+    return '<div class="row" data-a="open-archive" data-unit="' + p.unit + '" data-od-id="archive-channel-' + p.unit + '" style="padding:11px 16px"><div class="iconb" style="background:color-mix(in oklch, var(--accent) 14%, transparent);color:var(--accent);border-radius:10px">' + ic('bot', 17) + '</div><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + p.unit + ' · ' + (t ? t.name : (zh ? '空置' : 'Vacant')) + '</b></div><div class="row-l2">' + (zh ? '频道档案 · ' : 'Channel · ') + p.tower + ' · ' + p.type + ' · ' + mediaCount + (zh ? ' 张图片' : ' photos') + '</div></div><div class="row-r">' + propertyStatusDot(p) + ic('chev', 14) + '</div></div>';
+  }).join('');
+
   return shell('archive', tr('nav_archive'), (zh ? '长期事实与证据层' : 'Long-term facts & evidence'), `
     <div class="banner info" style="margin-top:14px">${ic('shield', 17)}<div>${zh ? 'Archive 是按业务对象组织的长期事实与证据层 — 不是简单网盘。所有 Operation / Claim / Evidence 都会沉淀到这里。' : 'Archive is organised by business objects — long-term facts & evidence, not a plain drive. Every operation, claim and evidence lives here.'}</div></div>
-    <div class="list" style="margin-top:10px">${cards}</div>
+    ${sec(zh ? '一房一档 · Telegram 频道档案' : 'PER-PROPERTY ARCHIVE CHANNELS', '<span class="meta">' + state.props.length + '</span>')}
+    <div class="meta" style="padding:6px 16px 0;font-size:12px">${zh ? '每套房对应一个长期存在的 Telegram 频道档案入口。Mini App 永远是最新事实入口。' : 'One long-lived channel post per property. Mini App is always the source of truth.'}</div>
+    <div class="list" style="margin-top:8px">${propertyChannels}</div>
+    ${sec(zh ? '业务对象档案' : 'BY BUSINESS OBJECT')}
+    <div class="list" style="margin-top:8px">${cards}</div>
+    ${sec(zh ? '频道内容老化策略' : 'CHANNEL REFRESH POLICY')}
+    <div class="card" style="margin:8px 16px 0;padding:12px 14px">
+      <div style="font-size:13px;line-height:1.7">${zh ? '· 房源主档案长期存在（不会被新消息淹没）<br>· 重要状态变化后系统重新生成 Summary，置顶发布<br>· 必要时新增 Snapshot（Latest Snapshot + 历史可见）<br>· Mini App / backend 是最新事实入口，频道只承担人类可读资料层' : '· Property master post stays pinned long-term<br>· Re-summarised after any material state change<br>· New Snapshot appended when needed; history stays visible<br>· Mini App / backend is the source of truth; channel is human-readable archive only'}</div>
+    </div>
   `);
 }
 
