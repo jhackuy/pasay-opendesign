@@ -10087,6 +10087,25 @@ function runGateOperations008A() {
   const results = [];
   const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
   try {
+    /* PASAY-TASK-003-FIX1 · 自建 Authority 测试环境（前序 gate 可能移除 secretary 或重置 workspace；
+       不依赖遗留 state —— owner + active secretary membership 由真实 wsCreateWorkspace / Invite / Accept 建立） */
+    {
+      const _w0 = ws();
+      const _hasOwner = _w0 && _w0.members && _w0.members.some(m => m.status === 'active' && m.role === 'owner');
+      const _hasSec = _w0 && _w0.members && _w0.members.some(m => m.status === 'active' && m.role === 'secretary');
+      if (!_hasOwner || !_hasSec) {
+        state = seed(); state.leases = []; __isFreshSeed = true;
+        if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
+        if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
+        if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
+        if (typeof syncOperationTasks === 'function') syncOperationTasks();
+        wsResetFresh();
+        state.meta.role = 'owner';
+        wsCreateWorkspace('008A Co', 'A8-owner');
+        const _sInv = wsGenerateInvite('secretary', 'Sec 008A');
+        if (_sInv && _sInv.invite && _sInv.invite.status === 'PENDING') wsAcceptInvite(_sInv.id, 'u-sec-8a');
+      }
+    }
     /* PASAY-TASK-003-FIX1 · Blocker 2 验证：008A 初始化前后 Property / Tenant / Rent / Repair / Expense truth 必须不变 */
     const truthBefore = JSON.stringify({ props: state.props, tenants: state.tenants, rents: state.rents, repairs: state.repairs, expenses: state.expenses });
     ensureOps008aScenarios(); /* 幂等重建 Required Scenarios（仅写入 operations · 隔离 prototype fixture） */
