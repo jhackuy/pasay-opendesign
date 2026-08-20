@@ -362,6 +362,26 @@ function wsEffectiveRole() {
   const m = wsCurrentMember();
   return m ? m.role : null;
 }
+/* ── PASAY-TASK-006 · P0-1 · UNIQUE ROLE AUTHORITY ──
+   currentMembership / currentRole / hasActiveMembership = 唯一角色/权限事实源，
+   truth 必须来自 currentUserId + current workspace + ACTIVE Membership。
+   state.meta.role 永不参与业务权限 / 角色渲染 / mutation 授权（Gate MEMBERSHIP_ROLE_TRUTH_P0 证明）。 */
+function currentMembership() { return wsCurrentMember(); }
+function currentRole() { return wsEffectiveRole(); }
+function hasActiveMembership() { return wsHasAccess(); }
+/* PASAY-TASK-006 · P0-7 · 完整访问状态机：
+   none（无工作区 / 无 membership）        → 首次 onboarding（Create company / Join with invite）
+   ok（active membership）                 → 正常 business views
+   pending-invite（invited + PENDING）     → 仅 invite acceptance flow（不读 business data）
+   blocked（removed / left / inactive）    → Access Removed + Switch / Join 出口 */
+function wsAccessState() {
+  const w = ws();
+  if (!w || w.status === 'none') return 'none';
+  const m = wsCurrentMember();
+  if (m && m.status === 'active') return 'ok';
+  if (m && m.status === 'invited' && m.invite && m.invite.status === 'PENDING') return 'pending-invite';
+  return 'blocked';
+}
 /* 007A1 — 新用户视角：真正的 NO_WORKSPACE 状态（不是 ready seed） */
 function wsResetFresh() {
   state.workspace = {
@@ -591,11 +611,34 @@ function setupStepLabel(id) {
   const m = { workspace: L('创建公司','Create company'), group: L('连接 Telegram 工作群','Connect Telegram group'), team: L('添加团队成员','Add team member'), property: L('添加第一套物业','Add first property') };
   return m[id] || id;
 }
+/* ── PASAY-TASK-006 · P0-4 · SETUP STEPS = UI PROJECTION（Domain Truth reconcile） ──
+   setupSteps 不是独立持久化真相；render / mutation / reload 后统一按真实业务 truth 重算：
+   workspace = 工作区已存在 + Active Owner；group = groupConnected===true；
+   team = 存在 PENDING 邀请 或 第二个 Active Member；property = state.props.length > 0。
+   杜绝 stale setupSteps.done 与业务事实冲突（如已有 Property 仍提示 Add first property）。 */
+function wsReconcileSetupSteps() {
+  const w = ws();
+  if (!w || !Array.isArray(w.setupSteps)) return w && w.setupSteps;
+  const set = (id, done) => { const s = w.setupSteps.find(x => x.id === id); if (s) s.done = !!done; };
+  set('workspace', w.status === 'ready' && wsActiveOwners().length > 0);
+  set('group', w.groupConnected === true);
+  set('team', (w.members || []).some(m => m.status === 'invited') || wsActiveMembers().length > 1);
+  set('property', state.props.length > 0);
+  return w.setupSteps;
+}
+/* ── PASAY-TASK-006 · P0-3 · SETUP BANNER = Owner-only + Membership-aware ──
+   Active Secretary：Home 永远不显示 Owner Setup Banner；
+   No Active Membership：不进入正常 Home（root guard 已拦截），此处防御返回空；
+   Active Owner：仅当 Domain Truth reconcile 后仍有未完成步骤才显示。 */
 function setupBannerHtml() {
   const w = ws();
+  if (!hasActiveMembership()) return '';
+  if (currentRole() !== 'owner') return '';
+  wsReconcileSetupSteps();
   if (w.status === 'ready' && w.setupSteps.every(s => s.done)) return '';
   const next = w.setupSteps.find(s => !s.done);
-  return '<div class="banner info" style="margin:12px 16px 0" data-od-id="home-setup-progress">' + ic('flag', 17) + '<div><b>' + L('完成工作区设置','Finish workspace setup') + '</b><div style="margin-top:2px">' + L('下一步：','Next: ') + (next ? setupStepLabel(next.id) : L('完成设置','Finalize')) + ' <button data-a="nav" data-href="#/setup" style="text-decoration:underline">' + L('去完成','Continue') + ' →</button></div></div></div>';
+  if (!next) return '';
+  return '<div class="banner info" style="margin:12px 16px 0" data-od-id="home-setup-progress">' + ic('flag', 17) + '<div><b>' + L('完成工作区设置','Finish workspace setup') + '</b><div style="margin-top:2px">' + L('下一步：','Next: ') + setupStepLabel(next.id) + ' <button data-a="nav" data-href="#/setup" style="text-decoration:underline">' + L('去完成','Continue') + ' →</button></div></div></div>';
 }
 
 /* ═══════════════ 图标（描线 SVG，非 emoji） ═══════════════ */
@@ -1081,7 +1124,10 @@ const fmtDate = iso => { if (!iso) return '—'; const d = d2n(iso); const m = [
 const fmtDateFull = iso => { if (!iso) return '—'; const d = d2n(iso); const mo = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.m]; return state.lang === 'zh' ? iso.split('-')[0] + '年' + d.m + '月' + d.day + '日' : mo + ' ' + d.day + ', ' + iso.split('-')[0]; };
 /* Locale due：Secretary "Due Jun 5" / Owner "6月5日到期" */
 const fmtDue = (iso, prefix) => { if (!iso) return '—'; const d = d2n(iso); const mo = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.m]; return state.lang === 'zh' ? prefix + d.m + '月' + d.day + '日' : (prefix ? (prefix === 'due' ? 'Due ' : prefix + ' ') + mo + ' ' + d.day : mo + ' ' + d.day); };
-const roleIs = r => (state.meta.role || 'secretary') === r;
+/* PASAY-TASK-006 · P0-1 · roleIs 唯一 truth = ACTIVE Membership role（currentRole）。
+   伪造 state.meta.role 不改变任何业务权限 / 渲染 / mutation（Gate MEMBERSHIP_ROLE_TRUTH_P0 证明）。
+   无 active membership 时恒为 false —— NO_WORKSPACE / Pending / Removed 不获得 Owner/Secretary 身份。 */
+const roleIs = r => !!hasActiveMembership() && currentRole() === r;
 const fmtId = i => String(i).padStart(3, '0');
 const fmtId4 = i => String(i).padStart(4, '0');
 
@@ -5801,6 +5847,12 @@ function viewTeamMember(id) {
 
 function setupStepAction(s) {
   const zh = state.lang === 'zh';
+  /* PASAY-TASK-006 · P0-6 · SETUP ACTION OWNER-ONLY：
+     全部 4 个 Setup 步骤（创建公司 / 连接群 / 邀请团队 / 登记物业）均为 Owner 可执行。
+     Secretary 只读显示"等待 Owner"，不渲染任何 setup action 按钮（forged click 由 dispatcher guard 二次拦截）。 */
+  if (currentRole() !== 'owner') {
+    return '<span class="chip st-neu">' + L('等待 Owner','Owner only') + '</span>';
+  }
   const map = { workspace: { nav: '#/onboarding?step=1' }, group: { nav: '#/onboarding?step=3' }, team: { nav: '#/team-add' }, property: { act: 'add-prop' } };
   const a = map[s.id];
   return a.nav ? '<button class="btn btn-s sm" data-a="nav" data-href="' + a.nav + '">' + L('去完成','Do it') + '</button>' : '<button class="btn btn-s sm" data-a="' + a.act + '">' + L('去完成','Do it') + '</button>';
