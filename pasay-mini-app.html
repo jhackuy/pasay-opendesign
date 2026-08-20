@@ -10651,6 +10651,83 @@ function runGateMiniApp008BFix3() {
   return { gate: 'MiniApp-008B-FIX3', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_MINAPP_008B_FIX3 = runGateMiniApp008BFix3;
+/* PASAY-TASK-004-RENDER-UX-CLOSEOUT-R1 · Mini App Render + Property Row Closeout Gate
+   MINIAPP_RENDER_CLEAN_DOM：逐页真实 render（view 函数输出 = 最终 DOM 内容）→ 污染扫描；
+   Property Row 完整层级；390/430 布局结构验收；adversarial fixture（长租客名 / 大金额）。 */
+function runGateRenderUxCloseoutR1() {
+  const results = [];
+  const __odAssert = (cond, msg) => results.push({ pass: !!cond, msg });
+  const leakReport = [];
+  try {
+    if (!state.props.some(p => p.unit === '1608') || !state.props.some(p => p.unit === '1708')) {
+      state = seed(); state.leases = []; __isFreshSeed = true;
+      if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
+      if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
+      if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
+      if (typeof syncOperationTasks === 'function') syncOperationTasks();
+      wsResetFresh();
+      ensureOps008aScenarios();
+    }
+    /* ── MINIAPP_RENDER_CLEAN_DOM：逐页真实 render 后污染扫描 ── */
+    const pages = [
+      ['Home', function(){ return viewHome(); }],
+      ['Properties', function(){ return viewProps(new URLSearchParams()); }],
+      ['Action Queue', function(){ return viewOps(new URLSearchParams()); }],
+      ['Finance', function(){ return viewFinance(new URLSearchParams()); }],
+      ['More', function(){ return viewMore(); }],
+      ['Archive', function(){ return viewArchive(); }],
+      ['Property-1608-Archive', function(){ return viewProperty('1608', 'archive'); }]
+    ];
+    const nullToken = /(^|[^A-Za-z0-9_])null([^A-Za-z0-9_]|$)/;
+    pages.forEach(function(pg) {
+      let html = '', ok = true, tokens = [];
+      try { html = pg[1](); } catch (e) { ok = false; tokens.push('render threw: ' + (e && e.message ? e.message : e)); }
+      ['\'+', 'zh ?', 'ic(', '${', 'undefined', '[object Object]'].forEach(function(tok) {
+        if (html.indexOf(tok) !== -1) { ok = false; tokens.push(tok); }
+      });
+      if (nullToken.test(html)) { ok = false; tokens.push('null'); }
+      leakReport.push({ page: pg[0], ok: ok, leaks: tokens });
+    });
+    const allClean = leakReport.every(r => r.ok);
+    __odAssert(allClean, '[R1-1] MINIAPP_RENDER_CLEAN_DOM：7 页真实 render 后 DOM 污染 = 0（'+'+ / zh ? / ic( / ${ / undefined / null / [object Object]）');
+    leakReport.forEach(function(r) {
+      __odAssert(r.ok, '[R1-1b] ' + r.page + ' render ' + (r.ok ? 'clean（leak=0）' : 'LEAKED: ' + r.leaks.join(', ')));
+    });
+    window.__OD_R1_DOM_REPORT = leakReport;
+    /* ── Property Row 完整层级 ── */
+    const p1608 = state.props.find(function(p){ return p.unit === '1608'; });
+    const propHtml = viewProps(new URLSearchParams());
+    __odAssert(propHtml.indexOf('1608') !== -1 && propHtml.indexOf('Tower') !== -1 && /1BR|2BR/.test(propHtml), '[R1-2] Property Row 第一行 = Unit + Tower + 房型（1608 · Tower · 1BR/2BR）');
+    __odAssert(p1608 && typeof p1608.type === 'string' && /㎡|sqm|sq m/i.test(p1608.type), '[R1-2b] Property 面积字段保留（p.type 含 ㎡）');
+    __odAssert(propHtml.indexOf('class="dot"') !== -1 && propHtml.indexOf('🟡') === -1 && propHtml.indexOf('🟢') === -1 && propHtml.indexOf('class="chip"') === -1, '[R1-2c] Property Row 右侧单一纯色状态点 + chevron（无 emoji 双状态 / 无 Badge 重复）');
+    /* ── adversarial fixture：长租客名 / 大金额不挤压 ── */
+    const savedTenantName = p1608 ? (p1608.tenant ? (ten(p1608.tenant) ? ten(p1608.tenant).name : null) : null) : null;
+    const savedRent = p1608 ? p1608.rent : null;
+    if (p1608 && p1608.tenant) { const t = ten(p1608.tenant); if (t) t.name = 'Christopher Dela Cruz'; }
+    if (p1608) p1608.rent = 128500;
+    const propHtmlFx = viewProps(new URLSearchParams());
+    __odAssert(propHtmlFx.indexOf('Christopher Dela Cruz') !== -1 && propHtmlFx.indexOf('min-width:0') !== -1 && propHtmlFx.indexOf('text-overflow:ellipsis') !== -1, '[R1-3] 长租客名 fixture：完整渲染 + who flex 截断（不挤压右侧状态）');
+    __odAssert(propHtmlFx.indexOf('128,500') !== -1 || propHtmlFx.indexOf('128500') !== -1, '[R1-3b] 大金额 ₱128,500 渲染完整');
+    if (p1608 && p1608.tenant) { const t = ten(p1608.tenant); if (t) t.name = savedTenantName; }
+    if (p1608) p1608.rent = savedRent;
+    /* ── 390 / 430 布局结构验收（DOM 结构 + 固定宽度扫描） ── */
+    [390, 430].forEach(function(vw) {
+      var okVw = true, why = [];
+      ['Properties', 'Action Queue', 'Finance'].forEach(function(pgName) {
+        var html2 = pgName === 'Properties' ? viewProps(new URLSearchParams()) : pgName === 'Action Queue' ? viewOps(new URLSearchParams()) : viewFinance(new URLSearchParams());
+        var widths = html2.match(/width:\s*(\d+)px/g) || [];
+        var over = widths.filter(function(w){ var n = parseInt(w.replace(/[^0-9]/g, ''), 10); return n > vw; });
+        if (over.length) { okVw = false; why.push(pgName + ' fixed width > ' + vw + ': ' + over.join(',')); }
+        if (html2.indexOf('min-width:0') === -1 && html2.indexOf('flex:1') === -1) { okVw = false; why.push(pgName + ' no flex overflow guard'); }
+      });
+      __odAssert(okVw, '[R1-4] ' + vw + 'px 布局结构验收：无固定宽度溢出 / 有 flex 溢出防护' + (okVw ? '' : '（' + why.join('；') + '）'));
+    });
+  } catch (e) {
+    results.push({ pass: false, msg: 'RENDER-UX-CLOSEOUT-R1 gate threw: ' + (e && e.message ? e.message : e) });
+  }
+  return { gate: 'RenderUxCloseout-R1', pass: results.every(r => r.pass), total: results.length, passed: results.filter(r => r.pass).length, results, leakReport: leakReport };
+}
+window.__OD_GATE_RENDER_UX_CLOSEOUT_R1 = runGateRenderUxCloseoutR1;
 window.__OD_RUN_GATES = function() {
   const a = runGateA();
   const b = runGateB();

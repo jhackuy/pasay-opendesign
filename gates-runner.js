@@ -1000,6 +1000,29 @@ try {
   }
 }
 
+/* ─────────────── Run RENDER-UX-CLOSEOUT-R1 Gate (MINIAPP_RENDER_CLEAN_DOM + Property Row + 390/430) ─────────────── */
+{
+  const gateR1 = ctx.window.__OD_GATE_RENDER_UX_CLOSEOUT_R1;
+  if (typeof gateR1 === 'function') {
+    try {
+      const r = gateR1();
+      console.log('\n═══════ RENDER-UX-CLOSEOUT-R1 Gate (MINIAPP_RENDER_CLEAN_DOM · Property Row · 390/430) ═══════');
+      (r.leakReport || []).forEach(function(pr) {
+        console.log('  ' + (pr.ok ? '✓' : '✗') + '  [DOM] ' + pr.page + ' · render ' + (pr.ok ? 'clean · leak=0' : 'FAILED · leaks=' + (pr.leaks || []).join(',')));
+      });
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('RenderUxCloseout-R1', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('RenderUxCloseout-R1 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('RenderUxCloseout-R1 gate not exposed on window (__OD_GATE_RENDER_UX_CLOSEOUT_R1 = ' + typeof gateR1 + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
