@@ -1149,7 +1149,7 @@ function ensureLeaseOperationSeed() {
   if (x.freq && fm[x.freq]) x.freq = fm[x.freq];
 });
 function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
-function resetAll() { try { localStorage.removeItem(LS_KEY); } catch (e) {} location.hash = '#/home'; state = seed(); state.leases = []; __isFreshSeed = true; assembleSeedLeases(); ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); ensureLeaseOperationSeed(); save(); render(); }
+function resetAll() { try { localStorage.removeItem(LS_KEY); } catch (e) {} location.hash = '#/home'; state = seed(); state.leases = []; __isFreshSeed = true; assembleSeedLeases(); ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); ensureLeaseOperationSeed(); save(); applyTheme(); render(); }
 
 /* ═══════════════ 工具 ═══════════════ */
 const money = n => '₱' + Math.round(n).toLocaleString('en-US');
@@ -8546,6 +8546,26 @@ window.moSim = _moSimImpl;
 try { moSim = _moSimImpl; } catch(e) { /* non-global env ignore */ }
 
 /* ═══════════════ 初始化 ═══════════════ */
+/* DESIGN-020 · PASAY-MINIAPP-DARK-THEME-001 · 主题解析：
+   state.meta.theme = system | light | dark；默认 system → 解析为 OS 偏好并跟随变化。
+   只写 <html data-theme>：主题层之外一切不动；VM harness 下 setAttribute 不可用时安全跳过。 */
+function applyTheme() {
+  let t = (state.meta && state.meta.theme) || 'system';
+  if (['system', 'light', 'dark'].indexOf(t) === -1) t = 'system';
+  const resolved = t === 'system'
+    ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : t;
+  const de = document.documentElement;
+  if (de && typeof de.setAttribute === 'function') { try { de.setAttribute('data-theme', resolved); } catch (e) {} }
+}
+window.__OD_APPLY_THEME = applyTheme;
+const _themeMq = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')) || null;
+if (_themeMq) {
+  const _onThemeMqChange = () => { applyTheme(); };
+  if (_themeMq.addEventListener) _themeMq.addEventListener('change', _onThemeMqChange);
+  else if (_themeMq.addListener) _themeMq.addListener(_onThemeMqChange);
+}
+applyTheme();
 window.addEventListener('hashchange', render);
 (function init() {
   const last = localStorage.getItem('pasay_last_route');
