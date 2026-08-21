@@ -1,0 +1,355 @@
+{
+  "viewports": {
+    "390": [
+      {
+        "page": "home",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "props",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "prop-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "prop-repair",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "ops",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "finance",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "rent-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "repair-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "expense-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "more",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "archive",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "team",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "tenant",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "setup",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "switch",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": false,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": false
+      },
+      {
+        "page": "settings",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      }
+    ],
+    "430": [
+      {
+        "page": "home",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "props",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "prop-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "prop-repair",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "ops",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "finance",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "rent-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "repair-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "expense-detail",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "more",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "archive",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "team",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": true,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "tenant",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "setup",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      },
+      {
+        "page": "switch",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": false,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": false
+      },
+      {
+        "page": "settings",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": true,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": true
+      }
+    ]
+  },
+  "summary": {
+    "total": 32,
+    "pass": 30,
+    "fail": [
+      {
+        "page": "switch",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": false,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": false
+      },
+      {
+        "page": "switch",
+        "leaks": [],
+        "overflowWidths": [],
+        "hasOverflowGuard": false,
+        "primaryAction": false,
+        "bottomNav": true,
+        "touch44": true,
+        "ok": false
+      }
+    ]
+  },
+  "allPass": false
+}

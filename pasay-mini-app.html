@@ -13364,7 +13364,10 @@ function runGateFinalProductFreezeV1() {
 }
 window.__OD_GATE_PASAY_FINAL_PRODUCT_FREEZE_V1 = runGateFinalProductFreezeV1;
 /* PASAY-TASK-005 · 009A · Browser Visual Gate（真实 DOM QA：render 到 #app · scrollWidth / rect / leak · 390/430）
-   在 OpenDesign Preview / 真实浏览器执行（Node 无布局引擎，不在此运行；由 Node runner 校验暴露）。 */
+   在 OpenDesign Preview / 真实浏览器执行（Node 无布局引擎，不在此运行；由 Node runner 校验暴露）。
+   DESIGN-013 · FIX（BLOCKER 3）：扩展覆盖 Issue#20 全部核心页面 + 全量可审计指标
+   （0 horizontal overflow · 0 clipped primary action · 0 overlap · 0 undefined/null/[object Object] ·
+    Bottom Nav 可用 · touch target >=44px）。 */
 window.__OD_RUN_BROWSER_QA = function() {
   var report = { viewports: {}, pages: [] };
   var app = document.getElementById('app');
@@ -13372,12 +13375,21 @@ window.__OD_RUN_BROWSER_QA = function() {
   var pages = [
     ['home', '#/home'],
     ['props', '#/props'],
+    ['prop-detail', '#/property/1608'],
+    ['prop-fin', '#/property/1608?tab=fin'],
+    ['prop-repair', '#/property/1608?tab=repair'],
     ['ops', '#/ops'],
     ['finance', '#/finance'],
+    ['rent-detail', '#/rent/R-2026-06-1608'],
+    ['repair-detail', '#/repair/REP-0001'],
+    ['expense-detail', '#/expense/EXP-0006'],
     ['more', '#/more'],
     ['archive', '#/archive'],
-    ['prop-1608', '#/property/1608'],
-    ['prop-1608-archive', '#/property/1608?tab=archive']
+    ['team', '#/team'],
+    ['tenant', '#/tenant/PT-1'],
+    ['setup', '#/setup'],
+    ['switch', '#/switch'],
+    ['settings', '#/settings']
   ];
   [390, 430].forEach(function(vw) {
     document.documentElement.style.width = vw + 'px';
@@ -13391,14 +13403,35 @@ window.__OD_RUN_BROWSER_QA = function() {
         if (/(^|[^A-Za-z0-9_])null([^A-Za-z0-9_]|$)/.test(html)) leaks.push('null');
         var docOverflow = document.documentElement.scrollWidth > vw;
         var appOverflow = app.scrollWidth > (app.clientWidth + 1);
-        entries.push({ page: pg[0], leaks: leaks, docOverflow: docOverflow, appOverflow: appOverflow });
+        var rects = [];
+        app.querySelectorAll('.btn, .nav-i, .iconb, button').forEach(function(b){
+          var r = b.getBoundingClientRect();
+          if (!r) return;
+          if (r.height > 0 && r.height < 44) rects.push('short:' + (b.className||b.tagName));
+          if (r.right > vw + 1 || r.left < -1) rects.push('clipped:' + (b.className||b.tagName));
+        });
+        var nav = document.querySelector('nav.nav');
+        var bottomNavUsable = !!nav && nav.querySelectorAll('.nav-i').length === 5;
+        var primaryAction = !!app.querySelector('.btn.btn-p, .btn-p');
+        var topbar = document.querySelector('header.topbar');
+        var main = document.querySelector('main.main');
+        var overlap = 0;
+        if (main && topbar) { var mr = main.getBoundingClientRect(), tr = topbar.getBoundingClientRect(); if (mr.top < tr.bottom - 1) overlap++; }
+        entries.push({
+          page: pg[0], leaks: leaks, docOverflow: docOverflow, appOverflow: appOverflow,
+          rectIssues: rects, bottomNavUsable: bottomNavUsable, primaryAction: primaryAction, overlap: overlap,
+          ok: leaks.length === 0 && !docOverflow && !appOverflow && rects.length === 0 && bottomNavUsable && primaryAction && overlap === 0
+        });
       } catch (e) {
-        entries.push({ page: pg[0], error: e && e.message ? e.message : String(e) });
+        entries.push({ page: pg[0], error: e && e.message ? e.message : String(e), ok: false });
       }
     });
     report.viewports[String(vw)] = entries;
   });
   report.pages = pages.map(function(p){ return p[0]; });
+  var all = report.viewports['390'].concat(report.viewports['430']);
+  report.summary = { total: all.length, pass: all.filter(function(e){ return e.ok; }).length, fail: all.filter(function(e){ return !e.ok; }) };
+  report.allPass = report.summary.pass === report.summary.total;
   return report;
 };
 window.__OD_RUN_GATES = function() {
