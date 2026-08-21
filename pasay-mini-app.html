@@ -13294,8 +13294,32 @@ function runGateFinalProductFreezeV1() {
     const createdPropId = p31.prop.id;
     const createdRentId = (function(){ const dd = wsCreateTenantWithDraft({ name: 'T31', unit: '3701', rent: 20000, ls: '2026-09-01', le: '2027-08-31', propertyId: p31.prop.id }); wsActivateLease(dd.lease.lease_id); rentEnsureMonthlyObligation(dd.lease.lease_id,'2026-09'); return state.rents.find(r => r.lease_id === dd.lease.lease_id && r.period === '2026-09').id; })();
     A(/^PRP-\d{4}$/.test(createdPropId) && /^R-/.test(createdRentId), '[INV-31] NO_MANUAL_INTERNAL_ID_INPUT：Property/Rent 内部 ID 系统生成（PRP-xxxx / R-xxxx · 用户不手输）');
-    /* 32. OWNER_SECRETARY_LANGUAGE_CONTRACT_STABLE */
-    A(state.meta && typeof state.meta === 'object', '[INV-32] OWNER_SECRETARY_LANGUAGE_CONTRACT_STABLE：Owner=中文 / Secretary=英文 契约稳定（由 role lang 派生）');
+    /* 32. OWNER_SECRETARY_LANGUAGE_CONTRACT_STABLE：真实 Active Membership 驱动 Owner=中文 / Secretary=英文 ·
+         render Home + Action Queue + Domain Detail 行为验证 · role/workspace switch 后按有效 Membership 重新派生 */
+    fresh(); owner();
+    state.meta.localeManual = false; delete state.meta.locale; delete state.meta.lang;
+    deriveLocaleFromMembership();
+    const zhHome = viewHome(); const zhOps = viewOps();
+    const zhDetail = viewProperty('1608', 'overview');
+    A(state.lang === 'zh' && wsEffectiveRole() === 'owner' && zhHome.indexOf('需你处理') !== -1 && zhOps.indexOf('需要你处理') !== -1 && zhDetail.indexOf('当前租客') !== -1, '[INV-32] Owner（ACTIVE Membership）→ 中文：Home「需你处理」+ Queue「需要你处理」+ Property Detail「当前租客」均渲染中文');
+    /* Secretary（真实 ACTIVE Secretary Membership）→ 英文 */
+    fresh(); owner();
+    const _inv32 = wsGenerateInvite('secretary','Lang Sec'); wsAcceptInvite(_inv32.id,'lang-sec'); state.currentUserId = 'lang-sec';
+    state.meta.localeManual = false; delete state.meta.locale; delete state.meta.lang;
+    deriveLocaleFromMembership();
+    const enHome = viewHome(); const enOps = viewOps();
+    const enDetail = viewProperty('1608', 'overview');
+    A(state.lang === 'en' && wsEffectiveRole() === 'secretary' && enHome.indexOf('NEEDS YOU') !== -1 && enOps.indexOf('NEEDS YOU') !== -1 && enDetail.indexOf('Current tenant') !== -1, '[INV-32b] Secretary（ACTIVE Membership）→ 英文：Home「NEEDS YOU」+ Queue「NEEDS YOU」+ Property Detail「Current tenant」均渲染英文');
+    /* workspace switch 后按新 workspace 的 ACTIVE Membership 重新派生语言：u-lin 在 A 公司 Owner(zh) → B 公司 Secretary(en) */
+    fresh();
+    state.meta.localeManual = false; delete state.meta.locale; delete state.meta.lang;
+    state.currentUserId = 'u-lin';   /* wsSeed 里 u-lin 是 A 公司 owner（active） */
+    deriveLocaleFromMembership();
+    const langBeforeSwitch = state.lang;
+    ws().otherWorkspaces = [JSON.parse(JSON.stringify(wsSeed().otherWorkspaces[0]))];   /* ws-2：u-lin = Secretary */
+    wsSwitchTo('ws-2');
+    const langAfterSwitch = state.lang;
+    A(langBeforeSwitch === 'zh' && langAfterSwitch === 'en' && wsEffectiveRole() === 'secretary', '[INV-32c] workspace switch → 语言按新 workspace ACTIVE Membership 重新派生（A 公司 u-lin Owner→zh · B 公司 u-lin Secretary→en）');
     /* 33. USER_VISIBLE_ENGINEERING_TERMS_BLOCKED */
     fresh(); owner();
     const more33 = viewMore();
