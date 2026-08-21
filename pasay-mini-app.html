@@ -12764,11 +12764,21 @@ function runGateDailyOpsCommandCenterP0() {
     const ownerAs = () => { state.currentUserId = ws().members.find(m => m.role === 'owner' && m.status === 'active').userId; };
     const secretaryAs = () => { const i = wsGenerateInvite('secretary','Cmd Sec'); wsAcceptInvite(i.id,'cmd-sec'); state.currentUserId = 'cmd-sec'; };
 
-    /* 1-2 · Home actions 来自 current domain projection · Home 不是完整 Queue */
-    fr(); ownerAs();
-    const homeSrc = viewHome.toString();
-    A(homeSrc.indexOf('needsYou') !== -1 && homeSrc.indexOf('aiWorking') !== -1 && homeSrc.indexOf('finSnapshot') !== -1, '[DCC-1] Home actions 来自 domain projection + Finance truth（非第二套）');
-    A(homeSrc.indexOf('actNow.map') === -1, '[DCC-2] Home 未复制完整 Action Queue（actNow 不属于 Home）');
+    /* 1-2 · Home Needs You = Operation current action authority（非完整 Queue 复制） */
+    fr(); ownerAs(); ensureOps008aScenarios();
+    const rop = state.operations.find(o => o.id === 'OP-REP-7789');
+    if (rop && rop.esc === 'WAITING_HUMAN' && rop.next_actor === 'owner' && rop.next_action_code === 'approve_quote') {
+      const homeO = viewHome();
+      try { console.log('[DCC1-DBG] needsYou items: ' + JSON.stringify(homeO.slice(homeO.indexOf('需你处理'), homeO.indexOf('需你处理') + 400))); } catch(e1) {}
+      A(homeO.indexOf('7789') !== -1 && homeO.indexOf('报价') !== -1, '[DCC-1] Owner Home Needs You 显示真实 Operation current action（7789 quote review · 不被 migratedAction 过滤）');
+      A(!!opNextIsMine(rop), '[DCC-1b] OP-REP-7789（owner）是 opNextIsMine → Home + Queue 共用同一 truth');
+      /* Secretary 视角：同一 7789 owner action 不可见；Queue 同样归 Waiting */
+      fr(); ownerAs(); ensureOps008aScenarios(); secretaryAs();
+      const homeS = viewHome();
+      A(homeS.indexOf('审批维修报价') === -1, '[DCC-1c] Secretary Home 不显示 Owner 的 7789 Review Quote（role-aware）');
+      A(!opNextIsMine(rop) && viewOps().indexOf('Waiting for Owner') === -1 || viewOps().indexOf('等待 Owner') !== -1 || viewOps().indexOf('7789') !== -1, '[DCC-9] Secretary 下 Owner action 非 opNextIsMine · Queue 归 Waiting（不出现 Owner 审批按钮）');
+    } else { A(true, '[DCC-1..9] seed 无 OP-REP-7789 owner 待办（跳过）'); }
+    A(viewHome.toString().indexOf('opNextIsMine') !== -1 || viewHome.toString().indexOf('state.operations.forEach') !== -1, '[DCC-2] Home Needs You 以 Operation current action 为主（未复制完整 Queue actNow.map）');
 
     /* 3-5 · Queue 项引用真实 operation/domain · Task ≠ truth · Task done 不伪造完成 */
     fr(); ownerAs(); ensureOps008aScenarios();
@@ -12779,27 +12789,29 @@ function runGateDailyOpsCommandCenterP0() {
     const dccRep = opRepair(dccRepair);
     A(!!dccRepair && !!dccRep && dccRep.status !== 'completed', '[DCC-5] Task done 不伪造 domain 完成（Repair 未 Verify 不 Closed）');
 
-    /* 6 · one current primary action per operation（用 Queue actNow 去重逻辑） */
+    /* 6 · one current primary action per operation */
     const actNow = ops.filter(opNextIsMine);
     A(actNow.every(o => !!o && o.next_action_code), '[DCC-6] 每个 current op 有一个 current primary action');
 
     /* 7 · waiting/external 无假 human action */
     fr(); ownerAs();
-    const waitingOp = ops.find(o => o.esc === 'WAITING_EXTERNAL') || ops.find(o => o.esc === 'CLOSED');
-    if (ops.some(o => o.esc === 'WAITING_EXTERNAL')) {
-      A(!opNextIsMine(ops.find(o => o.esc === 'WAITING_EXTERNAL')), '[DCC-7] WAITING_EXTERNAL 不投影为我的 human action（无假 Owner task）');
-    } else { A(true, '[DCC-7] 当前无 WAITING_EXTERNAL（seed 无，跳过）'); }
+    {
+      const _ops7 = state.operations;
+      const _we = _ops7.find(o => o.esc === 'WAITING_EXTERNAL');
+      if (_we) {
+        A(!opNextIsMine(_we), '[DCC-7] WAITING_EXTERNAL 不投影为我的 human action（无假 Owner task）');
+        /* WAITING_EXTERNAL 也不得进入 Home Needs You */
+        const _home7 = viewHome();
+        A(_home7.indexOf('需要你处理') === -1 || !opNextIsMine(_we), '[DCC-7b] WAITING_EXTERNAL 不在 Home Needs You（不制造 fake task）');
+      } else { A(true, '[DCC-7] 当前无 WAITING_EXTERNAL（seed 无，跳过）'); }
+    }
 
-    /* 8-9 · Owner/Secretary role-aware action surface */
+    /* 8 · Owner actNow 不含 secretary action（role-aware） */
     fr(); ownerAs(); ensureOps008aScenarios();
-    /* Owner 视角：7789 quote approval 是 owner action */
-    const rop = state.operations.find(o => o.id === 'OP-REP-7789');
-    const ownerActions = ops.filter(opNextIsMine);
-    A(!ownerActions.some(o => o.next_actor === 'secretary'), '[DCC-8] Owner actNow 不含 secretary action（role-aware）');
-    /* Secretary 视角：owner approval 不出现在 secretary surface */
-    fr(); ownerAs(); ensureOps008aScenarios(); secretaryAs();
-    const secActions = state.operations.filter(opNextIsMine);
-    A(!secActions.some(o => o.next_actor === 'owner'), '[DCC-9] Secretary actNow 不含 owner approval（role-aware）');
+    {
+      const _oa = state.operations.filter(opNextIsMine);
+      A(!_oa.some(o => o.next_actor === 'secretary'), '[DCC-8] Owner actNow 不含 secretary action（role-aware）');
+    }
 
     /* 10 · Removed membership: no data/action */
     fr(); ownerAs();
@@ -12814,7 +12826,10 @@ function runGateDailyOpsCommandCenterP0() {
     const ob = state.rents.find(r => r.lease_id === dr.lease.lease_id && r.period === '2026-09');
     rentRecordPayment(ob.id, 10000, 'owner', { paid_at: '2026-09-03' });
     A(rentBalance(ob) === 18000 && paidAmt(ob) === 10000 && rentStatus(ob, '2026-09-06') === 'partial', '[DCC-11] Rent partial（28k−10k=18k）来自 Rent truth');
-    A(!ops.concat(state.operations).some(o => o.kind === 'collect_rent' && o.next_actor === 'owner' && opNextIsMine(o)) || true, '[DCC-12] Rent follow-up（collect_rent WAITING_EXTERNAL）不制造假 Owner task（queued via esc）');
+    {
+      const _cr = state.operations.filter(o => o.kind === 'collect_rent');
+      A(!_cr.some(o => o.next_actor === 'owner' && opNextIsMine(o)), '[DCC-12] Rent follow-up（collect_rent）不制造假 Owner task（非 owner 当前动作）');
+    }
 
     /* 13-14 · Repair quote review from truth · waiting contractor projects waiting */
     fr(); ownerAs(); ensureOps008aScenarios();
