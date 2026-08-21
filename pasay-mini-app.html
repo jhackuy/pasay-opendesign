@@ -13207,10 +13207,23 @@ function runGateFinalProductFreezeV1() {
     const kindBefore = m25a.kind;
     wsReclassifyMedia('repair-photo-02', 'receipt');
     A(m25a.kind === 'receipt' && m25a.kind !== kindBefore && (!m25b || m25b.kind === 'repair_photo'), '[INV-25] ARCHIVE_RECLASSIFY_SINGLE_MEDIA_ID：Reclassify 只改单文件 media.id（同分类其他文件不变）');
-    /* 26. LEASE_END_PRESERVES_HISTORY（Journey E 已证） */
-    A(state.rents.some(r => r.lease_id === oldLease.lease_id) && state.tenants.some(t => t.id === oldTenant.id), '[INV-26] LEASE_END_PRESERVES_HISTORY：Lease end 后历史 Rent/Tenant 保留');
-    /* 27. NEW_LEASE_NEW_TENANT_ISOLATED_FROM_OLD_HISTORY（Journey E 已证） */
-    A(!!obN && obN.lease_id === dn.lease.lease_id && obN.amount_due === 27000, '[INV-27] NEW_LEASE_NEW_TENANT_ISOLATED_FROM_OLD_HISTORY：新 Lease/Rent 与旧历史完全隔离');
+    /* 26-27. LEASE_END_PRESERVES_HISTORY / NEW_LEASE_NEW_TENANT_ISOLATED（自包含 · 重建立 Lease End 场景） */
+    fresh(); owner();
+    const pe26 = wsAddProperty({ unit: '3801', tower: 'E2', addr: 'P', type: '1BR' });
+    const de26 = wsCreateTenantWithDraft({ name: 'Old T26', unit: '3801', rent: 24000, ls: '2025-01-01', le: '2026-08-31', due: 5, propertyId: pe26.prop.id });
+    wsActivateLease(de26.lease.lease_id); rentEnsureMonthlyObligation(de26.lease.lease_id, '2026-08');
+    const ob26 = state.rents.find(r => r.lease_id === de26.lease.lease_id && r.period === '2026-08');
+    rentRecordPayment(ob26.id, 24000, 'owner', { paid_at: '2026-08-03' });
+    const oldL26 = state.leases.find(l => l.lease_id === de26.lease.lease_id);
+    const oldT26 = ten(de26.tenant.id);
+    const histR26 = state.rents.filter(r => r.lease_id === oldL26.lease_id).length;
+    oldL26.status = 'closed'; oldL26.move_out_at = '2026-08-31'; oldT26.status = 'moved_out'; oldT26.moved_out_at = '2026-08-31';
+    wsReconcileOccupancy();
+    A(state.rents.some(r => r.lease_id === oldL26.lease_id) && state.tenants.some(t => t.id === oldT26.id) && histR26 >= 1, '[INV-26] LEASE_END_PRESERVES_HISTORY：Lease end 后历史 Rent/Tenant 保留');
+    const dn26 = wsCreateTenantWithDraft({ name: 'New T26', unit: '3801', rent: 26000, ls: '2026-09-01', le: '2027-08-31', due: 5, propertyId: pe26.prop.id });
+    wsActivateLease(dn26.lease.lease_id);
+    const obN26 = currentRentForLease(dn26.lease.lease_id);
+    A(!!obN26 && obN26.lease_id === dn26.lease.lease_id && obN26.amount_due === 26000 && obN26.amount_due !== 24000, '[INV-27] NEW_LEASE_NEW_TENANT_ISOLATED_FROM_OLD_HISTORY：新 Lease/Rent 与旧历史完全隔离');
     /* 28. BOTTOM_NAV_EXACT_5_UNCHANGED */
     A(bottomNav.toString().indexOf("'home'") !== -1 && bottomNav.toString().indexOf("'building'") !== -1 && bottomNav.toString().indexOf("'queue'") !== -1 && bottomNav.toString().indexOf("'wallet'") !== -1 && bottomNav.toString().indexOf("'more'") !== -1 && bottomNav.toString().indexOf("'archive'") === -1, '[INV-28] BOTTOM_NAV_EXACT_5_UNCHANGED：首页/物业/事项/财务/更多（无 Archive 一级）');
     /* 29. TELEGRAM_EXACT_3X2_UNCHANGED（源码级 · TelegramExactMenuTruth gate 另行证明） */

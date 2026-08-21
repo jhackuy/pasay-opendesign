@@ -1192,6 +1192,26 @@ try {
   }
 }
 
+/* ─────────────── Run Final Product Freeze V1 Total Gate (PASAY-TASK-013 / DESIGN-013) ─────────────── */
+{
+  const gateFinal = ctx.window.__OD_GATE_PASAY_FINAL_PRODUCT_FREEZE_V1;
+  if (typeof gateFinal === 'function') {
+    try {
+      const r = gateFinal();
+      console.log('\n═══════ PASAY_FINAL_PRODUCT_FREEZE_V1 (DESIGN-013 · 全产品跨域总验收 · 40 不变量 + Journey A–F) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('PASAY_FINAL_PRODUCT_FREEZE_V1', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('PASAY_FINAL_PRODUCT_FREEZE_V1 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('PASAY_FINAL_PRODUCT_FREEZE_V1 gate not exposed on window (__OD_GATE_PASAY_FINAL_PRODUCT_FREEZE_V1 = ' + typeof gateFinal + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
