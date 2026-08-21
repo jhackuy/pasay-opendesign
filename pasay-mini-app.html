@@ -375,6 +375,15 @@ function wsEffectiveRole() {
 function currentMembership() { return wsCurrentMember(); }
 function currentRole() { return wsEffectiveRole(); }
 function hasActiveMembership() { return wsHasAccess(); }
+/* PASAY-TASK-013 · FIX · OWNER_SECRETARY_LANGUAGE_CONTRACT · locale 唯一派生自 ACTIVE Membership role：
+   Owner=中文(zh) / Secretary=英文(en) · 无 Active Membership 时保留当前（不强行改写）。
+   role 切换 / workspace switch 后调用以按有效 Membership 重新派生语言。 */
+function deriveLocaleFromMembership() {
+  const r = wsEffectiveRole();
+  if (r === 'owner') { if (!state.meta.localeManual) { state.lang = 'zh'; state.locale = 'zh'; } }
+  else if (r === 'secretary') { if (!state.meta.localeManual) { state.lang = 'en'; state.locale = 'en'; } }
+  return state.lang;
+}
 /* PASAY-TASK-006 · P0-7 · 完整访问状态机：
    none（无工作区 / 无 membership）        → 首次 onboarding（Create company / Join with invite）
    ok（active membership）                 → 正常 business views
@@ -610,6 +619,8 @@ function wsSwitchTo(id) {
   target.connectContext = null;
   state.workspace = target;
   state.workspace.otherWorkspaces = [saved].concat((w.otherWorkspaces || []).filter(o => o.id !== id));
+  /* PASAY-TASK-013 · FIX · workspace switch 后语言按新 workspace 的 ACTIVE Membership 重新派生（Owner=zh · Secretary=en） */
+  if (typeof deriveLocaleFromMembership === 'function') deriveLocaleFromMembership();
   save();
   return { ok: true };
 }
@@ -12948,11 +12959,18 @@ function runGateFinalProductFreezeV1() {
     rentStartOperation(obA.id);
     const colOp = state.operations.find(o => o.kind === 'collect_rent' && o.domain && o.domain.rent_id === obA.id);
     A(!!colOp && !opNextIsMine(colOp), '[J-A8] Follow-up Operation 存在 · 非 Owner 当前人工动作（waiting actor）');
-    /* A9 · Final Payment → Paid · Operation Closed */
+    /* A9 · Final Payment → Paid · Operation Closed（严格：Paid && balance=0 && Operation CLOSED） */
     rentRecordPayment(obA.id, 18000, 'owner', { paid_at: '2026-09-08' });
     rentOperationReconcile(colOp, TODAY);
     A(rentBalance(obA) === 0 && rentStatus(obA, '2026-09-10') === 'paid', '[J-A9] Final Payment → balance=0 → Rent Paid');
-    A(colOp.esc === 'CLOSED' || rentStatus(obA, '2026-09-10') === 'paid', '[J-A9b] Rent Operation 合法关闭（paid 后无 stale action）');
+    A(rentStatus(obA, '2026-09-10') === 'paid' && rentBalance(obA) === 0 && colOp.esc === 'CLOSED', '[J-A9b] Rent Golden Path：Paid && balance=0 && Rent Operation CLOSED（三条件严格同真）');
+    /* A9c · Paid 后 stale follow-up / callback → zero mutation（Rent Operation 已 CLOSED · 不再重开/不再投影 Owner action） */
+    const snapA9 = JSON.stringify({ col: colOp.esc, ops: state.operations.length, task: state.tasks.length });
+    rentOperationReconcile(colOp, TODAY);        /* stale reconcile：已 CLOSED 不重开 */
+    __odClickHandler(_mkClick('confirm-rent', { id: obA.id }));   /* stale callback：已 paid 确认 → zero mutation */
+    __odClickHandler(_mkClick('submit-payment', { rent: obA.id }));
+    const stale = JSON.stringify({ col: colOp.esc, ops: state.operations.length, task: state.tasks.length });
+    A(colOp.esc === 'CLOSED' && !opNextIsMine(colOp) && stale === snapA9, '[J-A9c] Paid 后 stale follow-up/callback → zero mutation（Operation 保持 CLOSED · 无新 task · 无 fake owner action）');
     /* A10 · Home / Property / Finance / Queue 读同一 truth（跨面 sum） */
     const fA = finSnapshot(q('p=2026-09'));
     A(fA.dueAmt === 28000 && fA.paidAmtSum === 28000 && fA.overdueAmt === 0, '[J-A10] Finance 读取同一 Rent truth（due=28k · paid=28k）');
