@@ -6295,6 +6295,15 @@ function viewSettings() {
       <div class="row" data-a="toggle-lang"><div class="row-main"><div class="row-l1"><b style="font-size:14px">${state.lang==='zh'?'界面语言':'App language'}</b></div><div class="row-l2">${lang === 'zh' ? '中文' : 'English'}</div></div><div class="row-r"><div class="switch${lang === 'en' ? ' on' : ''}"></div></div></div>
       <div class="row" data-a="none"><div class="row-main"><div class="row-l1"><b style="font-size:14px">Telegram</b></div><div class="row-l2 num">@pasay_ops</div></div></div>
     </div>
+    ${sec(state.lang==='zh'?'外观':'Appearance')}
+    <div class="list">
+      <div class="row" data-a="none"><div class="row-main"><div class="row-l1"><b style="font-size:14px">${state.lang==='zh'?'主题':'Theme'}</b></div><div class="row-l2">${state.lang==='zh'?'默认跟随系统 · 手动选择后固定':'follows system by default · manual choice persists'}</div></div></div>
+    </div>
+    <div style="padding:0 16px;margin:8px 0 2px" data-od-id="theme-seg">
+      <div class="seg">
+        ${[['system', '跟随系统', 'System'], ['light', '浅色', 'Light'], ['dark', '深色', 'Dark']].map(o => '<button style="height:44px"' + (state.meta.theme === o[0] ? ' class="on"' : '') + ' data-a="theme" data-v="' + o[0] + '" data-od-id="theme-opt-' + o[0] + '">' + (state.lang === 'zh' ? o[1] : o[2]) + '</button>').join('')}
+      </div>
+    </div>
     ${sec(state.lang==='zh'?'通知':'Notifications')}
     <div class="list">${[[L('审批提醒','Approval alerts'),'Approval alerts'], [L('逾期提醒','Overdue alerts'),'Overdue alerts'], [L('维修更新','Repair updates'),'Repair updates'], [L('每周经营报告','Weekly report'),'Weekly report']].map(n => '<div class="row" data-a="none"><div class="row-main"><div class="row-l1"><b style="font-size:14px">' + n[0] + '</b></div><div class="row-l2">' + n[1] + '</div></div><div class="row-r"><div class="switch on"></div></div></div>').join('')}</div>
     ${sec(state.lang==='zh'?'工作区与团队':'Workspace & team')}
@@ -7321,6 +7330,15 @@ const __odClickHandler = function(e) {
     save(); closeSheet(); render(); toast(state.lang==='zh'?'已切换为 ' + (r === 'owner' ? 'Owner' : 'Secretary') + ' 视角（演示用户）':'Switched to ' + (r === 'owner' ? 'Owner' : 'Secretary') + ' view (demo user)'); return;
   }
   if (a === 'toggle-lang') { const to = state.lang === 'zh' ? 'en' : 'zh'; state.lang = to; state.locale = to; state.meta.locale = to; state.meta.localeManual = true; save(); render(); return; }
+  /* DESIGN-020 · PASAY-MINIAPP-DARK-THEME-001 · 手动切换 System / Light / Dark（默认跟随系统） */
+  if (a === 'theme') {
+    const v = el.dataset.v || 'system';
+    state.meta.theme = (['system', 'light', 'dark'].indexOf(v) !== -1) ? v : 'system';
+    save(); applyTheme(); render();
+    const label = state.meta.theme === 'system' ? (state.lang==='zh'?'跟随系统':'System') : state.meta.theme === 'light' ? (state.lang==='zh'?'浅色':'Light') : (state.lang==='zh'?'深色':'Dark');
+    toast((state.lang==='zh'?'外观已切换：':'Appearance switched: ') + label);
+    return;
+  }
   if (a === 'pri-seg') { document.querySelectorAll('[data-a="pri-seg"]').forEach(b => b.classList.remove('on')); el.classList.add('on'); return; }
   if (a === 'urg-seg' || a === 'req-urg-seg') { const sel = a === 'req-urg-seg' ? '[data-a="req-urg-seg"]' : '[data-a="urg-seg"]'; document.querySelectorAll(sel).forEach(b => b.classList.remove('on')); el.classList.add('on'); return; }
   if (a === 'open-archive') { sheetArchive(el.dataset.unit); return; }
