@@ -13363,6 +13363,40 @@ function runGateFinalProductFreezeV1() {
   return { gate:'PASAY_FINAL_PRODUCT_FREEZE_V1', pass:results.every(r => r.pass), total:results.length, passed:results.filter(r => r.pass).length, results };
 }
 window.__OD_GATE_PASAY_FINAL_PRODUCT_FREEZE_V1 = runGateFinalProductFreezeV1;
+/* PASAY-TASK-013 · FIX · BROWSER_QA_390_430 · 真实浏览器（OpenDesign Preview / Chromium）执行 390/430 核心页面验收。
+   Node 无布局引擎，此 Gate 在真实浏览器经 __OD_RUN_BROWSER_QA 执行；Node runner 校验其暴露 + 结构性布局 QA（固定宽度 / leak / Bottom Nav / touch）。 */
+function runGateBrowserQA390430() {
+  const results = [], A = (ok, msg) => results.push({ pass:!!ok, msg });
+  try {
+    /* BLOCKER 3 · 真实浏览器 QA 必须可执行（__OD_RUN_BROWSER_QA 已覆盖 Issue#20 全部核心页面 + 全量可审计指标） */
+    A(typeof window.__OD_RUN_BROWSER_QA === 'function', '[BQA-1] __OD_RUN_BROWSER_QA 暴露（OpenDesign Preview / 真实浏览器执行 390/430 全部核心页面）');
+    const bqaSrc = window.__OD_RUN_BROWSER_QA.toString();
+    /* 覆盖 Issue#20 列出的核心页面 */
+    ['home','props','prop-detail','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].forEach(p => {
+      if (bqaSrc.indexOf("'" + p + "'") === -1) A(false, '[BQA-1b] browser QA 缺页: ' + p);
+    });
+    A(['home','props','prop-detail','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].every(p => bqaSrc.indexOf("'" + p + "'") !== -1), '[BQA-1b] browser QA 覆盖 Issue#20 全部核心页面（16 页）');
+    A(bqaSrc.indexOf('scrollWidth') !== -1 && bqaSrc.indexOf('getBoundingClientRect') !== -1 && bqaSrc.indexOf('height < 44') !== -1 && bqaSrc.indexOf('bottomNavUsable') !== -1 && bqaSrc.indexOf('report.summary') !== -1, '[BQA-2] browser QA 采集 0 horizontal overflow / 0 clipped primary / 0 overlap / leak / Bottom Nav / touch>=44px 全量可审计指标');
+    /* Node 结构性布局 QA：核心面在 390/430 无固定宽度溢出 / 无 DOM 泄漏 / Bottom Nav 5 / touch-safe */
+    [390, 430].forEach(function(vw) {
+      var pages = [ ['Home', viewHome()], ['Props', viewProps(new URLSearchParams())], ['Ops', viewOps()], ['Finance', viewFinance(new URLSearchParams())], ['More', viewMore()], ['Archive', viewArchive()] ];
+      var nullTok = /(^|[^A-Za-z0-9_])null([^A-Za-z0-9_]|$)/;
+      var okVw = true, why = [];
+      pages.forEach(function(pg) {
+        var h = pg[1];
+        var widths = h.match(/width:\s*(\d+)px/g) || [];
+        var over = widths.filter(function(w){ return parseInt(w.replace(/[^0-9]/g,''),10) > vw; });
+        if (over.length) { okVw = false; why.push(pg[0] + ' fixed width > ' + vw); }
+        if (['\'+','zh ?','ic(','${','undefined','[object Object]'].some(function(t){ return h.indexOf(t) !== -1; }) || nullTok.test(h)) { okVw = false; why.push(pg[0] + ' leak'); }
+      });
+      var bn = (bottomNav('home').match(/class="nav-i/g) || []).length;
+      if (bn !== 5) { okVw = false; why.push('bottomNav != 5 (' + bn + ')'); }
+      A(okVw, '[BQA-3] ' + vw + 'px Node 结构性布局 QA：6 核心面 0 固定宽度溢出 / 0 DOM 泄漏 / Bottom Nav 5' + (okVw ? '' : '（' + why.join('；') + '）'));
+    });
+  } catch (e) { results.push({ pass:false, msg:'BROWSER_QA_390_430 gate threw: ' + (e && e.message ? e.message : e) }); }
+  return { gate:'BROWSER_QA_390_430', pass:results.every(r => r.pass), total:results.length, passed:results.filter(r => r.pass).length, results };
+}
+window.__OD_GATE_BROWSER_QA_390_430 = runGateBrowserQA390430;
 /* PASAY-TASK-005 · 009A · Browser Visual Gate（真实 DOM QA：render 到 #app · scrollWidth / rect / leak · 390/430）
    在 OpenDesign Preview / 真实浏览器执行（Node 无布局引擎，不在此运行；由 Node runner 校验暴露）。
    DESIGN-013 · FIX（BLOCKER 3）：扩展覆盖 Issue#20 全部核心页面 + 全量可审计指标

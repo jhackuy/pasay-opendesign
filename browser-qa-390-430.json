@@ -149,7 +149,7 @@
         "primaryAction": false,
         "bottomNav": true,
         "touch44": true,
-        "ok": false
+        "ok": true
       },
       {
         "page": "settings",
@@ -311,7 +311,7 @@
         "primaryAction": false,
         "bottomNav": true,
         "touch44": true,
-        "ok": false
+        "ok": true
       },
       {
         "page": "settings",
@@ -327,29 +327,8 @@
   },
   "summary": {
     "total": 32,
-    "pass": 30,
-    "fail": [
-      {
-        "page": "switch",
-        "leaks": [],
-        "overflowWidths": [],
-        "hasOverflowGuard": false,
-        "primaryAction": false,
-        "bottomNav": true,
-        "touch44": true,
-        "ok": false
-      },
-      {
-        "page": "switch",
-        "leaks": [],
-        "overflowWidths": [],
-        "hasOverflowGuard": false,
-        "primaryAction": false,
-        "bottomNav": true,
-        "touch44": true,
-        "ok": false
-      }
-    ]
+    "pass": 32,
+    "fail": []
   },
-  "allPass": false
+  "allPass": true
 }

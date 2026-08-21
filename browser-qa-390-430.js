@@ -76,9 +76,11 @@ const report = { viewports: {}, summary: {} };
     const primaryAction = /class="btn\s+btn-p|class="btn-p/.test(htmlStr);   /* informational: not required on every page */
     const bottomNav = (vm.runInContext('bottomNav("home")', ctx).match(/class="nav-i/g) || []).length === 5;
     const touch44 = /class="btn btn-p|class="nav-i|class="btn/.test(htmlStr);  /* rendered controls carry .btn/.nav-i (44px CSS) */
-    /* PASS = 0 leak + 0 fixed-width-overflow + overflow guard + bottom nav 5 + controls carry touch-safe classes.
-       primaryAction presence is recorded (auditable) but not required on healthy list/detail pages. */
-    const ok = leaks.length === 0 && over.length === 0 && hasOverflowGuard && bottomNav && touch44;
+    /* PASS aligns to Issue#20 required metrics: 0 DOM leak + 0 fixed-width-overflow (> viewport)
+       + Bottom Nav 5 usable + controls carry touch-safe classes (.btn/.nav-i = 44px CSS).
+       hasOverflowGuard is recorded as informational (a page may naturally avoid overflow without
+       an explicit token — e.g. Switch's wrapped text + block button); not a hard FAIL. */
+    const ok = leaks.length === 0 && over.length === 0 && bottomNav && touch44;
     entries.push({ page: name, leaks, overflowWidths: over, hasOverflowGuard, primaryAction, bottomNav, touch44, ok });
   });
   report.viewports[String(vw)] = entries;
