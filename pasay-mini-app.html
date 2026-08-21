@@ -24,14 +24,41 @@
   --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   --font-body:    -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   --font-mono:    ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color-scheme: light;
+  --app-bg: oklch(93% 0.004 250);
+  --scrim:  oklch(18% 0.012 250 / 0.42);
   --r-sm: 8px; --r: 12px; --r-lg: 18px;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --shadow: 0 1px 2px oklch(18% 0.012 250 / 0.05), 0 8px 24px oklch(18% 0.012 250 / 0.07);
 }
+/* ─── theme: 浅色显式锁定（OS 为深色时手动选浅色） ─── */
+html[data-theme="light"] { color-scheme: light; }
+/* ─── theme: 深色（DESIGN-020 · PASAY-MINIAPP-DARK-THEME-001）
+   主题层仅覆盖颜色 token；IA / 组件结构 / 业务逻辑 / 权限 / Bottom Nav / Telegram 一律不动。
+   所有派生色由 token 生成（oklch / color-mix / var），不引入新裸色值。 */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:      oklch(17% 0.012 250);
+  --surface: oklch(21% 0.012 250);
+  --fg:      oklch(94% 0.004 250);
+  --muted:   oklch(66% 0.008 250);
+  --border:  oklch(30% 0.008 250);
+  --accent:  oklch(72% 0.16 255);
+  --accent-soft: color-mix(in oklch, var(--accent) 16%, transparent);
+  --fg-soft: color-mix(in oklch, var(--fg) 7%, transparent);
+  --ok:      oklch(72% 0.12 155);
+  --warn:    oklch(79% 0.13 80);
+  --crit:    oklch(70% 0.16 27);
+  --pend:    oklch(74% 0.09 255);
+  --neu:     oklch(62% 0.01 250);
+  --app-bg:  oklch(12% 0.01 250);
+  --scrim:   oklch(8% 0.01 250 / 0.62);
+  --shadow:  0 1px 2px oklch(0% 0 0 / 0.45), 0 8px 24px oklch(0% 0 0 / 0.35);
+}
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
-  margin: 0; background: oklch(93% 0.004 250);
+  margin: 0; background: var(--app-bg);
   color: var(--fg); font-family: var(--font-body); font-size: 15px;
   line-height: 1.5; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
 }
@@ -173,13 +200,13 @@ p, h1, h2, h3, h4, h5 { margin: 0; text-wrap: pretty; }
 .banner.ok { background: color-mix(in oklch, var(--ok) 11%, transparent); color: color-mix(in oklch, var(--ok) 85%, black); }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom)); z-index: 60; max-width: min(360px, calc(100vw - 40px)); background: var(--fg); color: var(--bg); border-radius: 12px; padding: 11px 16px; font-size: 13.5px; font-weight: 550; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
 .toast.show { opacity: 1; }
-.overlay { position: fixed; inset: 0; background: oklch(18% 0.012 250 / 0.42); z-index: 40; display: flex; align-items: flex-end; justify-content: center; animation: fade 0.18s ease; }
+.overlay { position: fixed; inset: 0; background: var(--scrim); z-index: 40; display: flex; align-items: flex-end; justify-content: center; animation: fade 0.18s ease; }
 @keyframes fade { from { opacity: 0; } }
 .sheet { width: 100%; max-width: 430px; max-height: 88dvh; overflow-y: auto; background: var(--surface); border-radius: 20px 20px 0 0; padding: 8px 18px calc(20px + env(safe-area-inset-bottom)); animation: up 0.22s cubic-bezier(0.2, 0.9, 0.3, 1); }
 @keyframes up { from { transform: translateY(24px); opacity: 0.6; } }
 .sheet-grab { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 8px auto 14px; }
 .sheet-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.modal-wrap { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 24px; background: oklch(18% 0.012 250 / 0.42); animation: fade 0.18s ease; }
+.modal-wrap { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 24px; background: var(--scrim); animation: fade 0.18s ease; }
 .modal { width: 100%; max-width: 360px; max-height: 84dvh; overflow-y: auto; background: var(--surface); border-radius: 16px; padding: 20px; animation: up 0.2s cubic-bezier(0.2, 0.9, 0.3, 1); }
 
 /* ─── timeline ───────────────────────────────────────── */
