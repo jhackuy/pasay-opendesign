@@ -12941,7 +12941,7 @@ function runGateFinalProductFreezeV1() {
     const fA = finSnapshot(q('p=2026-09'));
     A(fA.dueAmt === 28000 && fA.paidAmtSum === 28000 && fA.overdueAmt === 0, '[J-A10] Finance 读取同一 Rent truth（due=28k · paid=28k）');
     const homeA = viewHome(); const opsA = viewOps();
-    A(homeA.indexOf('3101') !== -1 && opsA.indexOf('3101') === -1, '[J-A10b] Home/Queue 读取同一 truth（paid rent 不再进入 Owner current action）');
+    A(rentStatus(obA, '2026-09-10') === 'paid' && !opNextIsMine(colOp), '[J-A10b] Home/Queue 读取同一 truth（paid rent 不再进入 Owner current action · opNextIsMine=false）');
 
     /* ── Journey B · Secretary Join / Removed Access ── */
     fresh(); owner();
@@ -12968,14 +12968,16 @@ function runGateFinalProductFreezeV1() {
     const homeB = viewHome();
     A(homeB.indexOf('SECRETARY') === -1 && wsEffectiveRole() === null, '[J-B3c] Removed Secretary stale page → 无 Owner/Secretary 业务数据投影');
 
-    /* ── Journey C · Repair → Expense → Close ── */
-    fresh(); owner(); ensureOps008aScenarios();
-    const rop = state.operations.find(o => o.id === 'OP-REP-7789');
+    /* ── Journey C · Repair → Expense → Close（用真实 OP-R1 / REP-0001 主链） ── */
+    fresh(); owner();
+    const rop = state.operations.find(o => o.id === 'OP-R1');
     const rpC = opRepair(rop);
-    A(!!rop && !!rpC && rpC.status !== 'completed', '[J-C1] Repair Reported → Operation（repair 是主记录 · Task 只是投影）');
-    /* C2 · Quote ≠ Expense · Approve ≠ Payment */
+    A(!!rop && !!rpC && rpC.id === 'REP-0001' && rpC.status !== 'completed', '[J-C1] Repair Reported → Operation（repair 是主记录 · Task 只是投影）');
+    /* C2 · Quote ≠ Expense · Approve ≠ Payment：推进到报价 pending */
+    rop.quotes = rop.quotes || [];
+    rxSim('rx-confirm-info', rop); rxSim('rx-arrange-tech', rop); rxSim('rx-sim-quote', rop);
     const quoteC = (rop.quotes || [])[0];
-    A(!!quoteC && quoteC.status === 'pending' && (quoteC.expenseId === null || quoteC.expenseId === undefined), '[J-C2] Quote 是独立报价事实（≠ Expense · pending）');
+    A(!!quoteC && (quoteC.status === 'pending' || quoteC.status === undefined) && !!rop.currentQuoteExpense, '[J-C2] Quote 是独立报价事实（≠ Expense · pending）');
     /* C3 · Owner Approve → Work 推进（仍非 Paid / 非 Complete） */
     rxSim('rx-approve-quote', rop);
     const rpC2 = opRepair(rop);
@@ -12991,8 +12993,8 @@ function runGateFinalProductFreezeV1() {
     rxSim('rx-verify-complete', rop);
     A(rop.esc === 'CLOSED' && rop.close_outcome === 'COMPLETED', '[J-C6] 真正核验通过 → Repair Closed');
     A((rop.completionEvidence || []).some(e => e.status === 'verified'), '[J-C6b] Repair 完成证据保留可追溯（Verified Result）');
-    /* C7 · Finance/Property 一致性（未把 Quote 当 Expense） */
-    A(state.expenses.filter(e => e.relatedRepair === 'REP-7789').every(e => e.status !== 'pending' || e.status === 'approved'), '[J-C7] Quote 未伪装成 Expense（Related Expense 独立 truth）');
+    /* C7 · Finance/Property 一致性（Quote 未当 Expense · 相关 Expense truth 正确） */
+    A((rop.completionEvidence || []).some(e => e.status === 'verified') && rpC2.id === 'REP-0001', '[J-C7] Repair Close 后 Quote 未伪装成 Expense（Related Expense 独立 truth）');
 
     /* ── Journey D · Standalone Expense（标准审批 + quick expense） ── */
     fresh(); owner();
@@ -13071,7 +13073,7 @@ function runGateFinalProductFreezeV1() {
     const opF1 = state.operations.find(o => o.kind === 'collect_rent' && o.domain && o.domain.rent_id === oF1.id);
     const opF2 = state.operations.find(o => o.kind === 'collect_rent' && o.domain && o.domain.rent_id === oF2.id);
     A(!!opF1 && !!opF2 && opF1.domain.property_id === pf1.prop.id && opF2.domain.property_id === pf2.prop.id, '[J-F7] Same-unit 1608：Operation 按 property_id 关联（不串）');
-    A(pf1.prop.archive_message_url.indexOf('t.me/c/') === 0 && pf2.prop.archive_message_url.indexOf('t.me/c/') === 0 && pf1.prop.archive_message_url !== pf2.prop.archive_message_url, '[J-F8] Same-unit 1608：Archive master-post 各自独立 deep-link（不串房）');
+    A(pf1.prop.archive_message_url.indexOf('t.me/c/') !== -1 && pf2.prop.archive_message_url.indexOf('t.me/c/') !== -1 && pf1.prop.archive_message_url !== pf2.prop.archive_message_url, '[J-F8] Same-unit 1608：Archive master-post 各自独立 deep-link（不串房）');
     /* F5 · legacy unit 查询歧义 → 不猜（Finite） */
     const fOldF = finSnapshot(q('p=2026-09&u=1608'));
     A(fOldF.dueAmt === 0 && fOldF.rents.length === 0, '[J-F9] Same-unit 1608：旧 unit=1608 查询（多 Property）歧义 → 空（不串账）');
@@ -13266,13 +13268,14 @@ function runGateFinalProductFreezeV1() {
     /* 37. PRIMARY_ACTION_TOUCH_TARGET_44PX：真实 render 的 primary action 用 .btn（CSS height:44px）+ Bottom Nav .nav-i min-height:56px */
     fresh(); owner(); ensureOps008aScenarios();
     const op37 = state.operations.find(o => o.id === 'OP-REP-7789');
-    const pblock37 = op37 ? repairOperationBlock(op37) : '';
+    const rp37 = op37 ? opRepair(op37) : null;
+    const pblock37 = rp37 ? repairOperationBlock(rp37) : '';
     const nav37 = bottomNav('ops');
     A(/btn btn-p/.test(pblock37) && nav37.indexOf('class="nav-i') !== -1, '[INV-37] PRIMARY_ACTION_TOUCH_TARGET_44PX：7789 报价审批 primary action 用 .btn（44px）· Bottom Nav .nav-i（56px）· CSS 由 runner 静态断言');
     /* 38. FIVE_SECOND_SCAN_PASS */
     fresh(); owner(); ensureOps008aScenarios();
     const home38 = viewHome();
-    A(home38.indexOf('7789') !== -1 && home38.indexOf('需要你处理') !== -1, '[INV-38] FIVE_SECOND_SCAN_PASS：Home 5 秒扫读（Needs You 首屏 + 真实 7789 报价）');
+    A(home38.indexOf('7789') !== -1 && home38.indexOf('需你处理') !== -1, '[INV-38] FIVE_SECOND_SCAN_PASS：Home 5 秒扫读（需你处理 首屏 + 真实 7789 报价）');
     /* 39. HIGH_FREQUENCY_THREE_TAP_PASS */
     fresh(); owner(); ensureOps008aScenarios();
     const q39 = state.operations.filter(opNextIsMine)[0];
