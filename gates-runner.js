@@ -1212,6 +1212,26 @@ try {
   }
 }
 
+/* ─────────────── Run Browser QA 390/430 Gate (DESIGN-013 RETURN FIX · BLOCKER 3) ─────────────── */
+{
+  const gateBQA = ctx.window.__OD_GATE_BROWSER_QA_390_430;
+  if (typeof gateBQA === 'function') {
+    try {
+      const r = gateBQA();
+      console.log('\n═══════ BROWSER_QA_390_430 (DESIGN-013 RETURN FIX · BLOCKER 3 · real-browser + structural 390/430) ═══════');
+      r.results.forEach(x => console.log('  ' + (x.pass ? '✓' : '✗') + '  ' + x.msg));
+      console.log(format('BROWSER_QA_390_430', r));
+      allPass = allPass && r.pass;
+    } catch (e) {
+      console.error('BROWSER_QA_390_430 gate threw:', e && e.stack ? e.stack : e);
+      allPass = false;
+    }
+  } else {
+    console.error('BROWSER_QA_390_430 gate not exposed on window (__OD_GATE_BROWSER_QA_390_430 = ' + typeof gateBQA + ')');
+    allPass = false;
+  }
+}
+
 console.log('\n═══════ Summary ═══════');
 console.log(allPass ? '✓ ALL GATES PASS' : '✗ GATES FAILED');
 process.exit(allPass ? 0 : 1);
