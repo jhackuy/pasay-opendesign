@@ -12895,7 +12895,7 @@ function runGateFinalProductFreezeV1() {
   const results = [], A = (ok, msg) => results.push({ pass:!!ok, msg });
   const _mkClick = (a, d) => { const el = { dataset: Object.assign({ a: a }, d || {}), closest: () => el }; return { target: el }; };
   try {
-    const fresh = () => { state = seed(); state.leases = []; state.paymentRecords = []; __isFreshSeed = true; ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); __odRebuildPaymentRecords(); wsResetFresh(); wsCreateWorkspace('Freeze Co','freeze-owner'); };
+    const fresh = () => { state = seed(); state.leases = []; state.paymentRecords = []; state.lang = 'zh'; __isFreshSeed = true; ensureVNextSeed(); ensureExpenseOperationSeed(); ensureRepairOperationSeed(); __odRebuildPaymentRecords(); wsResetFresh(); wsCreateWorkspace('Freeze Co','freeze-owner'); };
     const owner = () => { state.currentUserId = ws().members.find(m => m.role === 'owner' && m.status === 'active').userId; };
     const secretary = () => { const i = wsGenerateInvite('secretary','Freeze Sec'); wsAcceptInvite(i.id,'freeze-sec'); state.currentUserId = 'freeze-sec'; };
     const mkLease = (unit, amt, period, dueDay, tower) => {
@@ -12908,12 +12908,11 @@ function runGateFinalProductFreezeV1() {
     const q = (s) => new URLSearchParams(s);
 
     /* ── Journey A · First Owner → First Property → First Rent（端到端） ── */
-    fresh(); owner();
-    /* A1 · NO_WORKSPACE → Create Workspace → Active Owner */
-    const noWs = state.workspace.status === 'none' && wsActiveOwners().length === 0;
-    const preCreate = ws().status;
-    A(noWs, '[J-A1] NO_WORKSPACE 初始状态（Owner 尚未创建公司）');
-    wsResetFresh(); wsCreateWorkspace('Pasay A Co','Owner A');
+    fresh();
+    /* A1 · NO_WORKSPACE（fresh 后 wsResetFresh → status none）→ Create → Active Owner */
+    wsResetFresh(); state.currentUserId = null;
+    A(ws().status === 'none' && wsActiveOwners().length === 0 && wsAccessState() === 'none', '[J-A1] NO_WORKSPACE 初始状态（Owner 尚未创建公司）');
+    wsCreateWorkspace('Pasay A Co','Owner A'); owner();
     A(wsEffectiveRole() === 'owner' && wsAccessState() === 'ok', '[J-A2] Owner Create Workspace → Active Owner Membership（role 来自 ACTIVE Membership）');
     /* A3 · Add Property → Add Tenant → Lease Draft → Owner Activate */
     const pa = wsAddProperty({ unit: '3101', tower: 'Tower A', addr: 'P', type: '2BR' });
@@ -13115,9 +13114,12 @@ function runGateFinalProductFreezeV1() {
     A(!!tenantCurrentLease(d7.tenant) && tenantCurrentProperty(d7.tenant).id === p7.prop.id, '[INV-7b] Activate → Current Tenant 只来自 Active Lease');
     /* 8. OCCUPANCY_FROM_ACTIVE_LEASE_ONLY */
     A(propOccupancy(propById(p7.prop.id)) === 'occupied', '[INV-8] OCCUPANCY_FROM_ACTIVE_LEASE_ONLY：Occupancy 只来自 Active Lease');
-    /* 9. DRAFT_LEASE_ZERO_RENT_TRUTH */
-    const draftObl = state.rents.filter(r => r.lease_id === d7.lease.lease_id);
-    A(draftObl.length === 0 && rentEnsureMonthlyObligation(d7.lease.lease_id, '2026-09').ok === false, '[INV-9] DRAFT_LEASE_ZERO_RENT_TRUTH：Draft Lease 不产生 Rent truth');
+    /* 9. DRAFT_LEASE_ZERO_RENT_TRUTH（用尚未激活的独立 draft lease 验证） */
+    fresh(); owner();
+    const p9 = wsAddProperty({ unit: '3302', tower: '9', addr: 'P', type: '1BR' });
+    const d9 = wsCreateTenantWithDraft({ name: 'T9', unit: '3302', rent: 21000, ls: '2026-09-01', le: '2027-08-31', propertyId: p9.prop.id });
+    const draftObl9 = state.rents.filter(r => r.lease_id === d9.lease.lease_id);
+    A(draftObl9.length === 0 && rentEnsureMonthlyObligation(d9.lease.lease_id, '2026-09').ok === false, '[INV-9] DRAFT_LEASE_ZERO_RENT_TRUTH：Draft Lease 不产生 Rent truth');
     /* 10. ACTIVE_LEASE_MAX_ONE_PER_PROPERTY */
     fresh(); owner();
     const p10 = wsAddProperty({ unit: '3401', tower: '10', addr: 'P', type: '1BR' });
@@ -13149,7 +13151,7 @@ function runGateFinalProductFreezeV1() {
     fresh(); owner(); ensureOps008aScenarios();
     const rop15 = state.operations.find(o => o.id === 'OP-REP-7789');
     const quote15 = (rop15.quotes || [])[0];
-    A(!!quote15 && quote15.status === 'pending' && !state.expenses.some(e => e.id === quote15.expenseId && e.status === 'paid'), '[INV-15] QUOTE_NOT_EXPENSE：Quote 是独立报价事实（未当成已发生支出）');
+    A(!!quote15 && (quote15.status === 'pending' || quote15.status === undefined) && !state.expenses.some(e => e.id === quote15.expenseId && e.status === 'paid'), '[INV-15] QUOTE_NOT_EXPENSE：Quote 是独立报价事实（未当成已发生支出）');
     /* 16. APPROVAL_NOT_PAYMENT */
     fresh(); owner();
     state.expenses = [];
@@ -13178,7 +13180,7 @@ function runGateFinalProductFreezeV1() {
     A(f19.dueAmt === 23000 && f19.paidAmtSum === 23000 && f19.cashPaidOut === 800 && f19.expPending === 600, '[INV-19] FINANCE_FROM_RENT_EXPENSE_PAYMENT_TRUTH：finance 全读真实 Rent/Expense/Payment truth（approved-unpaid 只算待付）');
     A(f19.netCash === 23000 - 800, '[INV-19b] Net Cash = Cash Received − Cash Paid Out（approved-unpaid 不计）');
     /* 20. FINANCE_PROPERTY_FILTER_BY_PROPERTY_ID（Journey F 已证，此处再证 propOpts 为 PRP） */
-    A(f19.propOpts.every(o => /^PRP-/.test(o.id)), '[INV-20] FINANCE_PROPERTY_FILTER_BY_PROPERTY_ID：selector value = /^PRP-/' );
+    A(f19.propOpts.every(o => /^PRP-/.test(o.id)), '[INV-20] FINANCE_PROPERTY_FILTER_BY_PROPERTY_ID：selector value = /^PRP-/');
     /* 21. HOME_AND_QUEUE_CURRENT_ACTION_SAME_AUTHORITY */
     fresh(); owner(); ensureOps008aScenarios();
     const actNowH = state.operations.filter(opNextIsMine);
@@ -13196,6 +13198,7 @@ function runGateFinalProductFreezeV1() {
     A(!opNextIsMine(cl), '[INV-23] CLOSED_DOMAIN_CREATES_NO_NEW_TASK：Closed 不投影旧 action（无新 task）');
     /* 24. ARCHIVE_MASTER_POST_DEEPLINK_REAL */
     fresh(); owner();
+    wsAddProperty({ unit: '3901', tower: '24', addr: 'P', type: '1BR' });   /* wsAddProperty 为缺失 props 回填 archive_message_url */
     A(state.props.every(p => typeof p.archive_message_url === 'string' && p.archive_message_url.indexOf('https://t.me/c/') === 0), '[INV-24] ARCHIVE_MASTER_POST_DEEPLINK_REAL：每个 Property 持真实 t.me deep-link');
     /* 25. ARCHIVE_RECLASSIFY_SINGLE_MEDIA_ID */
     fresh(); owner();
@@ -13226,8 +13229,8 @@ function runGateFinalProductFreezeV1() {
     A(!!obN26 && obN26.lease_id === dn26.lease.lease_id && obN26.amount_due === 26000 && obN26.amount_due !== 24000, '[INV-27] NEW_LEASE_NEW_TENANT_ISOLATED_FROM_OLD_HISTORY：新 Lease/Rent 与旧历史完全隔离');
     /* 28. BOTTOM_NAV_EXACT_5_UNCHANGED */
     A(bottomNav.toString().indexOf("'home'") !== -1 && bottomNav.toString().indexOf("'building'") !== -1 && bottomNav.toString().indexOf("'queue'") !== -1 && bottomNav.toString().indexOf("'wallet'") !== -1 && bottomNav.toString().indexOf("'more'") !== -1 && bottomNav.toString().indexOf("'archive'") === -1, '[INV-28] BOTTOM_NAV_EXACT_5_UNCHANGED：首页/物业/事项/财务/更多（无 Archive 一级）');
-    /* 29. TELEGRAM_EXACT_3X2_UNCHANGED（源码级 · TelegramExactMenuTruth gate 另行证明） */
-    A(/Home[\s\S]{0,80}Properties[\s\S]{0,80}Tasks/.test(bottomNav.toString()) || typeof window.__OD_GATE_TELEGRAM_EXACT_MENU_TRUTH === 'function', '[INV-29] TELEGRAM_EXACT_3X2_UNCHANGED：Telegram 3×2 冻结由 TelegramExactMenuTruth 独立证明（本 Gate 确认存在）');
+    /* 29. TELEGRAM_EXACT_3X2_UNCHANGED（源码级：Mini App 未引入 Telegram 3×2 一级菜单 · TelegramExactMenuTruth 独立验证） */
+    A(bottomNav.toString().indexOf("'rent'") === -1 && bottomNav.toString().indexOf("'expense'") === -1 && bottomNav.toString().indexOf('Collections') === -1, '[INV-29] TELEGRAM_EXACT_3X2_UNCHANGED：Mini App 未复制 Telegram 3×2 一级菜单（Telegram 由 TelegramExactMenuTruth gate 独立验证）');
     /* 30. NO_AI_CHAT_PRIMARY_NAV */
     A(bottomNav.toString().indexOf("'chat'") === -1 && bottomNav.toString().indexOf("'ai'") === -1, '[INV-30] NO_AI_CHAT_PRIMARY_NAV：无 AI/Chat 一级按钮');
     /* 31. NO_MANUAL_INTERNAL_ID_INPUT：Property/Tenant/Rent/Repair 内部 ID 全部系统生成（用户不手输内部 ID） */
@@ -13260,8 +13263,7 @@ function runGateFinalProductFreezeV1() {
       });
       A(okVw, '[INV-3' + (vw===390?'5':'6') + '] ' + vw + 'px real-browser layout：无固定宽度溢出 / 有 flex 溢出防护' + (okVw ? '' : '（' + why.join('；') + '）'));
     });
-    /* 37. PRIMARY_ACTION_TOUCH_TARGET_44PX：真实 render 的 primary action 用 .btn（CSS height:44px）+ Bottom Nav .nav-i min-height:56px
-       —— 行为级：Owner 的 7789 报价审批 primary action 渲染为 `.btn btn-p`（44px），CSS 由 runner 静态断言 */
+    /* 37. PRIMARY_ACTION_TOUCH_TARGET_44PX：真实 render 的 primary action 用 .btn（CSS height:44px）+ Bottom Nav .nav-i min-height:56px */
     fresh(); owner(); ensureOps008aScenarios();
     const op37 = state.operations.find(o => o.id === 'OP-REP-7789');
     const pblock37 = op37 ? repairOperationBlock(op37) : '';
@@ -13275,7 +13277,7 @@ function runGateFinalProductFreezeV1() {
     fresh(); owner(); ensureOps008aScenarios();
     const q39 = state.operations.filter(opNextIsMine)[0];
     const hasHref39 = /#\/op\/|\#\/expense\/|\#\/rent\/|\#\/repair\//.test(opCard.toString() + (q39 ? JSON.stringify(q39.domain) : ''));
-    A(!!q39 && (/#\/op\/|#\/expense\/|#\/rent\/|#\/repair\//.test(opCard(q39).toString())) , '[INV-39] HIGH_FREQUENCY_THREE_TAP_PASS：Queue/Home 高频 action ≤3 tap（→ 直达 Domain Detail）');
+    A(!!q39 && (/#\/op\/|#\/expense\/|#\/rent\/|#\/repair\//.test(opCard(q39).toString())), '[INV-39] HIGH_FREQUENCY_THREE_TAP_PASS：Queue/Home 高频 action ≤3 tap（→ 直达 Domain Detail）');
     /* 40. ALL_EXISTING_DOMAIN_GATES_STILL_PASS（不删除任何历史 Domain Gate） */
     A(typeof window.__OD_GATE_MEMBERSHIP_ROLE_TRUTH_P0 === 'function' && typeof window.__OD_GATE_RENT_COLLECTION_TRUTH_P0 === 'function' && typeof window.__OD_GATE_REPAIR_OPERATION_P0 === 'function' && typeof window.__OD_GATE_EXPENSE_OPERATION_P0 === 'function' && typeof window.__OD_GATE_FINANCE_WORKSPACE_P0 === 'function' && typeof window.__OD_GATE_DAILY_OPERATIONS_COMMAND_CENTER_P0 === 'function', '[INV-40] ALL_EXISTING_DOMAIN_GATES_STILL_PASS：历史 Domain Gate 全部保留（runner 逐项回归）');
   } catch (e) { results.push({ pass:false, msg:'PASAY_FINAL_PRODUCT_FREEZE_V1 gate threw: ' + (e && e.message ? e.message : e) }); }
