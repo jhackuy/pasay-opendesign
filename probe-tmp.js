@@ -5,7 +5,7 @@ const body = html.slice(s + 8, e);
 const _ls = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 const sandbox = {
   console, window: {},
-  document: { querySelector: () => ({ innerHTML: '', value: '', addEventListener: () => {} }), querySelectorAll: () => [], createElement: () => ({ classList: { add: () => {}, remove: () => {} } }), addEventListener: () => {}, body: {} },
+  document: { querySelector: () => ({ innerHTML: '', value: '', addEventListener: () => {}, classList: { add: () => {}, remove: () => {}, toggle: () => {} }, remove: () => {} }), querySelectorAll: () => [], createElement: () => ({ classList: { add: () => {}, remove: () => {}, toggle: () => {} }, addEventListener: () => {}, appendChild: () => {}, remove: () => {} }), addEventListener: () => {}, body: {} },
   localStorage: _ls, location: { hash: '' },
   setTimeout, clearTimeout, Date, Object, Array, JSON, Math, String, Number, Boolean, RegExp, Error, Promise, Map, Set, Symbol,
   URLSearchParams: require('url').URLSearchParams

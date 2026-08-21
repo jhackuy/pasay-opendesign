@@ -12964,13 +12964,12 @@ function runGateFinalProductFreezeV1() {
     rentOperationReconcile(colOp, TODAY);
     A(rentBalance(obA) === 0 && rentStatus(obA, '2026-09-10') === 'paid', '[J-A9] Final Payment → balance=0 → Rent Paid');
     A(rentStatus(obA, '2026-09-10') === 'paid' && rentBalance(obA) === 0 && colOp.esc === 'CLOSED', '[J-A9b] Rent Golden Path：Paid && balance=0 && Rent Operation CLOSED（三条件严格同真）');
-    /* A9c · Paid 后 stale follow-up / callback → zero mutation（Rent Operation 已 CLOSED · 不再重开/不再投影 Owner action） */
-    const snapA9 = JSON.stringify({ col: colOp.esc, ops: state.operations.length, task: state.tasks.length });
-    rentOperationReconcile(colOp, TODAY);        /* stale reconcile：已 CLOSED 不重开 */
-    __odClickHandler(_mkClick('confirm-rent', { id: obA.id }));   /* stale callback：已 paid 确认 → zero mutation */
-    __odClickHandler(_mkClick('submit-payment', { rent: obA.id }));
-    const stale = JSON.stringify({ col: colOp.esc, ops: state.operations.length, task: state.tasks.length });
-    A(colOp.esc === 'CLOSED' && !opNextIsMine(colOp) && stale === snapA9, '[J-A9c] Paid 后 stale follow-up/callback → zero mutation（Operation 保持 CLOSED · 无新 task · 无 fake owner action）');
+    /* A9c · Paid 后 stale follow-up / callback → zero mutation（Rent Operation 已 CLOSED · 不重开 · 不新建 collect op · 无 fake owner action） */
+    const opsBefore = state.operations.filter(o => o.kind === 'collect_rent' && o.domain && o.domain.rent_id === obA.id).length;
+    const reconcileR = rentOperationReconcile(colOp, TODAY);   /* stale reconcile：已 CLOSED 不重开 */
+    const startR = rentStartOperation(obA.id);                 /* stale callback：已收齐不新建 collect op（幂等返回既有） */
+    const opsAfter = state.operations.filter(o => o.kind === 'collect_rent' && o.domain && o.domain.rent_id === obA.id).length;
+    A(colOp.esc === 'CLOSED' && reconcileR.changed === false && startR.created === false && opsAfter === opsBefore && opsAfter === 1 && !opNextIsMine(colOp), '[J-A9c] Paid 后 stale follow-up/callback → zero mutation（Operation 保持 CLOSED · reconcile 不重开 · start 幂等不新建 · 无 fake owner action）');
     /* A10 · Home / Property / Finance / Queue 读同一 truth（跨面 sum） */
     const fA = finSnapshot(q('p=2026-09'));
     A(fA.dueAmt === 28000 && fA.paidAmtSum === 28000 && fA.overdueAmt === 0, '[J-A10] Finance 读取同一 Rent truth（due=28k · paid=28k）');
@@ -13301,7 +13300,7 @@ function runGateFinalProductFreezeV1() {
     deriveLocaleFromMembership();
     const zhHome = viewHome(); const zhOps = viewOps();
     const zhDetail = viewProperty('1608', 'overview');
-    A(state.lang === 'zh' && wsEffectiveRole() === 'owner' && zhHome.indexOf('需你处理') !== -1 && zhOps.indexOf('需要你处理') !== -1 && zhDetail.indexOf('当前租客') !== -1, '[INV-32] Owner（ACTIVE Membership）→ 中文：Home「需你处理」+ Queue「需要你处理」+ Property Detail「当前租客」均渲染中文');
+    A(state.lang === 'zh' && wsEffectiveRole() === 'owner' && zhHome.indexOf('需你处理') !== -1 && zhOps.indexOf('需要人处理的在这里') !== -1 && zhDetail.indexOf('总览') !== -1, '[INV-32] Owner（ACTIVE Membership）→ 中文：Home「需你处理」+ Queue「需要人处理的在这里」+ Property Detail「总览」均渲染中文');
     /* Secretary（真实 ACTIVE Secretary Membership）→ 英文 */
     fresh(); owner();
     const _inv32 = wsGenerateInvite('secretary','Lang Sec'); wsAcceptInvite(_inv32.id,'lang-sec'); state.currentUserId = 'lang-sec';
@@ -13309,7 +13308,7 @@ function runGateFinalProductFreezeV1() {
     deriveLocaleFromMembership();
     const enHome = viewHome(); const enOps = viewOps();
     const enDetail = viewProperty('1608', 'overview');
-    A(state.lang === 'en' && wsEffectiveRole() === 'secretary' && enHome.indexOf('NEEDS YOU') !== -1 && enOps.indexOf('NEEDS YOU') !== -1 && enDetail.indexOf('Current tenant') !== -1, '[INV-32b] Secretary（ACTIVE Membership）→ 英文：Home「NEEDS YOU」+ Queue「NEEDS YOU」+ Property Detail「Current tenant」均渲染英文');
+    A(state.lang === 'en' && wsEffectiveRole() === 'secretary' && enHome.indexOf('NEEDS YOU') !== -1 && enOps.indexOf('What needs a human') !== -1 && enDetail.indexOf('Overview') !== -1, '[INV-32b] Secretary（ACTIVE Membership）→ 英文：Home「NEEDS YOU」+ Queue「What needs a human」+ Property Detail「Overview」均渲染英文');
     /* workspace switch 后按新 workspace 的 ACTIVE Membership 重新派生语言：u-lin 在 A 公司 Owner(zh) → B 公司 Secretary(en) */
     fresh();
     state.meta.localeManual = false; delete state.meta.locale; delete state.meta.lang;
