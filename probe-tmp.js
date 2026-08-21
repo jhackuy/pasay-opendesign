@@ -27,4 +27,4 @@ vm.runInContext(`
   console.log('telegram gate on window?', typeof window.__OD_GATE_TELEGRAM_EXACT_MENU_TRUTH);
   console.log('window keys tg=', Object.keys(window).filter(k => /TELEGRAM/i.test(k)));
   console.log('inv24 fresh all archive?', state.props.every(p => p.archive_message_url && p.archive_message_url.indexOf('https://t.me/c/') === 0));
-`);
+`, ctx);
