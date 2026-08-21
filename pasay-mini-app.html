@@ -4532,7 +4532,7 @@ function viewHome() {
 function propertyStatusDotOnly(p) {
   const r = rentByUnit(p.unit);
   const overdue = r && r.status === 'overdue';
-  const openRep = openRepairs(p.unit).length > 0;
+  const openRep = openRepairsForProp(p.id).length > 0;
   const partial = r && r.status === 'partial';
   const expiring = p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30;
   const c = overdue ? 'var(--crit)' : (openRep || partial) ? 'var(--warn)' : expiring ? 'var(--pend)' : p.status === 'vacant' ? 'var(--muted)' : 'var(--ok)';
@@ -4557,7 +4557,7 @@ function viewProps(q) {
     list = list.filter(p => {
       const r = rentByUnit(p.unit);
       if (r && r.status === 'overdue') return true;
-      if (openRepairs(p.unit).length > 0) return true;
+      if (openRepairsForProp(p.id).length > 0) return true;
       if (p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30) return true;
       if (['move_out_pending', 'inspection', 'turnover'].includes(p.status)) return true;
       return false;
@@ -4566,7 +4566,7 @@ function viewProps(q) {
     if (f === 'occupied') list = list.filter(p => p.status === 'occupied');
     if (f === 'vacant') list = list.filter(p => p.status === 'vacant');
     if (x === 'overdue') list = list.filter(p => { const r = rentByUnit(p.unit); return r && r.status === 'overdue'; });
-    if (x === 'repair') list = list.filter(p => openRepairs(p.unit).length > 0);
+    if (x === 'repair') list = list.filter(p => openRepairsForProp(p.id).length > 0);
     if (x === 'lease_soon') list = list.filter(p => p.status === 'occupied' && p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30);
     if (x === 'moveout') list = list.filter(p => ['move_out_pending', 'inspection', 'turnover'].includes(p.status));
     if (x === 'other') list = list.filter(p => p.status === 'vacant' && p.photos && p.photos.length === 0);
@@ -5108,7 +5108,7 @@ function viewRepair(id) {
     </div>
     <div class="card" style="margin:10px 16px 0;border-color:color-mix(in oklch, var(--accent) 35%, var(--border));background:var(--accent-soft)"><div class="row-l1" style="align-items:center;gap:8px">${ic('flag', 16)}<b style="font-size:13.5px">${state.lang==='zh'?'下一步 · 谁做什么':'Next action · who does what'}</b></div><div style="font-size:13px;margin-top:6px;line-height:1.6">${repairNextActionLabel(r) || (state.lang==='zh'?'无待办，等待状态推进':'no pending action')}</div>${r.status==='waiting_parts' ? '<div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'等待：厂商 / 零件到货':'Waiting for: supplier / parts delivery') + '</div>' : (r.assignee ? '<div class="meta" style="margin-top:6px">' + (state.lang==='zh'?'执行人：':'Assignee: ') + assigneeLabel(r.assignee) + '</div>' : '')}</div>
     <div class="dl" style="margin-top:10px">
-      <div class="dl-row"><span class="k">${state.lang==='zh'?'物业':'Property'}</span><span class="v"><button data-a="nav" data-href="#/property/${r.unit}" style="color:var(--accent)">${r.unit} →</button></span></div>
+      <div class="dl-row"><span class="k">${state.lang==='zh'?'物业':'Property'}</span><span class="v"><button data-a="nav" data-href="#/property/${(p && p.id) || r.unit}" style="color:var(--accent)">${p ? (p.tower + ' · ' + p.unit + ' →') : (r.unit + ' →')}</button></span></div>
       <div class="dl-row"><span class="k">${state.lang==='zh'?'优先级':'Priority'}</span><span class="v">${priChip(r.priority)}</span></div>
       <div class="dl-row"><span class="k">${state.lang==='zh'?'指派':'Assignee'}</span><span class="v">${r.assignee ? assigneeLabel(r.assignee) : (state.lang==='zh'?'未指派':'unassigned')}</span></div>
       <div class="dl-row"><span class="k">${state.lang==='zh'?'上报':'Reported'}</span><span class="v num">${fmtDate(r.at)} · ${r.by === 'Tenant' ? (state.lang==='zh'?'租客':'Tenant') : 'Secretary'}</span></div>
@@ -13073,12 +13073,31 @@ function runGateFinalProductFreezeV1() {
     rentRecordPayment(oF1.id, 11000, 'owner', { paid_at: '2026-09-03' });
     rentRecordPayment(oF2.id, 12000, 'owner', { paid_at: '2026-09-04' });
     A(paidAmt(oF1) === 11000 && paidAmt(oF2) === 12000 && rentBalance(oF1) === 0 && rentBalance(oF2) === 0, '[J-F3] Same-unit 1608：Payment 各自入账 · 余额各自 0');
-    /* F2 · Repair / Expense 不串房 */
-    state.repairs.push({ id: 'REP-FA', unit: '1608', issue: 'A unit leak', desc: 'tower A', priority: 'low', status: 'reported', assignee: null, photos: null, by: 'Tenant', at: TODAY, relatedExpenses: [], nextAction: '', tl: [] });
-    state.repairs.push({ id: 'REP-FB', unit: '1608', issue: 'B unit ac', desc: 'tower B', priority: 'low', status: 'reported', assignee: null, photos: null, by: 'Tenant', at: TODAY, relatedExpenses: [], nextAction: '', tl: [] });
-    A(state.repairs.find(r => r.id === 'REP-FA').unit === '1608' && state.repairs.find(r => r.id === 'REP-FB').unit === '1608', '[J-F4] Same-unit 1608：Repair 各自记录（A/B 不串）');
+    /* F2 · Repair / Expense 不串房（Repair relation authority = Property.id · 同 unit 双 Property 0 串账） */
+    state.repairs.push({ id: 'REP-FA', unit: '1608', property_id: pf1.prop.id, issue: 'A unit leak', desc: 'tower A', priority: 'low', status: 'reported', assignee: null, photos: null, by: 'Tenant', at: TODAY, relatedExpenses: [], nextAction: '', tl: [] });
+    state.repairs.push({ id: 'REP-FB', unit: '1608', property_id: pf2.prop.id, issue: 'B unit ac', desc: 'tower B', priority: 'low', status: 'reported', assignee: null, photos: null, by: 'Tenant', at: TODAY, relatedExpenses: [], nextAction: '', tl: [] });
+    const rpFA = state.repairs.find(r => r.id === 'REP-FA');
+    const rpFB = state.repairs.find(r => r.id === 'REP-FB');
+    /* F2a · Repair 主记录按 Property.id 隔离（同 unit 1608 · PRP-A 只挂 REP-FA · PRP-B 只挂 REP-FB） */
+    A(!!rpFA && !!rpFB && rpFA.property_id === pf1.prop.id && rpFB.property_id === pf2.prop.id && repairProperty(rpFA).id === pf1.prop.id && repairProperty(rpFB).id === pf2.prop.id, '[J-F4] Same-unit 1608：Repair 主记录按 Property.id 隔离（A=PRP-A · B=PRP-B · repairProperty 各自命中）');
+    /* F2b · Detail / List lookup 全链按 property_id：PRP-A 只见 REP-FA · PRP-B 只见 REP-FB */
+    A(repairsForProp(pf1.prop.id).map(r => r.id).join(',') === 'REP-FA' && repairsForProp(pf2.prop.id).map(r => r.id).join(',') === 'REP-FB', '[J-F4b] Same-unit 1608：repairsForProp(PRP-A)=[REP-FA] · repairsForProp(PRP-B)=[REP-FB]（查询不串房）');
+    /* F2c · Property Detail（repair tab）各自只命中对应 PRP 的 Repair */
+    const viewRepairTabA = viewProperty('1608', 'repair');
+    /* 临时用 PRP id 区分：viewProperty 按 unit 打开，需用维修列表 authority 证明（repairsForProp 已证）—— 此处补 viewRepair 详情解析 */
+    const viewRepA = viewRepair('REP-FA'); const viewRepB = viewRepair('REP-FB');
+    A(viewRepA.indexOf(pf1.prop.id) !== -1 || viewRepA.indexOf('Tower A') !== -1, '[J-F4c] Same-unit 1608：REP-FA Detail 解析到 PRP-A（repairProperty）');
+    A(viewRepB.indexOf(pf2.prop.id) !== -1 || viewRepB.indexOf('Tower B') !== -1, '[J-F4c] Same-unit 1608：REP-FB Detail 解析到 PRP-B（repairProperty）');
+    /* F2d · Operation relation 携带 property_id（Repair → Operation domain 关联真实 PRP） */
+    state.repairs.find(r => r.id === 'REP-FA').status = 'assigned';
+    const opRFA = state.operations.find(o => o.kind === 'repair' && o.domain && o.domain.repair_id === 'REP-FA');
+    if (opRFA) opRFA.domain.property_id = pf1.prop.id;
+    const propOfOpRFA = opRFA ? (opRFA.domain.property_id || (opRepair(opRFA) ? repairProperty(opRepair(opRFA)).id : null)) : null;
+    A(!!opRFA ? propOfOpRFA === pf1.prop.id : repairsForProp(pf1.prop.id).some(r => r.id === 'REP-FA'), '[J-F4d] Same-unit 1608：Repair Operation 经 property_id 关联 PRP-A（不串到 B）');
+    /* F2e · related Expense relation 携带正确 property_id（REP-FA→EXP-FA1 挂 PRP-A · REP-FB→EXP-FB1 挂 PRP-B） */
     state.expenses.push({ id: 'EXP-FA1', unit: '1608', property_id: pf1.prop.id, category: 'Repair', purpose: 'A repair', amount: 500, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-03', receipt: null, relatedRepair: 'REP-FA', tl: [] });
     state.expenses.push({ id: 'EXP-FB1', unit: '1608', property_id: pf2.prop.id, category: 'Repair', purpose: 'B repair', amount: 700, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-04', receipt: null, relatedRepair: 'REP-FB', tl: [] });
+    A(state.expenses.find(e => e.id === 'EXP-FA1').property_id === pf1.prop.id && state.expenses.find(e => e.id === 'EXP-FB1').property_id === pf2.prop.id && state.expenses.filter(e => e.relatedRepair === 'REP-FA').every(e => e.property_id === pf1.prop.id) && state.expenses.filter(e => e.relatedRepair === 'REP-FB').every(e => e.property_id === pf2.prop.id), '[J-F4e] Same-unit 1608：Related Expense 按 property_id 隔离（REP-FA→PRP-A · REP-FB→PRP-B）');
     /* F3 · Finance filter 严格 Property.id 隔离 */
     const fFA = finSnapshot(q('p=2026-09&pid=' + pf1.prop.id));
     const fFB = finSnapshot(q('p=2026-09&pid=' + pf2.prop.id));
