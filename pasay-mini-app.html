@@ -749,7 +749,7 @@ let tr = k => (T[state.lang] && T[state.lang][k]) || T.zh[k] || k;
 /* ═══════════════ 种子数据 ═══════════════ */
 function seed() {
   const __s = {
-    meta: { today: TODAY, merchant: MERCHANT.name, merchant_id: MERCHANT.id, lang: 'zh', langManual: false },
+    meta: { today: TODAY, merchant: MERCHANT.name, merchant_id: MERCHANT.id, lang: 'zh', langManual: false, theme: 'system' },
     workspace: wsSeed(),
     props: [
       { unit:'1608', tower:'Tower A', type:'1BR · 42㎡', addr:'Sunrise Residences, Pasay Blvd', tenant:'PT-1', status:'occupied', rent:30000, deposit:60000, ls:'2025-01-01', le:'2026-09-30', health:92, img:'unit-1608', desc:'高层转角单元，采光好。长期租客，历史付款准时；当前空调维修中。' },
@@ -862,6 +862,10 @@ const _defaultLoc = () => ((state.meta && state.meta.role) || 'secretary') === '
 if (typeof state.locale !== 'string') state.locale = (state.meta && state.meta.localeManual === true && state.meta.locale) ? state.meta.locale : _defaultLoc();
 state.locale = (state.locale === 'en' || state.locale === 'zh') ? state.locale : _defaultLoc();
 state.lang = state.locale;
+/* DESIGN-020 · PASAY-MINIAPP-DARK-THEME-001 · 主题偏好迁移：
+   默认跟随系统；旧持久化状态缺省回填，非法值归一为 system。 */
+if (!state.meta || typeof state.meta !== 'object') state.meta = {};
+if (['system', 'light', 'dark'].indexOf(state.meta.theme) === -1) state.meta.theme = 'system';
 if (!state.media) state.media = [];
 if (!state.guidance) state.guidance = { stages: {}, counts: {} };
 state.seq = state.seq || {};
