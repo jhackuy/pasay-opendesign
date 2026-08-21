@@ -4358,15 +4358,47 @@ function viewHome() {
   const outstanding = state.rents.reduce((a, r) => a + rentBalance(r), 0);
   const expPaid = state.expenses.filter(e => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
   const expToPay = state.expenses.filter(e => e.status === 'approved').reduce((a, e) => a + e.amount, 0);
-  /* ── Today：Task Engine 驱动 + 去重（同一相关对象只出现一次；已迁移进 Operation 的不再作为独立待办） ── */
-  const activeTasks = state.tasks.filter(t => t.status !== 'done' && !t.migratedAction);
+  /* ── PASAY-TASK-012-FIX1 · Home Needs You = Operation current-action 主 authority ──
+     Home 与 Action Queue 共用同一 truth（state.operations → opNextIsMine），
+     不再过滤掉 migratedAction 的真实 current action；
+     legacy 未迁移 Task 仅作 fallback（去重 · 不重复/抢占同一 Operation current action）。 */
   const me = roleIs('owner') ? 'owner' : 'secretary';
-  /* ── Needs You：当前角色真人必须介入的事项（指向单一 business truth） ── */
   const needsYou = [];
   const seen = {};
+  const _homeHrefForOp = (o) => {
+    const u = o.domain && o.domain.unit ? (o.domain.unit) : '';
+    if (o.kind === 'expense' || o.kind === 'settle_expense') { const e = opExpense(o); return e ? '#/expense/' + e.id : '#/op/' + o.id; }
+    if (o.kind === 'repair') { const rp = opRepair(o); return rp ? '#/repair/' + rp.id : '#/op/' + o.id; }
+    if (o.kind === 'collect_rent') { const rid = o.domain && o.domain.rent_id; return rid ? '#/rent/' + rid : '#/op/' + o.id; }
+    if (o.kind === 'lease_renewal') { const l = opLease(o); return l ? '#/rent/' + (o.domain && o.domain.unit ? o.domain.unit : '') : '#/op/' + o.id; }
+    return '#/op/' + o.id;
+  };
+  const _homeTitleForOp = (o) => {
+    const zh = state.lang === 'zh';
+    if (o.kind === 'repair') return opRepairTitle(o);
+    if (o.kind === 'collect_rent') { const rid = o.domain && o.domain.rent_id; const ob = rid ? rentById(rid) : null; return (zh ? '租金 ' : 'Rent ') + (o.domain && o.domain.unit ? o.domain.unit : '') + (ob ? ' · ' + money(ob.amount_due !== undefined ? ob.amount_due : ob.amount) : ''); }
+    if (o.next_action_code === 'approve_quote') return (zh ? '审批维修报价 ' : 'Approve repair quote ') + (o.domain && o.domain.unit ? o.domain.unit : '');
+    return opNextCopy(o);
+  };
+  /* Operation 投影（主） */
+  state.operations.forEach(o => {
+    if (!opNextIsMine(o)) return;
+    const k = 'op:' + o.id;
+    if (seen[k]) return;
+    seen[k] = 1;
+    needsYou.push({
+      title: _homeTitleForOp(o),
+      sub: (o.next_actor === 'owner' ? 'Owner' : 'Secretary') + ' · ' + opNextCopy(o),
+      href: _homeHrefForOp(o),
+      chip: escChip(o),
+      pri: (o.priority === 'high' ? priChip('high') : '')
+    });
+  });
+  /* legacy 未迁移 Task fallback（不含 migratedAction · 不覆盖 Operation current action） */
+  const activeTasks = state.tasks.filter(t => t.status !== 'done' && !t.migratedAction);
   activeTasks.filter(t => t.assignee === me).forEach(t => {
     const k = t.related || t.type;
-    if (seen[k]) return;
+    if (seen[k] || seen['op:' + (t.tzOp || 'op:' + k)]) return;
     seen[k] = 1;
     const ent = openTask(t.object);
     const href = ent ? '#/' + (ent.kind === 'expense' ? 'expense' : ent.kind === 'rent' ? 'rent' : ent.kind === 'repair' ? 'repair' : 'property') + '/' + entityRef(ent) : '#/op/' + (t.tzOp || '');
