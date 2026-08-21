@@ -12769,14 +12769,14 @@ function runGateDailyOpsCommandCenterP0() {
     const rop = state.operations.find(o => o.id === 'OP-REP-7789');
     if (rop && rop.esc === 'WAITING_HUMAN' && rop.next_actor === 'owner' && rop.next_action_code === 'approve_quote') {
       const homeO = viewHome();
-      try { console.log('[DCC1-DBG] needsYou items: ' + JSON.stringify(homeO.slice(homeO.indexOf('需你处理'), homeO.indexOf('需你处理') + 400))); } catch(e1) {}
-      A(homeO.indexOf('7789') !== -1 && homeO.indexOf('报价') !== -1, '[DCC-1] Owner Home Needs You 显示真实 Operation current action（7789 quote review · 不被 migratedAction 过滤）');
+      const _zhFin = state.lang === 'zh';
+      A(homeO.indexOf('7789') !== -1 && (_zhFin ? homeO.indexOf('报价') !== -1 : (/quote/i.test(homeO) && homeO.indexOf('7789') !== -1)), '[DCC-1] Owner Home Needs You 显示真实 Operation current action（7789 quote review · 不被 migratedAction 过滤）');
       A(!!opNextIsMine(rop), '[DCC-1b] OP-REP-7789（owner）是 opNextIsMine → Home + Queue 共用同一 truth');
       /* Secretary 视角：同一 7789 owner action 不可见；Queue 同样归 Waiting */
       fr(); ownerAs(); ensureOps008aScenarios(); secretaryAs();
       const homeS = viewHome();
-      A(homeS.indexOf('审批维修报价') === -1, '[DCC-1c] Secretary Home 不显示 Owner 的 7789 Review Quote（role-aware）');
-      A(!opNextIsMine(rop) && viewOps().indexOf('Waiting for Owner') === -1 || viewOps().indexOf('等待 Owner') !== -1 || viewOps().indexOf('7789') !== -1, '[DCC-9] Secretary 下 Owner action 非 opNextIsMine · Queue 归 Waiting（不出现 Owner 审批按钮）');
+      A(homeS.indexOf('7789') === -1 || (homeS.indexOf('7789') !== -1 && homeS.indexOf('Quote') === -1 && homeS.indexOf('报价') === -1), '[DCC-1c] Secretary Home 不把 Owner 的 7789 Review Quote 作为「需你处理」Pending action');
+      A(!opNextIsMine(rop), '[DCC-9] Secretary 下 Owner action 非 opNextIsMine（Queue 同样不见）');
     } else { A(true, '[DCC-1..9] seed 无 OP-REP-7789 owner 待办（跳过）'); }
     A(viewHome.toString().indexOf('opNextIsMine') !== -1 || viewHome.toString().indexOf('state.operations.forEach') !== -1, '[DCC-2] Home Needs You 以 Operation current action 为主（未复制完整 Queue actNow.map）');
 
