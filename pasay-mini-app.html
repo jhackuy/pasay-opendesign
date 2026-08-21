@@ -1338,7 +1338,22 @@ function rentProperty(r) {
 const exp = id => state.expenses.find(e => e.id === id);
 const rep = id => state.repairs.find(r => r.id === id);
 const task = id => state.tasks.find(t => t.id === id);
-/* paidAmt / pendAmt 已迁移到 PASAY-TASK-008 派生层（见上 r.payments 不再被读写） */
+/* PASAY-TASK-013 · FIX · Repair relation authority = Property.id（PRP-xxxx）。
+   repairProperty(r)：Repair 主记录优先经 repair.property_id 解析到 Property（禁止同 unit 串房）；
+   legacy seed Repair 无 property_id 时在 unit 唯一时安全回退 prop(r.unit)，同 unit 多 Property 时不猜。
+   repairsForProp / openRepairsForProp：按 property_id 过滤（legacy 无 property_id 时经 unit 唯一回退）。 */
+function repairProperty(r) {
+  if (!r) return null;
+  if (r.property_id) { const p1 = propById(r.property_id); if (p1) return p1; }
+  if (r.unit) {
+    const mp = state.props.filter(p => p.unit === r.unit);
+    return mp.length === 1 ? mp[0] : null;   /* unit 唯一才安全回退；同 unit 多 Property 不猜 */
+  }
+  return null;
+}
+const _repairPropId = r => (r && r.property_id) ? r.property_id : (repairProperty(r) ? repairProperty(r).id : null);
+const repairsForProp = propId => state.repairs.filter(r => _repairPropId(r) === propId);
+const openRepairsForProp = propId => repairsForProp(propId).filter(r => ['reported','assigned','in_progress','waiting_parts'].includes(r.status));
 const openRepairs = u => state.repairs.filter(r => r.unit === u && ['reported','assigned','in_progress','waiting_parts'].includes(r.status));
 const repairsFor = u => state.repairs.filter(r => r.unit === u);
 const expensesFor = u => state.expenses.filter(e => e.unit === u);
@@ -1975,7 +1990,7 @@ function propertyStatusDot(p) {
   const r = rentByUnit(p.unit);
   const overdue = r && r.status === 'overdue';
   const partial = r && r.status === 'partial';
-  const openRep = openRepairs(p.unit).length > 0;
+  const openRep = openRepairsForProp(p.id).length > 0;
   const expiring = p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30;
   if (overdue) return '<span class="chip" style="background:color-mix(in oklch, var(--crit) 14%, transparent);color:var(--crit);border-color:color-mix(in oklch, var(--crit) 30%, var(--border))">🔴 ' + (zh ? '租金逾期' : 'Rent overdue') + '</span>';
   if (openRep && partial) return '<span class="chip" style="background:color-mix(in oklch, var(--warn) 14%, transparent);color:var(--warn);border-color:color-mix(in oklch, var(--warn) 30%, var(--border))">🟡 ' + (zh ? '维修 + 尾款' : 'Repair + balance') + '</span>';
@@ -1992,7 +2007,7 @@ function propertyRowSub(p) {
   const r = rentByUnit(p.unit);
   const overdue = r && r.status === 'overdue';
   const partial = r && r.status === 'partial';
-  const openRep = openRepairs(p.unit).length > 0;
+  const openRep = openRepairsForProp(p.id).length > 0;
   const expiring = p.le && daysSince(p.le) < 0 && daysSince(p.le) > -30;
   if (overdue) {
     const days = (r.due ? daysSince(r.due) : 0);
@@ -2018,8 +2033,8 @@ function propertyActiveOps(p) {
   } else if (r && r.status === 'partial') {
     ops.push({ level: 'warn', icon: 'clock', title: r.unit + ' · ' + (zh ? '尾款未清' : 'Balance not cleared'), sub: (zh ? '继续跟进 · AI 暂无需升级' : 'keep following · AI not escalating'), href: '#/rent/' + r.id });
   }
-  /* Open repairs → 来自 state.repairs */
-  const reps = repairsFor(p.unit).filter(r2 => ['reported','assigned','in_progress','waiting_parts'].includes(r2.status));
+  /* Open repairs → 来自 state.repairs（按 Property.id 隔离 · 同 unit 双 Property 不串房） */
+  const reps = openRepairsForProp(p.id);
   reps.forEach(rp => {
     ops.push({ level: 'warn', icon: 'wrench', title: rp.id + ' · ' + rp.issue, sub: (zh ? '维修进行中' : 'Repair in progress'), href: '#/repair/' + rp.id });
   });
@@ -4663,7 +4678,7 @@ function viewProperty(u, tab) {
     leaseBlocks +
     sec(state.lang==='zh'?'合同文件':'Lease documents') + '<div style="display:flex;gap:8px;padding:0 16px;flex-wrap:wrap"><span class="attach">' + ic('doc', 15) + (activeL ? activeL.lease_id : 'Lease') + '.pdf · ' + (lsDate || '') + '</span><span class="attach">' + ic('doc', 15) + 'Deposit-receipt.pdf</span><span class="attach" style="border-style:dashed;color:var(--accent);border-color:color-mix(in oklch, var(--accent) 40%, var(--border))">' + ic('plus', 14) + (state.lang==='zh'?'上传':'Upload') + '</span></div>';
   } else if (tb[0] === 'repair') {
-    const list = repairsFor(p.unit);
+    const list = repairsForProp(p.id);   /* Repair relation authority = Property.id（PRP-xxxx）· 同 unit 双 Property 不串房 */
     const rows = list.map(r => '<div class="row" data-a="nav" data-href="#/repair/' + r.id + '" data-od-id="repair-row-' + r.id + '"><div class="row-main"><div class="row-l1"><b style="font-size:13.5px">' + r.id + '</b><span class="sub">' + r.issue + '</span></div><div class="row-l2">' + (r.assignee ? assigneeLabel(r.assignee) : (state.lang==='zh'?'未指派':'unassigned')) + ' · ' + fmtDate(r.at) + '</div></div><div class="row-r">' + repChip(r) + ic('chev', 15) + '</div></div>').join('');
     body = sec(state.lang==='zh'?'维修记录':'Repairs') + '<div class="list">' + (rows || emptyState('wrench', state.lang==='zh'?'暂无维修记录':'No repairs', '')) + '</div>';
   } else if (tb[0] === 'exp') {
@@ -5076,7 +5091,7 @@ function openRepsCount() { return state.repairs.filter(r => !['completed', 'clos
 
 function viewRepair(id) {
   const r = rep(id); if (!r) return viewReps(new URLSearchParams());
-  const p = prop(r.unit);
+  const p = repairProperty(r) || prop(r.unit);   /* Repair relation authority = Property.id（PRP-xxxx）· legacy unit fallback */
   const canOps = roleIs('secretary');
   let actions = '';
   if (r.status === 'reported') actions = canOps ? '<div class="appr-bar" data-od-id="repair-actions"><div class="ab-t"><b>' + (state.lang==='zh'?'下一步：指派维修人':'Next: assign someone') + '</b><br><span class="meta">' + (state.lang==='zh'?'指派后进入已指派':'assignment moves it to Assigned') + '</span></div><select class="select" id="rep-assignee" style="width:190px;height:38px;font-size:13px">' + Object.keys(ASSIGNEES).map(a => '<option value="' + a + '">' + (state.lang==='zh'?ASSIGNEES[a].zh:ASSIGNEES[a].en) + '</option>').join('') + '</select><button class="btn btn-p sm" data-a="assign-repair" data-id="' + r.id + '">' + (state.lang==='zh'?'指派':'Assign') + '</button></div>' : '<div class="banner info" style="margin:10px 16px 0">' + ic('clock', 17) + '<div>' + (state.lang==='zh'?'已上报 · AI 建议指派承包商':'Reported — AI suggests assigning a contractor') + '</div></div>';
@@ -7566,7 +7581,8 @@ const __odClickHandler = function(e) {
     const unit = $('#rr-unit').value || null; const issue = $('#rr-issue').value.trim(); const desc = $('#rr-desc').value.trim(); const pri = document.querySelector('[data-a="pri-seg"].on') ? document.querySelector('[data-a="pri-seg"].on').dataset.p : 'medium';
     if (!issue) { toast((state.lang==='zh'?'请填写问题描述':'issue required')); return; }
     const id = 'REP-' + fmtId4(uid('rep'));
-    state.repairs.unshift({ id, unit, issue, desc, priority: pri, status: 'reported', assignee: null, photos: null, by: 'Secretary', at: TODAY, relatedExpenses: [], nextAction: '', tl: [{ code: 'REPAIR_REPORTED', actor: 'secretary', entity_type: 'repair', entity_id: id, metadata: { ref: id }, at: TODAY }] });
+    const _rrProp = (function(){ const mp = state.props.filter(p => p.unit === unit); return mp.length === 1 ? mp[0] : (mp.find(p => p.id === (el.dataset && el.dataset.propertyId)) || null); })();
+    state.repairs.unshift({ id, unit, property_id: _rrProp ? _rrProp.id : null, issue, desc, priority: pri, status: 'reported', assignee: null, photos: null, by: 'Secretary', at: TODAY, relatedExpenses: [], nextAction: '', tl: [{ code: 'REPAIR_REPORTED', actor: 'secretary', entity_type: 'repair', entity_id: id, metadata: { ref: id }, at: TODAY }] });
     const tid = 'T-' + uid('task');
     state.tasks.unshift({ id: tid, type: 'arrange_repair', subject: '', object: { kind: 'repair', id }, assignee: 'secretary', status: 'todo', priority: pri, due: TODAY, nextAction: '', source: 'system', related: id, tl: [], reminder: { state: 'active', snoozeUntil: null, lastAt: null } });
     addEvent('REPAIR_REPORTED', roleIs('owner') ? 'owner' : 'secretary', 'repair', id, { ref: id });
