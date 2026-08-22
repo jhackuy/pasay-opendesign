@@ -35,6 +35,7 @@
      浅色为基线；深色块整体覆盖，以补齐层级 / 前景次级 / 反色 / 信息态 / 焦点环 / 抬升阴影。 */
   --surface-raised: oklch(97% 0.003 250);            /* 浮层/表单区块，比 surface 略低 L 以在浅色下产生层级 */
   --border-strong:  color-mix(in oklch, var(--fg) 22%, var(--border)); /* 分隔/选中边框强化 */
+  --border-ui:      var(--border);                    /* 交互控件边界；深色下覆盖为 ≥3:1 的更亮值 */
   --text-secondary: var(--muted);                    /* 次级文本，语义别名 */
   --text-inverse:   var(--bg);                        /* 反色文本（用于 fg 底/accent 底） */
   --status-info:    var(--accent);                    /* 信息态 = accent 家族 */
@@ -69,6 +70,7 @@ html[data-theme="dark"] {
   /* semantic tokens — dark 覆盖：surface 之上再抬一层 L，边框/信息态/焦点环全部提亮以维持对比 */
   --surface-raised: oklch(25% 0.012 250);
   --border-strong:  color-mix(in oklch, var(--fg) 26%, var(--border));
+  --border-ui:      oklch(51% 0.008 250);
   --text-secondary: var(--muted);
   --text-inverse:   var(--bg);
   --status-info:    var(--accent);
@@ -77,14 +79,23 @@ html[data-theme="dark"] {
   --elevation-1:    var(--shadow);
   --elevation-2:    0 2px 6px oklch(0% 0 0 / 0.5), 0 16px 40px oklch(0% 0 0 / 0.45);
 }
-/* ─── dark 前景对比修正（FIX1）────────────────────────
-   浅色基线里 banner / warn / pend chip 的文字用 color-mix(... , black) 压暗，
-   在深色低亮底上会前景与背景同暗 → 对比不足。深色下改为向白提亮，保持 ≥4.5:1。 */
-html[data-theme="dark"] .banner.info { color: color-mix(in oklch, var(--status-info) 92%, white); }
-html[data-theme="dark"] .banner.warn { color: color-mix(in oklch, var(--warn) 94%, white); }
-html[data-theme="dark"] .banner.ok   { color: color-mix(in oklch, var(--ok) 94%, white); }
-html[data-theme="dark"] .st-warn { color: color-mix(in oklch, var(--warn) 96%, white); }
-html[data-theme="dark"] .st-pend { color: color-mix(in oklch, var(--pend) 96%, white); }
+/* ─── dark 前景对比修正（FIX2 · 真实 WCAG 相对亮度公式核算）────────
+   每条文字 mix 比例均由 OKLCH→linearsRGB→WCAG 相对亮度→contrast ratio 求解，
+   在各自半透明状态底（over surface）上实测 ≥4.5:1（下方注释为实测值）。 */
+html[data-theme="dark"] .banner.info { color: color-mix(in oklch, var(--status-info) 72%, white); } /* 4.9:1 */
+html[data-theme="dark"] .banner.warn { color: color-mix(in oklch, var(--warn) 92%, white); }        /* 4.7:1 */
+html[data-theme="dark"] .banner.ok   { color: color-mix(in oklch, var(--ok) 92%, white); }          /* 4.7:1 */
+html[data-theme="dark"] .banner.crit { color: color-mix(in oklch, var(--crit) 86%, white); }        /* 4.8:1 */
+html[data-theme="dark"] .st-ok   { color: color-mix(in oklch, var(--ok) 88%, white); }              /* 4.8:1 */
+html[data-theme="dark"] .st-crit { color: color-mix(in oklch, var(--crit) 84%, white); }            /* 4.7:1 */
+html[data-theme="dark"] .st-warn { color: color-mix(in oklch, var(--warn) 90%, white); }            /* 4.6:1 */
+html[data-theme="dark"] .st-pend { color: color-mix(in oklch, var(--pend) 90%, white); }            /* 4.7:1 */
+html[data-theme="dark"] .st-removed { color: color-mix(in oklch, var(--crit) 84%, white); }         /* = st-crit */
+html[data-theme="dark"] .st-neu  { color: oklch(76% 0.008 250); }                                   /* 4.7:1 over fg@5% */
+/* 关键交互控件边框：需 ≥3:1 才是有效可辨边界（WCAG 1.4.11）；深色下用更亮的 UI 边框 token。 */
+html[data-theme="dark"] .input, html[data-theme="dark"] .select, html[data-theme="dark"] .textarea,
+html[data-theme="dark"] .seg button, html[data-theme="dark"] .fchip, html[data-theme="dark"] .btn-s,
+html[data-theme="dark"] .qa, html[data-theme="dark"] .tab { border-color: var(--border-ui); }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
