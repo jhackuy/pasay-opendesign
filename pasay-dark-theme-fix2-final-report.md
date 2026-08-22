@@ -57,9 +57,10 @@
 - 未进入 TRAE；未新增其他视觉方案（仅 modern-minimal 单一方向的深浅两套 token）。
 
 ## 四、最新 commit SHA
-- **commit SHA = `1f099cd`**（`chore(opendesign): auto sync 2026-08-22 11:14:09`，分支 `main`，已同步 `origin/main`）。
-- 本任务 4 个文件均已进入版本库并跟踪：`pasay-mini-app.html`、`pasay-theme-before-after-board.html`、`pasay-dark-qa-390-430.html`、本报告。工作树干净，无未提交改动。
-- 远端：`origin https://github.com/jhackuy/pasay-opendesign.git`。直接发帖到 GitHub Issue #21 需在已登录的 `gh` 环境执行；当前仅做报告回填，未发起外部发帖（如需代为发帖请告知）。
+- **commit SHA = `45157ad`**（DESIGN-020-FIX2 全部交付的当前 `main` 状态；分支 `main`，远端 `origin https://github.com/jhackuy/pasay-opendesign.git`）。本报告提交后，最新 SHA 变为本报告自身的 commit。
+- 任务交付文件均进入版本库：`pasay-mini-app.html`、`pasay-theme-before-after-board.html`、`pasay-dark-qa-390-430.html`、`browser-qa-390-430.js`、`browser-qa-390-430.json`、本报告。
+- 证据口径：390/430 以**真实执行证据**为权威——`browser-qa-390-430.json`（实跑真实 view 函数输出，**32/32 PASS**，含目标 Home/Property/Queue/Finance/Detail × 390/430 共 10 项全 PASS）+ 0 固定宽扫描 + safe-area/货币静态核验。本运行环境无法产出真实浏览器截图（OD 快照早于 QA 异步完成、规范禁止自行启动浏览器），此限制已在第二节如实注明。
+- 本报告同时作为 Issue #21 的关闭评论提交。
 
 ---
 
