@@ -13622,22 +13622,6 @@ window.__OD_RUN_GATES = function() {
       var de = document.documentElement;
       de.setAttribute('data-theme','dark');
       var app = document.getElementById('app');
-      // Seed a realistic workspace so all core pages render with data (mirrors the validated
-      // browser-qa-390-430.js). Runs AFTER app boot (post-load), so all top-level consts are live.
-      try {
-        state = seed(); state.leases = []; state.paymentRecords = []; state.lang = 'zh'; __isFreshSeed = true;
-        if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
-        if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
-        if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
-        if (typeof __odRebuildPaymentRecords === 'function') __odRebuildPaymentRecords();
-        if (typeof ensureOps008aScenarios === 'function') ensureOps008aScenarios();
-        if (typeof ensureLeaseOperationSeed === 'function') ensureLeaseOperationSeed();
-        if (typeof ensureMoveOutOperationSeed === 'function') ensureMoveOutOperationSeed();
-        if (typeof syncOperationTasks === 'function') syncOperationTasks();
-        if (typeof wsResetFresh === 'function') wsResetFresh();
-        if (typeof wsCreateWorkspace === 'function') wsCreateWorkspace('QA Co','qa-owner');
-        if (typeof ws === 'function') { var ow = ws().members.find(function(m){return m.role==='owner'&&m.status==='active';}); if (ow) state.currentUserId = ow.userId; }
-      } catch (seedErr) { /* seed best-effort; continue to measure */ }
       var ROUTES = [['Home','#/home'],['Property','#/props'],['Queue','#/ops'],['Finance','#/finance'],['Detail','#/property/1608']];
       var WIDTHS = [390,430];
       var tb = document.getElementById('__qa_tb');
@@ -13704,22 +13688,25 @@ window.__OD_RUN_GATES = function() {
       window.__QA_ALLPASS = false;
     }
   }
-  // Run only after the app has fully booted and initialized its own state (its init runs on
-  // DOMContentLoaded / load). Chain rAF + a short delay so app globals (const HUMAN_ACTORS etc.)
-  // and initial state are fully live before we drive render(). The export idle-wait covers this.
+  // Run only after the app has fully booted: its top-level IIFE init() calls render() synchronously,
+  // so once #app contains the bottom nav, all module consts (HUMAN_ACTORS etc.) and internal state
+  // are initialized. We drive navigation via the app's PUBLIC interface (location.hash + global
+  // render(), which closes over the app's real internal seeded state) — no cross-scope seeding.
+  function appBooted(){
+    var app = document.getElementById('app');
+    return app && app.querySelector('nav.nav .nav-i') && (typeof render === 'function');
+  }
   function schedule(){
     var tries = 0;
     (function tick(){
       tries++;
-      // ready when render + state exist and app has content OR we've waited enough
-      var ready = (typeof render === 'function') && (typeof state !== 'undefined') && state && document.getElementById('app');
-      if (ready) { run(); return; }
-      if (tries > 120) { try { run(); } catch(e){} return; }
+      if (appBooted()) { run(); return; }
+      if (tries > 240) { run(); return; } // give up waiting; run to surface real error
       requestAnimationFrame(tick);
     })();
   }
-  if (document.readyState === 'complete') { setTimeout(schedule, 120); }
-  else { window.addEventListener('load', function(){ setTimeout(schedule, 120); }); }
+  if (document.readyState === 'complete') { schedule(); }
+  else { window.addEventListener('load', schedule); }
 })();
 </script>
 
