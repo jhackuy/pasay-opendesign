@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PASAY Mini App · Light vs Dark 对照板（DARK-THEME-001-FIX1）</title>
+<style>
+  :root {
+    --bg: oklch(97% 0.003 250);
+    --panel: oklch(100% 0 0);
+    --fg: oklch(20% 0.012 250);
+    --muted: oklch(52% 0.012 250);
+    --border: oklch(90% 0.005 250);
+    --accent: oklch(58% 0.18 255);
+    --ok: oklch(52% 0.13 152);
+    --crit: oklch(54% 0.19 27);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --serif: 'Iowan Old Style', 'Charter', Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+  header { padding: 28px 32px 20px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+  h1 { font-family: var(--serif); font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; max-width: 720px; }
+  .wrap { padding: 24px 32px 64px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 22px; }
+  .toolbar .lbl { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-right: 4px; }
+  .rbtn { height: 34px; padding: 0 13px; border: 1px solid var(--border); background: var(--panel); border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .rbtn:hover { border-color: color-mix(in oklch, var(--accent) 40%, var(--border)); }
+  .rbtn.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 880px) { .pair { grid-template-columns: 1fr; } }
+  .col { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+  .col.dark { background: oklch(15% 0.01 250); border-color: oklch(30% 0.008 250); }
+  .col-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .col-t { font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+  .col.dark .col-t { color: oklch(94% 0.004 250); }
+  .swatchdot { width: 12px; height: 12px; border-radius: 50%; }
+  .badge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; background: color-mix(in oklch, var(--accent) 12%, transparent); color: var(--accent); }
+  .col.dark .badge { background: color-mix(in oklch, oklch(72% 0.16 255) 20%, transparent); color: oklch(80% 0.14 255); }
+  .frame-shell { display: grid; place-items: center; }
+  iframe { width: 390px; height: 720px; border: 0; border-radius: 22px; background: transparent; box-shadow: 0 10px 40px oklch(20% 0.02 250 / 0.14); }
+  .col.dark iframe { box-shadow: 0 10px 40px oklch(0% 0 0 / 0.5); }
+  .caption { margin-top: 10px; font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; }
+  .col.dark .caption { color: oklch(66% 0.008 250); }
+
+  section.qa { margin-top: 44px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; }
+  section.qa h2 { font-family: var(--serif); font-size: 21px; margin: 0 0 4px; letter-spacing: -0.015em; }
+  section.qa .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td.mono { font-family: var(--mono); font-size: 12px; }
+  .pass { color: var(--ok); font-weight: 700; }
+  .fix { color: var(--accent); font-weight: 700; }
+  .chip-pass { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; background: color-mix(in oklch, var(--ok) 13%, transparent); color: color-mix(in oklch, var(--ok) 88%, black); }
+  .tokgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 6px; }
+  .tokcard { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .tokcard .n { font-family: var(--mono); font-size: 12px; font-weight: 700; }
+  .tokcard .d { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .sw { display: flex; gap: 6px; margin-top: 8px; }
+  .sw span { flex: 1; height: 26px; border-radius: 6px; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<header data-od-id="board-header">
+  <p class="eyebrow">DESIGN-020 · Issue #21 · PASAY-MINIAPP-DARK-THEME-001-FIX1</p>
+  <h1>Light vs Dark 主题对照板</h1>
+  <p>同一套 Mini App（<code>pasay-mini-app.html</code>）在浅色与深色下的逐屏对照。左浅右深，均为真实运行的应用实例，只切换 <code>&lt;html data-theme&gt;</code>；IA、组件结构、业务逻辑、Bottom Nav、权限、Telegram 全部 0 change。</p>
+</header>
+
+<div class="wrap">
+  <div class="toolbar" data-od-id="board-toolbar">
+    <span class="lbl">切换页面 ·</span>
+    <button class="rbtn on" data-route="#/home">首页 Home</button>
+    <button class="rbtn" data-route="#/properties">房产 Properties</button>
+    <button class="rbtn" data-route="#/finance">财务 Finance</button>
+    <button class="rbtn" data-route="#/queue">审批队列 Queue</button>
+    <button class="rbtn" data-route="#/more">更多 More</button>
+  </div>
+
+  <div class="pair" data-od-id="board-pair">
+    <div class="col light" data-od-id="board-col-light">
+      <div class="col-h">
+        <span class="col-t"><span class="swatchdot" style="background:oklch(99% 0.002 240);border:1px solid var(--border)"></span>Light（浅色基线）</span>
+        <span class="badge">data-theme=light</span>
+      </div>
+      <div class="frame-shell"><iframe id="fLight" title="Pasay Light" src="pasay-mini-app.html#/home"></iframe></div>
+      <div class="caption">bg 99% · surface 100% · fg 18% · accent 58%/255</div>
+    </div>
+    <div class="col dark" data-od-id="board-col-dark">
+      <div class="col-h">
+        <span class="col-t"><span class="swatchdot" style="background:oklch(17% 0.012 250)"></span>Dark（深色）</span>
+        <span class="badge">data-theme=dark</span>
+      </div>
+      <div class="frame-shell"><iframe id="fDark" title="Pasay Dark" src="pasay-mini-app.html#/home"></iframe></div>
+      <div class="caption">bg 17% · surface 21% · surface-raised 25% · fg 94% · accent 72%/255</div>
+    </div>
+  </div>
+
+  <section class="qa" data-od-id="board-tokens">
+    <h2>新增 Semantic Theme Tokens</h2>
+    <p class="sub">全部由 6 个基础 token 派生（oklch / color-mix / var），深浅两套值，无裸色。</p>
+    <div class="tokgrid">
+      <div class="tokcard"><div class="n">--surface-raised</div><div class="d">浮层层级（Sheet / Modal 底）</div><div class="sw"><span style="background:oklch(97% 0.003 250)"></span><span style="background:oklch(25% 0.012 250)"></span></div></div>
+      <div class="tokcard"><div class="n">--border-strong</div><div class="d">强化分隔 / 选中边框</div><div class="sw"><span style="background:oklch(76% 0.006 250)"></span><span style="background:oklch(43% 0.008 250)"></span></div></div>
+      <div class="tokcard"><div class="n">--text-secondary</div><div class="d">次级文本语义别名（= muted）</div><div class="sw"><span style="background:oklch(54% 0.012 250)"></span><span style="background:oklch(66% 0.008 250)"></span></div></div>
+      <div class="tokcard"><div class="n">--text-inverse</div><div class="d">反色文本（Toast / 选中态）</div><div class="sw"><span style="background:oklch(99% 0.002 240)"></span><span style="background:oklch(17% 0.012 250)"></span></div></div>
+      <div class="tokcard"><div class="n">--status-info / -bg</div><div class="d">信息态（accent 家族）</div><div class="sw"><span style="background:oklch(58% 0.18 255)"></span><span style="background:oklch(72% 0.16 255)"></span></div></div>
+      <div class="tokcard"><div class="n">--focus-ring</div><div class="d">键盘焦点环（accent 55/62% 混透明）</div><div class="sw"><span style="background:oklch(58% 0.18 255)"></span><span style="background:oklch(72% 0.16 255)"></span></div></div>
+      <div class="tokcard"><div class="n">--elevation-1 / -2</div><div class="d">抬升阴影（卡片 / 浮层）</div><div class="sw"><span style="background:oklch(90% 0.005 250)"></span><span style="background:oklch(10% 0.01 250)"></span></div></div>
+    </div>
+  </section>
+
+  <section class="qa" data-od-id="board-qa">
+    <h2>Dark QA 证据</h2>
+    <p class="sub">WCAG 对比以 OKLch L 通道差为代理并按相对亮度阈值核算；所有值取深色下最坏情况。</p>
+    <table>
+      <thead><tr><th>检查项</th><th>目标</th><th>深色实测</th><th>结论</th></tr></thead>
+      <tbody>
+        <tr><td>正文 fg / surface</td><td class="mono">≥4.5:1</td><td class="mono">L94% on L21% ≈ 12.4:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>次级 muted / surface</td><td class="mono">≥4.5:1</td><td class="mono">L66% on L21% ≈ 5.9:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>accent 文本 / surface</td><td class="mono">≥4.5:1</td><td class="mono">L72% on L21% ≈ 6.8:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>Finance KPI 数字 / surface</td><td class="mono">≥4.5:1</td><td class="mono">fg L94% / money-pos L72% ok</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>banner.info/warn/ok 文本</td><td class="mono">≥4.5:1</td><td class="mono">FIX：深色改向白混（92–94%）</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>st-warn / st-pend chip 文本</td><td class="mono">≥4.5:1</td><td class="mono">FIX：深色改向白混（96%）</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>边框 / 分隔（非文字）</td><td class="mono">≥3:1</td><td class="mono">border L30% / bg L17%</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>焦点环可见性</td><td class="mono">≥3:1</td><td class="mono">focus-ring accent 62% · 2px offset</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>Toast 反色</td><td class="mono">≥4.5:1</td><td class="mono">text-inverse on fg ≈ 12:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>触达目标</td><td class="mono">≥44px</td><td class="mono">.btn/.input/主题分段 = 44px</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>390px / 430px 横向溢出</td><td class="mono">0 overflow</td><td class="mono">shell max-width 430 · 无 fixed px 宽</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>硬编码颜色扫描</td><td class="mono">0 hex/rgb</td><td class="mono">全文件 0 处（全 token 驱动）</td><td><span class="chip-pass">PASS</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+  // 强制两侧 iframe 各自的主题，并同步页面路由。同源本地文件，可直接写 contentDocument。
+  var routes = { light: '#/home', dark: '#/home' };
+  function force(iframe, theme) {
+    try {
+      var doc = iframe.contentDocument;
+      if (!doc || !doc.documentElement) return;
+      doc.documentElement.setAttribute('data-theme', theme);
+    } catch (e) { /* 跨源保护：静默跳过 */ }
+  }
+  var fL = document.getElementById('fLight');
+  var fD = document.getElementById('fDark');
+  fL.addEventListener('load', function () { force(fL, 'light'); });
+  fD.addEventListener('load', function () { force(fD, 'dark'); });
+
+  document.querySelectorAll('.toolbar .rbtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.toolbar .rbtn').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      var r = b.getAttribute('data-route');
+      // 用 location.hash 触发 app 内路由，并在导航后重新强制主题
+      fL.contentWindow.location.hash = r; force(fL, 'light');
+      fD.contentWindow.location.hash = r; force(fD, 'dark');
+      setTimeout(function () { force(fL, 'light'); force(fD, 'dark'); }, 60);
+    });
+  });
+</script>
+</body>
+</html>
