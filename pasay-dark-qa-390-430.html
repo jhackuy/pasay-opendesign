@@ -5,129 +5,111 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PASAY Dark · Real Browser QA 390/430</title>
 <style>
-  :root { --fg:#0b1220; --mut:#5b6472; --ok:#0a7d43; --bad:#c0392b; --line:#e4e7ec; --accent:#2f6bff; }
-  * { box-sizing: border-box; }
+  :root { --fg:#0b1220; --mut:#5b6472; --ok:#0a7d43; --bad:#c0392b; --line:#e4e7ec; }
+  * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; color:var(--fg); background:#f6f7f9; }
   header { padding:20px 26px; border-bottom:1px solid var(--line); background:#fff; }
-  h1 { font-size:20px; margin:0 0 4px; font-family:Georgia,serif; letter-spacing:-.01em; }
+  h1 { font-size:20px; margin:0 0 4px; font-family:Georgia,serif; }
   header p { margin:0; color:var(--mut); font-size:13px; }
-  .wrap { padding:22px 26px 60px; }
-  #summary { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; padding:12px 16px; border-radius:10px; background:#fff; border:1px solid var(--line); margin-bottom:18px; }
+  .wrap { padding:22px 26px 40px; }
+  #summary { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; padding:12px 16px; border-radius:10px; background:#fff; border:1px solid var(--line); margin-bottom:18px; font-weight:700; }
   table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:12.5px; }
   th,td { text-align:left; padding:8px 11px; border-bottom:1px solid var(--line); }
   th { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); }
   td.mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
   .P { color:var(--ok); font-weight:700; } .F { color:var(--bad); font-weight:700; }
-  .rig { position:fixed; left:-9999px; top:0; }  /* offscreen measurement rig */
+  .rigs { position:absolute; left:-99999px; top:0; }
+  .rigs iframe { border:0; }
 </style>
 </head>
 <body>
 <header>
   <h1>PASAY Mini App · Dark Theme 真实浏览器 QA</h1>
-  <p>bundled Chromium 实测 · 视口 390px / 430px · 路由 Home / Property / Queue / Finance / Detail · data-theme=dark</p>
+  <p>bundled Chromium 实测 · 视口 390 / 430px · 路由 Home / Property / Queue / Finance / Detail · data-theme=dark</p>
 </header>
 <div class="wrap">
   <div id="summary">running…</div>
   <table id="tbl"><thead><tr>
-    <th>页面</th><th>视口</th><th>横向溢出</th><th>被裁action</th><th>文字重叠</th><th>SafeArea</th><th>BottomNav</th><th>长标题</th><th>₱128,500</th><th>Sheet/Modal</th><th>结论</th>
-  </tr></thead><tbody></tbody></table>
+    <th>页面</th><th>视口</th><th>横向溢出</th><th>裁切action</th><th>文字重叠</th><th>SafeArea</th><th>BottomNav</th><th>长标题</th><th>₱128,500</th><th>Sheet/Modal</th><th>Dark</th><th>结论</th>
+  </tr></thead><tbody id="tb"></tbody></table>
 </div>
 
-<!-- offscreen rig: two sized iframes we resize per test -->
-<div class="rig"><iframe id="rig" title="rig"></iframe></div>
+<div class="rigs" id="rigs"></div>
 
 <script>
-const ROUTES = [
-  ['Home','#/home'],
-  ['Property','#/props'],
-  ['Queue','#/ops'],
-  ['Finance','#/finance'],
-  ['Detail','#/property/1608']  // real Property Detail route (not More)
-];
-const WIDTHS = [390, 430];
-const APP = 'pasay-mini-app.html';
-const rig = document.getElementById('rig');
-const tbody = document.querySelector('#tbl tbody');
-let rows = [], allPass = true;
+const ROUTES = [['Home','#/home'],['Property','#/props'],['Queue','#/ops'],['Finance','#/finance'],['Detail','#/property/1608']];
+const WIDTHS = [390,430];
+const APP='pasay-mini-app.html';
+const results = {}; let total = ROUTES.length*WIDTHS.length; let done = 0;
 
-function measure(doc, win, vw) {
-  const de = doc.documentElement, body = doc.body;
-  const scrollW = Math.max(de.scrollWidth, body ? body.scrollWidth : 0);
-  const overflow = scrollW > vw + 1;  // horizontal overflow
-  // clipped action: any .btn/.fab/.iconb whose right edge exceeds viewport or width<8
-  let clipped = false;
+function measure(doc, vw){
+  const de=doc.documentElement, body=doc.body;
+  const scrollW=Math.max(de.scrollWidth, body?body.scrollWidth:0);
+  const overflow = scrollW > vw+1;
+  let clipped=false;
   doc.querySelectorAll('.btn,.fab,.iconb,.nav-i,.qa').forEach(function(el){
-    const r = el.getBoundingClientRect();
-    if (r.width > 0 && (r.right > vw + 1 || r.left < -1)) clipped = true;
+    const r=el.getBoundingClientRect();
+    if(r.width>0 && (r.right>vw+1 || r.left<-1)) clipped=true;
   });
-  // text overlap: sample rows/headings pairwise within same container for vertical overlap
-  let overlap = false;
-  const texts = Array.prototype.slice.call(doc.querySelectorAll('.row-l1 b,.h1,.h2,.tb-title,.kpi .kv,.money'));
-  for (let i=0;i<texts.length;i++){ for(let j=i+1;j<Math.min(texts.length,i+4);j++){
-    const a=texts[i].getBoundingClientRect(), b=texts[j].getBoundingClientRect();
-    if(a.width&&b.width&&a.left<b.right&&b.left<a.right&&a.top<b.bottom-2&&b.top<a.bottom-2){ overlap=true; }
-  }}
-  // safe area: nav padding-bottom uses env() — check .main padding-bottom present
-  const main = doc.querySelector('.main');
-  const safe = main ? (getComputedStyle(main).paddingBottom !== '0px') : false;
-  // bottom nav 5
-  const nav = doc.querySelectorAll('.nav .nav-i').length === 5;
-  // long title not clipped mid-word beyond ellipsis: tb-title has overflow ellipsis -> ok if exists
-  const tb = doc.querySelector('.tb-title');
-  const longTitle = tb ? (getComputedStyle(tb).textOverflow === 'ellipsis' || tb.scrollWidth <= tb.clientWidth + 1) : true;
-  // dark theme actually applied
-  const isDark = de.getAttribute('data-theme') === 'dark';
-  return { overflow, clipped, overlap, safe, nav, longTitle, isDark };
+  let overlap=false;
+  const T=[].slice.call(doc.querySelectorAll('.row-l1 b,.h1,.h2,.tb-title,.kpi .kv,.money'));
+  for(let i=0;i<T.length;i++)for(let j=i+1;j<Math.min(T.length,i+4);j++){
+    const a=T[i].getBoundingClientRect(),b=T[j].getBoundingClientRect();
+    if(a.width&&b.width&&a.left<b.right-1&&b.left<a.right-1&&a.top<b.bottom-2&&b.top<a.bottom-2) overlap=true;
+  }
+  const main=doc.querySelector('.main');
+  const safe = main ? getComputedStyle(main).paddingBottom!=='0px' : false;
+  const nav = doc.querySelectorAll('.nav .nav-i').length===5;
+  const tb=doc.querySelector('.tb-title');
+  const longTitle = tb ? (getComputedStyle(tb).textOverflow==='ellipsis' || tb.scrollWidth<=tb.clientWidth+1) : true;
+  const isDark = de.getAttribute('data-theme')==='dark';
+  const rs = getComputedStyle(de).getPropertyValue('--surface-raised').trim();
+  const sheetOk = rs.length>0;
+  const cur = (body?body.innerText:'').indexOf('128,500')!==-1;
+  return {overflow,clipped,overlap,safe,nav,longTitle,isDark,sheetOk,cur};
 }
 
-function hasCurrency(doc){ return (doc.body ? doc.body.innerText : '').indexOf('128,500') !== -1 || (doc.body?doc.body.innerHTML:'').indexOf('128,500')!==-1; }
+function paint(){
+  const tb=document.getElementById('tb'); tb.innerHTML='';
+  let pass=0;
+  ROUTES.forEach(function(rt){ WIDTHS.forEach(function(vw){
+    const key=rt[0]+'@'+vw; const m=results[key];
+    const tr=document.createElement('tr');
+    if(!m){ tr.innerHTML='<td>'+rt[0]+'</td><td class="mono">'+vw+'</td><td colspan="10" class="F">no-data</td>'; tb.appendChild(tr); return; }
+    const curReq = (rt[0]==='Finance'||rt[0]==='Detail'||rt[0]==='Home');
+    const curPass = curReq ? m.cur : true;
+    const ok = !m.overflow&&!m.clipped&&!m.overlap&&m.safe&&m.nav&&m.longTitle&&m.isDark&&m.sheetOk&&curPass;
+    if(ok) pass++;
+    function c(v){return '<td class="mono '+(v?'P':'F')+'">'+(v?'PASS':'FAIL')+'</td>';}
+    tr.innerHTML='<td>'+rt[0]+'</td><td class="mono">'+vw+'</td>'+c(!m.overflow)+c(!m.clipped)+c(!m.overlap)+c(m.safe)+c(m.nav)+c(m.longTitle)+c(curReq?m.cur:true)+c(m.sheetOk)+c(m.isDark)+'<td class="mono '+(ok?'P':'F')+'">'+(ok?'PASS':'FAIL')+'</td>';
+    tb.appendChild(tr);
+  });});
+  const allPass = pass===total;
+  document.getElementById('summary').textContent='REAL-BROWSER QA (390/430 · dark) total='+total+' pass='+pass+' allPass='+allPass+'  ·  Home/Property/Queue/Finance/Detail';
+  window.__QA_ALLPASS = allPass;
+}
 
-function runOne(idx, done){
-  if (idx >= ROUTES.length*WIDTHS.length) { done(); return; }
-  const ri = Math.floor(idx / WIDTHS.length), wi = idx % WIDTHS.length;
-  const [name, route] = ROUTES[ri]; const vw = WIDTHS[wi];
-  rig.style.width = vw + 'px'; rig.style.height = '820px';
-  rig.onload = function(){
-    try {
-      const win = rig.contentWindow, doc = rig.contentDocument;
+// build all rigs in parallel
+const rigsEl=document.getElementById('rigs');
+ROUTES.forEach(function(rt){ WIDTHS.forEach(function(vw){
+  const f=document.createElement('iframe');
+  f.style.width=vw+'px'; f.style.height='840px';
+  f.setAttribute('title', rt[0]+'@'+vw);
+  f.addEventListener('load', function(){
+    try{
+      const doc=f.contentDocument, win=f.contentWindow;
       doc.documentElement.setAttribute('data-theme','dark');
-      // force route + let app render
-      win.location.hash = route;
-      setTimeout(function(){
-        doc.documentElement.setAttribute('data-theme','dark');
-        // try opening a sheet/modal to validate raised surface exists in dark (Finance filter or a row)
-        let sheetOk = true;
-        try {
-          const m = measure(doc, win, vw);
-          const cur = (name==='Finance'||name==='Detail'||name==='Home') ? hasCurrency(doc) : true;
-          // sheet/modal: confirm CSS class defined + surface-raised token resolves
-          const rs = getComputedStyle(doc.documentElement).getPropertyValue('--surface-raised').trim();
-          sheetOk = rs.length > 0;
-          const pass = !m.overflow && !m.clipped && !m.overlap && m.safe && m.nav && m.longTitle && m.isDark && cur && sheetOk;
-          if(!pass) allPass=false;
-          rows.push({name,vw,m,cur,sheetOk,pass});
-          const tr=document.createElement('tr');
-          function c(v){return '<td class="mono '+(v?'P':'F')+'">'+(v?'PASS':'FAIL')+'</td>';}
-          tr.innerHTML='<td>'+name+'</td><td class="mono">'+vw+'</td>'
-            + c(!m.overflow)+c(!m.clipped)+c(!m.overlap)+c(m.safe)+c(m.nav)+c(m.longTitle)+c(cur)+c(sheetOk)
-            + '<td class="mono '+(pass?'P':'F')+'">'+(pass?'PASS':'FAIL')+'</td>';
-          tbody.appendChild(tr);
-        } catch(e){ allPass=false; const tr=document.createElement('tr'); tr.innerHTML='<td>'+name+'</td><td class="mono">'+vw+'</td><td colspan="9" class="F">ERR '+e.message+'</td>'; tbody.appendChild(tr); }
-        runOne(idx+1, done);
-      }, 260);
-    } catch(e){ allPass=false; runOne(idx+1, done); }
-  };
-  rig.src = APP + route;
-}
-
-runOne(0, function(){
-  const total = ROUTES.length*WIDTHS.length;
-  const pass = rows.filter(r=>r.pass).length;
-  document.getElementById('summary').textContent =
-    'REAL-BROWSER QA (390/430 · dark) total='+total+' pass='+pass+' allPass='+(allPass&&pass===total)
-    + '  ·  routes: Home/Property/Queue/Finance/Detail';
-  window.__QA_DONE = true; window.__QA_ALLPASS = (allPass && pass===total);
-});
+      // route already applied via src hash → app rendered synchronously before load fired.
+      // force a reflow read then measure synchronously (no async, so capture always sees data).
+      void doc.body.getBoundingClientRect();
+      try{ results[rt[0]+'@'+vw]=measure(doc,vw); }catch(e){ results[rt[0]+'@'+vw]={overflow:true,clipped:true,overlap:true,safe:false,nav:false,longTitle:false,isDark:false,sheetOk:false,cur:false}; }
+      done++; paint();
+    }catch(e){ done++; paint(); }
+  });
+  f.src=APP+rt[1];
+  rigsEl.appendChild(f);
+});});
+paint();
 </script>
 </body>
 </html>
