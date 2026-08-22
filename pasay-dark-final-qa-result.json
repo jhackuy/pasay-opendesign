@@ -1,0 +1,33 @@
+Exit code: 0
+Wall time: 0.1 seconds
+Output:
+{
+  "task": "PASAY-MINIAPP-DARK-THEME-FINAL-QA",
+  "browser": "Google Chrome",
+  "target": "pasay-dark-qa-390-430.html",
+  "project": {
+    "id": "c5fb3a39-c6d0-4003-9cee-66deb7a626a1",
+    "name": "pasay-rm"
+  },
+  "scope": {
+    "pages": ["Home", "Property", "Queue", "Finance", "Detail"],
+    "widths": [390, 430],
+    "total": 10
+  },
+  "result": {
+    "pass": 0,
+    "allPass": false,
+    "failedChecks": ["docOverflow", "瑁佸垏/鐭Е杈?],
+    "passedChecks": ["appOverflow", "鏂囧瓧閲嶅彔", "BottomNav5", "Dark", "leak"]
+  },
+  "mutations": {
+    "design": false,
+    "code": false,
+    "evidenceOnly": true
+  },
+  "evidence": [
+    "pasay-dark-qa-chrome-390.png",
+    "pasay-dark-qa-chrome-430.png"
+  ]
+}
+
