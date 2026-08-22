@@ -40,8 +40,8 @@
   .swatchdot { width: 12px; height: 12px; border-radius: 50%; }
   .badge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; background: color-mix(in oklch, var(--accent) 12%, transparent); color: var(--accent); }
   .col.dark .badge { background: color-mix(in oklch, oklch(72% 0.16 255) 20%, transparent); color: oklch(80% 0.14 255); }
-  .frame-shell { display: grid; place-items: center; }
-  iframe { width: 390px; height: 720px; border: 0; border-radius: 22px; background: transparent; box-shadow: 0 10px 40px oklch(20% 0.02 250 / 0.14); }
+  .frame-shell { display: grid; place-items: center; max-width: 100%; }
+  iframe { width: min(390px, 100%); height: 720px; border: 0; border-radius: 22px; background: transparent; box-shadow: 0 10px 40px oklch(20% 0.02 250 / 0.14); }
   .col.dark iframe { box-shadow: 0 10px 40px oklch(0% 0 0 / 0.5); }
   .caption { margin-top: 10px; font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; }
   .col.dark .caption { color: oklch(66% 0.008 250); }
