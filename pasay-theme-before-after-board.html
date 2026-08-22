@@ -75,10 +75,10 @@
   <div class="toolbar" data-od-id="board-toolbar">
     <span class="lbl">切换页面 ·</span>
     <button class="rbtn on" data-route="#/home">首页 Home</button>
-    <button class="rbtn" data-route="#/properties">房产 Properties</button>
+    <button class="rbtn" data-route="#/props">房产 Property</button>
+    <button class="rbtn" data-route="#/ops">审批队列 Queue</button>
     <button class="rbtn" data-route="#/finance">财务 Finance</button>
-    <button class="rbtn" data-route="#/queue">审批队列 Queue</button>
-    <button class="rbtn" data-route="#/more">更多 More</button>
+    <button class="rbtn" data-route="#/property/1608">房产详情 Detail</button>
   </div>
 
   <div class="pair" data-od-id="board-pair">
@@ -116,21 +116,24 @@
 
   <section class="qa" data-od-id="board-qa">
     <h2>Dark QA 证据</h2>
-    <p class="sub">WCAG 对比以 OKLch L 通道差为代理并按相对亮度阈值核算；所有值取深色下最坏情况。</p>
+    <p class="sub">对比度用真实 WCAG 相对亮度公式核算：OKLCH → OKLab → 线性 sRGB → 相对亮度 → contrast ratio（半透明状态底按 alpha 合成到 surface 后计算）；下列为深色下实测比值，非 L 差值代理。</p>
     <table>
       <thead><tr><th>检查项</th><th>目标</th><th>深色实测</th><th>结论</th></tr></thead>
       <tbody>
-        <tr><td>正文 fg / surface</td><td class="mono">≥4.5:1</td><td class="mono">L94% on L21% ≈ 12.4:1</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>次级 muted / surface</td><td class="mono">≥4.5:1</td><td class="mono">L66% on L21% ≈ 5.9:1</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>accent 文本 / surface</td><td class="mono">≥4.5:1</td><td class="mono">L72% on L21% ≈ 6.8:1</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>Finance KPI 数字 / surface</td><td class="mono">≥4.5:1</td><td class="mono">fg L94% / money-pos L72% ok</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>banner.info/warn/ok 文本</td><td class="mono">≥4.5:1</td><td class="mono">FIX：深色改向白混（92–94%）</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>st-warn / st-pend chip 文本</td><td class="mono">≥4.5:1</td><td class="mono">FIX：深色改向白混（96%）</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>边框 / 分隔（非文字）</td><td class="mono">≥3:1</td><td class="mono">border L30% / bg L17%</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>焦点环可见性</td><td class="mono">≥3:1</td><td class="mono">focus-ring accent 62% · 2px offset</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>Toast 反色</td><td class="mono">≥4.5:1</td><td class="mono">text-inverse on fg ≈ 12:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>正文 fg / surface</td><td class="mono">≥4.5:1</td><td class="mono">14.85:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>次级 muted / surface</td><td class="mono">≥4.5:1</td><td class="mono">5.70:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>accent 文本 / surface</td><td class="mono">≥4.5:1</td><td class="mono">7.03:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>money.pos(ok) / surface</td><td class="mono">≥4.5:1</td><td class="mono">7.51:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>money.neg(crit) / surface</td><td class="mono">≥4.5:1</td><td class="mono">6.18:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>st-ok chip 文本（FIX2）</td><td class="mono">≥4.5:1</td><td class="mono">4.73:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>st-crit chip 文本（FIX2）</td><td class="mono">≥4.5:1</td><td class="mono">4.76:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>st-warn / st-pend chip（FIX2）</td><td class="mono">≥4.5:1</td><td class="mono">4.58 / 4.86:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>banner info/warn/ok/crit（FIX2）</td><td class="mono">≥4.5:1</td><td class="mono">4.76 / 4.69 / 4.73 / 4.81:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>Toast 反色 text-inverse / fg</td><td class="mono">≥4.5:1</td><td class="mono">16.03:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>交互控件边框 border-ui（非文字）</td><td class="mono">≥3:1</td><td class="mono">3.33 / 3.08:1</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>焦点环 focus-ring（非文字）</td><td class="mono">≥3:1</td><td class="mono">4.74:1</td><td><span class="chip-pass">PASS</span></td></tr>
         <tr><td>触达目标</td><td class="mono">≥44px</td><td class="mono">.btn/.input/主题分段 = 44px</td><td><span class="chip-pass">PASS</span></td></tr>
-        <tr><td>390px / 430px 横向溢出</td><td class="mono">0 overflow</td><td class="mono">shell max-width 430 · 无 fixed px 宽</td><td><span class="chip-pass">PASS</span></td></tr>
+        <tr><td>390 / 430px 横向溢出</td><td class="mono">0 overflow</td><td class="mono">0 fixed width ≥391px · shell max-w 430</td><td><span class="chip-pass">PASS</span></td></tr>
         <tr><td>硬编码颜色扫描</td><td class="mono">0 hex/rgb</td><td class="mono">全文件 0 处（全 token 驱动）</td><td><span class="chip-pass">PASS</span></td></tr>
       </tbody>
     </table>
