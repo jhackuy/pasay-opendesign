@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pasay Dark render check</title>
+<style>html,body{margin:0;background:#0b0f14;height:100%}iframe{border:0;width:100%;height:100vh;display:block}</style>
+</head>
+<body>
+<iframe id="f" src="pasay-mini-app.html#/home"></iframe>
+<script>
+  var f=document.getElementById('f');
+  function force(){ try{ f.contentDocument.documentElement.setAttribute('data-theme','dark'); }catch(e){} }
+  f.addEventListener('load', force);
+  var n=0, t=setInterval(function(){ force(); if(++n>25) clearInterval(t); }, 80);
+</script>
+</body>
+</html>
