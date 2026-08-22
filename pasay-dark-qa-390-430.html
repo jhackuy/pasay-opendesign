@@ -13622,6 +13622,22 @@ window.__OD_RUN_GATES = function() {
       var de = document.documentElement;
       de.setAttribute('data-theme','dark');
       var app = document.getElementById('app');
+      // Seed a realistic workspace so all core pages render with data (mirrors the validated
+      // browser-qa-390-430.js). Runs AFTER app boot (post-load), so all top-level consts are live.
+      try {
+        state = seed(); state.leases = []; state.paymentRecords = []; state.lang = 'zh'; __isFreshSeed = true;
+        if (typeof ensureVNextSeed === 'function') ensureVNextSeed();
+        if (typeof ensureExpenseOperationSeed === 'function') ensureExpenseOperationSeed();
+        if (typeof ensureRepairOperationSeed === 'function') ensureRepairOperationSeed();
+        if (typeof __odRebuildPaymentRecords === 'function') __odRebuildPaymentRecords();
+        if (typeof ensureOps008aScenarios === 'function') ensureOps008aScenarios();
+        if (typeof ensureLeaseOperationSeed === 'function') ensureLeaseOperationSeed();
+        if (typeof ensureMoveOutOperationSeed === 'function') ensureMoveOutOperationSeed();
+        if (typeof syncOperationTasks === 'function') syncOperationTasks();
+        if (typeof wsResetFresh === 'function') wsResetFresh();
+        if (typeof wsCreateWorkspace === 'function') wsCreateWorkspace('QA Co','qa-owner');
+        if (typeof ws === 'function') { var ow = ws().members.find(function(m){return m.role==='owner'&&m.status==='active';}); if (ow) state.currentUserId = ow.userId; }
+      } catch (seedErr) { /* seed best-effort; continue to measure */ }
       var ROUTES = [['Home','#/home'],['Property','#/props'],['Queue','#/ops'],['Finance','#/finance'],['Detail','#/property/1608']];
       var WIDTHS = [390,430];
       var tb = document.getElementById('__qa_tb');
