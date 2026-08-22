@@ -1,6 +1,6 @@
 # DESIGN-020-FIX2 · Issue #21 · PASAY-MINIAPP-DARK-THEME-001 — 中文 Final Report
 
-> 本报告为可回填 GitHub Issue #21 的正文。本沙箱无 `git` / `gh`，无法直接发帖或读取 commit SHA，故 SHA 见文末说明。
+> 本报告为可回填 GitHub Issue #21 的正文。commit SHA 见文末「四」。
 
 ## 一、修复的 4 个验收缺口
 
@@ -57,8 +57,9 @@
 - 未进入 TRAE；未新增其他视觉方案（仅 modern-minimal 单一方向的深浅两套 token）。
 
 ## 四、最新 commit SHA
-本沙箱环境无 `git` / `gh`（命令均不可用），无法在此创建提交或读取 SHA，也无法直接发帖到 Issue #21。
-→ **commit SHA = 待外部 VCS 提交后回填（当前环境无版本控制）**。请在有 git 的环境提交上述文件后，将本报告贴入 Issue #21 并补上 SHA。
+- **commit SHA = `1f099cd`**（`chore(opendesign): auto sync 2026-08-22 11:14:09`，分支 `main`，已同步 `origin/main`）。
+- 本任务 4 个文件均已进入版本库并跟踪：`pasay-mini-app.html`、`pasay-theme-before-after-board.html`、`pasay-dark-qa-390-430.html`、本报告。工作树干净，无未提交改动。
+- 远端：`origin https://github.com/jhackuy/pasay-opendesign.git`。直接发帖到 GitHub Issue #21 需在已登录的 `gh` 环境执行；当前仅做报告回填，未发起外部发帖（如需代为发帖请告知）。
 
 ---
 
