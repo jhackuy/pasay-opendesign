@@ -1,0 +1,2 @@
+[0828/175347.894:ERROR:third_party\crashpad\crashpad\client\crashpad_client_win.cc:447] OpenProcess: 拒绝访问。 (0x5)
+[0828/175347.894:ERROR:third_party\crashpad\crashpad\util\file\file_io_win.cc:191] CreateFile C:\Users\Admin\AppData\Local\Microsoft\Edge\User Data\Crashpad\throttle_store.dat: 拒绝访问。 (0x5)
