@@ -3022,6 +3022,78 @@ function createChildOperation(opts) {
   state.operations.push(op);
   return op;
 }
+/* ══════════════════════════════════════════════════════════════════════
+   PASAY-TASK-013 · DESIGN-013 FREEZE BLOCKER · Repair create authority = Property.id.
+
+   doCreateRepairFromPayload(input) is the SINGLE production entry point for
+   creating a Repair + its associated Operation. Both the UI handler
+   (submit-repair) and the Freeze gates / J-F4 cross-domain attack MUST call
+   this function. Direct state.repairs.push in tests is FORBIDDEN because it
+   bypasses the auto-copied Operation that makes
+   `op.domain.property_id === repair.property_id` truthful.
+
+   Contract:
+     input.property_id MUST be a PRP-xxxx string. Legacy unit fallback is
+     forbidden here; the property must already be looked up by PRP id at
+     the caller (UI handler resolves #rr-prop → pid; tests pass PRP directly).
+     If property_id is missing / not registered / not PRP-xxxx, the function
+     REJECTS with { ok:false, reason } and ZERO mutation to state.
+
+   Side effects on success:
+     - state.repairs.unshift(new Repair)
+     - state.operations.push(auto Operation with domain.property_id copied
+       from repair.property_id; the A.7 guard re-asserts this even if any
+       upstream would strip it)
+     - state.tasks is NOT touched here; the caller (UI handler or test) is
+       responsible for adding the arrange_repair projection task.
+     - addEvent / earn / save / render are NOT called here.
+
+   Return: { ok, reason?, repair?, op?, opId?, id?, idempotent? } */
+function doCreateRepairFromPayload(input) {
+  if (!input || typeof input !== 'object') return { ok: false, reason: 'invalid input' };
+  const issue = (input.issue || '').toString().trim();
+  if (!issue) return { ok: false, reason: 'issue required' };
+  const pid = (input.property_id || '').toString().trim();
+  if (!pid) return { ok: false, reason: 'property_id required (PRP-xxxx)' };
+  const prop = propById(pid);
+  if (!prop || !prop.id) return { ok: false, reason: 'unknown property_id: ' + pid };
+  if (!/^PRP-/.test(prop.id)) return { ok: false, reason: 'property_id must be PRP-xxxx format: ' + pid };
+  const unit = prop.unit || null;
+  const id = input.id || ('REP-' + fmtId4(uid('rep')));
+  /* Idempotency: if the same repair id already exists, return the existing record. */
+  const existing = state.repairs.find(r => r.id === id);
+  if (existing) {
+    const opExisting = state.operations.find(o => o.kind === 'repair' && o.domain && o.domain.repair_id === id);
+    return { ok: true, repair: existing, op: opExisting || null, id: id, idempotent: true };
+  }
+  const desc = input.desc || '';
+  const pri = input.priority || 'medium';
+  const by = input.by || (typeof roleIs === 'function' && roleIs('owner') ? 'owner' : 'secretary');
+  const repair = { id, unit, property_id: prop.id, issue, desc, priority: pri, status: 'reported', assignee: null, photos: null, by, at: TODAY, relatedExpenses: [], nextAction: '', tl: [{ code: 'REPAIR_REPORTED', actor: by, entity_type: 'repair', entity_id: id, metadata: { ref: id }, at: TODAY }] };
+  state.repairs.unshift(repair);
+  /* A.5 · Auto-copy repair.property_id → operation.domain.property_id.
+     Operation id deterministic ('OP-REP-' + repair.id) so re-entry is idempotent. */
+  const opId = 'OP-REP-' + id;
+  const op = createChildOperation({
+    id: opId, kind: 'repair',
+    objective: state.lang==='zh' ? ('处理报修 ' + id + ' · ' + unit + ' · ' + issue) : ('Resolve repair ' + id + ' · ' + unit + ' · ' + issue),
+    domain: { repair_id: id, unit: unit, property_id: prop.id },
+    esc: 'WAITING_HUMAN', next_actor: 'secretary', next_action_code: 'confirm_repair_info',
+    expected_result: state.lang==='zh' ? ('确认 ' + unit + ' 报修信息（' + issue + '）') : ('Confirm ' + unit + ' repair info (' + issue + ')'),
+    demoStage: 'confirm_info',
+    initial_tl: [
+      { at: TODAY, t: state.lang==='zh' ? ('报修创建 · 自动生成维修事项 ' + opId) : ('Repair reported · auto-opened operation ' + opId) },
+      { at: TODAY, t: state.lang==='zh' ? ('property_id=' + prop.id + ' · 等待 Secretary 确认') : ('property_id=' + prop.id + ' · awaiting Secretary confirmation') }
+    ]
+  });
+  /* A.7 · Guarantee the operation.domain.property_id was actually copied.
+     If anything upstream strips it, the truth is still here. */
+  if (op && op.domain && op.domain.property_id !== prop.id) {
+    op.domain.property_id = prop.id;
+    op.tl.push({ at: TODAY, t: state.lang==='zh' ? ('property_id 强制同步自 repair.property_id=' + prop.id) : ('property_id force-synced from repair.property_id=' + prop.id) });
+  }
+  return { ok: true, repair: repair, op: op, id: id, opId: opId };
+}
 /* 基于 state.seq.exp 全局单调计数器创建 Expense Domain 记录。取代旧的
    'EXP-00' + (98 + version) 方案——后者在多次复发/重置后可能撞号或与历史重叠。
    幂等：id 已存在则复用。返回 { id, exp, seq }，seq 可被调用方用于生成 OP-EX 子事项编号。 */
@@ -7701,37 +7773,22 @@ const __odClickHandler = function(e) {
   if (a === 'submit-repair') {
     const propSelect = $('#rr-prop'); const pid = propSelect ? (propSelect.value || '').trim() : '';
     const issue = $('#rr-issue').value.trim(); const desc = $('#rr-desc').value.trim(); const pri = document.querySelector('[data-a="pri-seg"].on') ? document.querySelector('[data-a="pri-seg"].on').dataset.p : 'medium';
-    if (!issue) { toast((state.lang==='zh'?'请填写问题描述':'issue required')); return; }
-    /* PASAY-TASK-013 · DESIGN-013 FREEZE BLOCKER · Repair create authority = Property.id.
-       1. No explicit PRP id → REJECT + zero mutation.
-       2. PRP id not registered → REJECT (resolve only by PRP id, never by unit fallback). */
-    if (!pid) { toast((state.lang==='zh'?'请选择物业（PRP-xxxx）后才能提交报修':'Select a property (PRP-xxxx) to submit a repair')); return; }
-    const _rrProp = propById(pid);
-    if (!_rrProp || !_rrProp.id) { toast((state.lang==='zh'?'无效的物业编号：':'Invalid property id: ') + pid); return; }
-    if (!/^PRP-/.test(_rrProp.id)) { toast((state.lang==='zh'?'物业编号必须是 PRP-xxxx 格式':'Property id must be PRP-xxxx')); return; }
-    const unit = _rrProp.unit || null;
-    const id = 'REP-' + fmtId4(uid('rep'));
-    state.repairs.unshift({ id, unit, property_id: _rrProp.id, issue, desc, priority: pri, status: 'reported', assignee: null, photos: null, by: 'Secretary', at: TODAY, relatedExpenses: [], nextAction: '', tl: [{ code: 'REPAIR_REPORTED', actor: 'secretary', entity_type: 'repair', entity_id: id, metadata: { ref: id }, at: TODAY }] });
-    /* A.5 · Repair → Operation production path auto-copies repair.property_id → operation.domain.property_id.
-       Operation id deterministic ('OP-REP-' + repair.id) so re-entry is idempotent and tests can look it up. */
-    const opId = 'OP-REP-' + id;
-    createChildOperation({
-      id: opId, kind: 'repair',
-      objective: state.lang==='zh' ? ('处理报修 ' + id + ' · ' + _rrProp.unit + ' · ' + issue) : ('Resolve repair ' + id + ' · ' + _rrProp.unit + ' · ' + issue),
-      domain: { repair_id: id, unit: unit, property_id: _rrProp.id },
-      esc: 'WAITING_HUMAN', next_actor: 'secretary', next_action_code: 'confirm_repair_info',
-      expected_result: state.lang==='zh' ? ('确认 ' + _rrProp.unit + ' 报修信息（' + issue + '）') : ('Confirm ' + _rrProp.unit + ' repair info (' + issue + ')'),
-      demoStage: 'confirm_info',
-      initial_tl: [
-        { at: TODAY, t: state.lang==='zh' ? ('报修创建 · 自动生成维修事项 ' + opId) : ('Repair reported · auto-opened operation ' + opId) },
-        { at: TODAY, t: state.lang==='zh' ? ('property_id=' + _rrProp.id + ' · 等待 Secretary 确认') : ('property_id=' + _rrProp.id + ' · awaiting Secretary confirmation') }
-      ]
-    });
+    /* Delegate to the single production entry point. REJECT + zero mutation
+       when property_id missing/invalid is enforced inside doCreateRepairFromPayload. */
+    const created = doCreateRepairFromPayload({ property_id: pid, issue: issue, desc: desc, priority: pri });
+    if (!created || !created.ok) {
+      const reason = (created && created.reason) || 'create failed';
+      if (/issue required/i.test(reason)) toast((state.lang==='zh'?'请填写问题描述':'issue required'));
+      else if (/property_id/i.test(reason)) toast((state.lang==='zh'?'请选择物业（PRP-xxxx）后才能提交报修':'Select a property (PRP-xxxx) to submit a repair'));
+      else toast(reason);
+      return;
+    }
+    const id = created.id;
     const tid = 'T-' + uid('task');
     state.tasks.unshift({ id: tid, type: 'arrange_repair', subject: '', object: { kind: 'repair', id }, assignee: 'secretary', status: 'todo', priority: pri, due: TODAY, nextAction: '', source: 'system', related: id, tl: [], reminder: { state: 'active', snoozeUntil: null, lastAt: null } });
     addEvent('REPAIR_REPORTED', roleIs('owner') ? 'owner' : 'secretary', 'repair', id, { ref: id });
     if (earn('first_repair')) earnToast(BADGES.find(b => b.id === 'first_repair'));
-    save(); closeSheet(); render(); toast((state.lang==='zh'?'已报修 ':'Reported ') + id + ' · ' + _rrProp.id + ' · ' + (state.lang==='zh'?'等待指派':'waiting assignment'));
+    save(); closeSheet(); render(); toast((state.lang==='zh'?'已报修 ':'Reported ') + id + ' · ' + created.repair.property_id + ' · ' + (state.lang==='zh'?'等待指派':'waiting assignment'));
     return;
   }
   /* PASAY-TASK-009 · Secretary · 登记报价 / 小维修快速收尾（业务入口，非 demo 模拟） */
@@ -13243,9 +13300,12 @@ function runGateFinalProductFreezeV1() {
     rentRecordPayment(oF1.id, 11000, 'owner', { paid_at: '2026-09-03' });
     rentRecordPayment(oF2.id, 12000, 'owner', { paid_at: '2026-09-04' });
     A(paidAmt(oF1) === 11000 && paidAmt(oF2) === 12000 && rentBalance(oF1) === 0 && rentBalance(oF2) === 0, '[J-F3] Same-unit 1608：Payment 各自入账 · 余额各自 0');
-    /* F2 · Repair / Expense 不串房（Repair relation authority = Property.id · 同 unit 双 Property 0 串账） */
-    state.repairs.push({ id: 'REP-FA', unit: '1608', property_id: pf1.prop.id, issue: 'A unit leak', desc: 'tower A', priority: 'low', status: 'reported', assignee: null, photos: null, by: 'Tenant', at: TODAY, relatedExpenses: [], nextAction: '', tl: [] });
-    state.repairs.push({ id: 'REP-FB', unit: '1608', property_id: pf2.prop.id, issue: 'B unit ac', desc: 'tower B', priority: 'low', status: 'reported', assignee: null, photos: null, by: 'Tenant', at: TODAY, relatedExpenses: [], nextAction: '', tl: [] });
+    /* F2 · Repair / Expense 不串房（Repair relation authority = Property.id · 同 unit 双 Property 0 串账）
+       A.6 · J-F4 must TRULY create via the production entry point. Direct state.repairs.push
+       bypasses the auto-copied Operation that makes op.domain.property_id truthful. */
+    const createFA = doCreateRepairFromPayload({ id: 'REP-FA', property_id: pf1.prop.id, issue: 'A unit leak', desc: 'tower A', priority: 'low', by: 'Tenant' });
+    const createFB = doCreateRepairFromPayload({ id: 'REP-FB', property_id: pf2.prop.id, issue: 'B unit ac', desc: 'tower B', priority: 'low', by: 'Tenant' });
+    A(createFA && createFA.ok && createFA.id === 'REP-FA' && createFB && createFB.ok && createFB.id === 'REP-FB', '[J-F4-pre] 两条 Repair 真实经生产入口创建（A=PRP-A · B=PRP-B · ok=true）');
     const rpFA = state.repairs.find(r => r.id === 'REP-FA');
     const rpFB = state.repairs.find(r => r.id === 'REP-FB');
     /* F2a · Repair 主记录按 Property.id 隔离（同 unit 1608 · PRP-A 只挂 REP-FA · PRP-B 只挂 REP-FB） */
@@ -13258,12 +13318,12 @@ function runGateFinalProductFreezeV1() {
     const viewRepA = viewRepair('REP-FA'); const viewRepB = viewRepair('REP-FB');
     A(viewRepA.indexOf(pf1.prop.id) !== -1 || viewRepA.indexOf('Tower A') !== -1, '[J-F4c] Same-unit 1608：REP-FA Detail 解析到 PRP-A（repairProperty）');
     A(viewRepB.indexOf(pf2.prop.id) !== -1 || viewRepB.indexOf('Tower B') !== -1, '[J-F4c] Same-unit 1608：REP-FB Detail 解析到 PRP-B（repairProperty）');
-    /* F2d · Operation relation 携带 property_id（Repair → Operation domain 关联真实 PRP） */
-    state.repairs.find(r => r.id === 'REP-FA').status = 'assigned';
+    /* F2d · A.5/A.8/A.9 · Operation auto-generated by production entry; op.domain.property_id MUST equal repair.property_id; NO manual injection.
+       Hard requirement: opRFA must exist (no missing-Operation fallback). */
     const opRFA = state.operations.find(o => o.kind === 'repair' && o.domain && o.domain.repair_id === 'REP-FA');
-    if (opRFA) opRFA.domain.property_id = pf1.prop.id;
-    const propOfOpRFA = opRFA ? (opRFA.domain.property_id || (opRepair(opRFA) ? repairProperty(opRepair(opRFA)).id : null)) : null;
-    A(!!opRFA ? propOfOpRFA === pf1.prop.id : repairsForProp(pf1.prop.id).some(r => r.id === 'REP-FA'), '[J-F4d] Same-unit 1608：Repair Operation 经 property_id 关联 PRP-A（不串到 B）');
+    const opRFB = state.operations.find(o => o.kind === 'repair' && o.domain && o.domain.repair_id === 'REP-FB');
+    A(!!opRFA && !!opRFB, '[J-F4d-pre] A.8 · 两 Repair 均自动生成 Operation（无 fallback · 缺一即 fail）');
+    A(!!opRFA && opRFA.domain && opRFA.domain.property_id === pf1.prop.id && !!opRFB && opRFB.domain && opRFB.domain.property_id === pf2.prop.id, '[J-F4d] Same-unit 1608：Repair Operation 经 property_id 关联真实 PRP（A→PRP-A · B→PRP-B · A.5 自动 copy · A.9 无手动注入）');
     /* F2e · related Expense relation 携带正确 property_id（REP-FA→EXP-FA1 挂 PRP-A · REP-FB→EXP-FB1 挂 PRP-B） */
     state.expenses.push({ id: 'EXP-FA1', unit: '1608', property_id: pf1.prop.id, category: 'Repair', purpose: 'A repair', amount: 500, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-03', receipt: null, relatedRepair: 'REP-FA', tl: [] });
     state.expenses.push({ id: 'EXP-FB1', unit: '1608', property_id: pf2.prop.id, category: 'Repair', purpose: 'B repair', amount: 700, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-04', receipt: null, relatedRepair: 'REP-FB', tl: [] });
