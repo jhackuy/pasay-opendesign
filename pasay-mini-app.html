@@ -893,7 +893,7 @@ let state;
 try { state = JSON.parse(localStorage.getItem(LS_KEY)) || seed(); } catch (e) { state = seed(); }
 var __isFreshSeed = false;
 if (!state.props) { state = seed(); __isFreshSeed = true; }
-else if (!localStorage.getItem(LS_KEY)) { __isFreshSeed = true; }
+else { try { if (!localStorage.getItem(LS_KEY)) __isFreshSeed = true; } catch (e) { __isFreshSeed = true; } }
 ensureWorkspaceState();   /* 007A — 旧持久化状态补齐 workspace/team 结构（幂等） */
 /* note: 若先前无持久化则本次即首次 seed，__isFreshSeed=true；否则为 reload，不做 seed 绑定 */
 /* ── migrate：字段兜底（不引用下方 TDZ 的 const，Lease 迁移延后至 init） ── */
@@ -13605,10 +13605,10 @@ function runGateBrowserQA390430() {
     A(typeof window.__OD_RUN_BROWSER_QA === 'function', '[BQA-1] __OD_RUN_BROWSER_QA 暴露（OpenDesign Preview / 真实浏览器执行 390/430 全部核心页面）');
     const bqaSrc = window.__OD_RUN_BROWSER_QA.toString();
     /* 覆盖 Issue#20 列出的核心页面 */
-    ['home','props','prop-detail','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].forEach(p => {
+    ['home','props','prop-detail','prop-fin','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].forEach(p => {
       if (bqaSrc.indexOf("'" + p + "'") === -1) A(false, '[BQA-1b] browser QA 缺页: ' + p);
     });
-    A(['home','props','prop-detail','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].every(p => bqaSrc.indexOf("'" + p + "'") !== -1), '[BQA-1b] browser QA 覆盖 Issue#20 全部核心页面（16 页）');
+    A(['home','props','prop-detail','prop-fin','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].every(p => bqaSrc.indexOf("'" + p + "'") !== -1), '[BQA-1b] browser QA 覆盖全部核心页面（17 页，含 prop-fin 财务标签页）');
     A(bqaSrc.indexOf('scrollWidth') !== -1 && bqaSrc.indexOf('getBoundingClientRect') !== -1 && bqaSrc.indexOf('height < 44') !== -1 && bqaSrc.indexOf('bottomNavUsable') !== -1 && bqaSrc.indexOf('report.summary') !== -1, '[BQA-2] browser QA 采集 0 horizontal overflow / 0 clipped primary / 0 overlap / leak / Bottom Nav / touch>=44px 全量可审计指标');
     /* Node 结构性布局 QA：核心面在 390/430 无固定宽度溢出 / 无 DOM 泄漏 / Bottom Nav 5 / touch-safe */
     [390, 430].forEach(function(vw) {
