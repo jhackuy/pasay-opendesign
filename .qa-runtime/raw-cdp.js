@@ -35,7 +35,7 @@ async function runForViewport(vw) {
   fs.rmSync(userDataDir, { recursive: true, force: true });
   fs.mkdirSync(userDataDir, { recursive: true });
   const args = [
-    '--headless=new',
+    '--headless',
     '--no-sandbox',
     '--disable-gpu',
     '--disable-software-rasterizer',
@@ -49,6 +49,8 @@ async function runForViewport(vw) {
     '--disable-component-update',
     '--disable-default-apps',
     '--disable-breakpad',
+    '--single-process',
+    '--no-zygote',
     '--user-data-dir=' + userDataDir,
     '--window-size=' + vw + ',800',
     '--remote-debugging-port=' + port
