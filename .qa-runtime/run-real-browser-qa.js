@@ -32,18 +32,56 @@ const VIEWPORTS = [390, 430];
 function log(msg) { console.log('[REAL-BROWSER-QA] ' + msg); }
 
 async function runForViewport(chromium, vw) {
-  log('Launching Chromium headless @ ' + vw + 'x800 ...');
-  /* Pick an installed Chromium (the bundled default may be a version we don't have). */
+  log('Launching Chromium (CDP-over-TCP) @ ' + vw + 'x800 ...');
+  /* Sandbox blocks Chromium IPC pipes. Start Chromium ourselves over TCP
+     (--remote-debugging-port) with stdio: 'ignore' to avoid the pipe block,
+     then connect Playwright via connectOverCDP. */
   const candidates = [
     'C:/Users/Admin/AppData/Local/ms-playwright/chromium-1234/chrome-win64/chrome.exe',
     'C:/Users/Admin/AppData/Local/ms-playwright/chromium-1208/chrome-win64/chrome.exe'
   ];
   const fsLocal = require('fs');
+  const { spawn } = require('child_process');
   let exe = null;
   for (const c of candidates) { if (fsLocal.existsSync(c)) { exe = c; break; } }
   if (!exe) throw new Error('No installed Chromium found');
   log('Using Chromium executable: ' + exe);
-  const browser = await chromium.launch({ headless: true, executablePath: exe });
+  const userDataDir = path.join(OUT_DIR, 'chromium-profile-' + vw);
+  fsLocal.mkdirSync(userDataDir, { recursive: true });
+  const port = 9222 + (vw === 430 ? 1 : 0);
+  const args = [
+    '--headless=new',
+    '--disable-gpu',
+    '--no-sandbox',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--disable-dev-shm-usage',
+    '--hide-scrollbars',
+    '--mute-audio',
+    '--window-size=' + vw + ',800',
+    '--user-data-dir=' + userDataDir,
+    '--remote-debugging-port=' + port
+  ];
+  log('Spawning chrome on port ' + port + ' (stdio: ignore) ...');
+  const child = spawn(exe, args, { stdio: 'ignore', windowsHide: true });
+  log('Chrome child PID: ' + child.pid);
+  /* Wait for the debugger to come up */
+  let wsUrl = null;
+  for (let i = 0; i < 30; i++) {
+    await new Promise(function (r) { setTimeout(r, 500); });
+    try {
+      const resp = await fetch('http://127.0.0.1:' + port + '/json/version');
+      if (resp.ok) { const j = await resp.json(); wsUrl = j.webSocketDebuggerUrl; break; }
+    } catch (_) { /* not ready yet */ }
+  }
+  if (!wsUrl) {
+    try { child.kill('SIGTERM'); } catch (_) {}
+    throw new Error('Chromium debug port did not come up');
+  }
+  log('Connecting Playwright via CDP (' + wsUrl + ') ...');
+  const browser = await chromium.connectOverCDP(wsUrl);
   const ctx = await browser.newContext({ viewport: { width: vw, height: 800 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.on('pageerror', function (err) { log('  page error @' + vw + ': ' + err.message); });
@@ -61,6 +99,8 @@ async function runForViewport(chromium, vw) {
   });
 
   await browser.close();
+  /* CDP connection just disconnects; kill the child process. */
+  try { child.kill('SIGTERM'); } catch (_) {}
   return report;
 }
 
