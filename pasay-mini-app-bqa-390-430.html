@@ -42,9 +42,9 @@
     <tbody id="__bqa_tb"></tbody>
   </table>
 </div>
-<iframe id="__bqa_host" src="pasay-mini-app.html" style="position:fixed;left:0;top:0;width:430px;height:800px;border:1px solid #ddd;z-index:0"></iframe>
+<iframe id="__bqa_host" src="pasay-mini-app.html" style="position:fixed;left:0;top:0;width:430px;height:800px;border:1px solid #ddd;z-index:0;opacity:0.05"></iframe>
 <pre id="__bqa_report_blob"></pre>
-<pre id="__bqa_diag" style="display:block;background:#fff7e6;border:1px solid #e4c89b;padding:8px;margin:8px 0;font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap"></pre>
+<pre id="__bqa_diag" style="display:block;background:#fff7e6;border:1px solid #e4c89b;padding:8px;margin:8px 0;font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap">DIAG: script parsed; readyState=loading</pre>
 <script>
 (function(){
   function fail(msg){
@@ -92,24 +92,60 @@
   }
   function runQaNow(){
     var host = document.getElementById('__bqa_host');
-    var w;
-    try { w = host.contentWindow; window.__bqa_iframe_window = w; } catch (e) { fail('iframe not same-origin: ' + e.message); return; }
-    if (!w) { fail('iframe.contentWindow is null'); return; }
-    document.getElementById('__bqa_diag').textContent = 'DIAG: iframe loaded; contentWindow=' + (w ? 'present' : 'null') + '; __OD_RUN_BROWSER_QA=' + (w && typeof w.__OD_RUN_BROWSER_QA) + '\niframe.location=' + (w && w.location && w.location.href) + '\niframe.readyState=' + (w && w.document && w.document.readyState);
-    if (!w || typeof w.__OD_RUN_BROWSER_QA !== 'function') {
-      fail('__OD_RUN_BROWSER_QA not exposed (app may not have booted)');
+    var diag = document.getElementById('__bqa_diag');
+    var diagLines = ['DIAG: runQaNow() called at ' + new Date().toISOString()];
+    try {
+      var w = host && host.contentWindow;
+      diagLines.push('iframe.contentWindow = ' + (w ? 'present' : 'null'));
+      if (w) {
+        diagLines.push('iframe.location = ' + (w.location ? w.location.href : 'n/a'));
+        diagLines.push('iframe.document.readyState = ' + (w.document ? w.document.readyState : 'n/a'));
+        diagLines.push('iframe.__OD_RUN_BROWSER_QA = ' + typeof w.__OD_RUN_BROWSER_QA);
+        if (typeof w.__OD_RUN_BROWSER_QA === 'function') {
+          var report = w.__OD_RUN_BROWSER_QA();
+          diagLines.push('report.viewports keys = ' + Object.keys(report.viewports || {}).join(','));
+          diagLines.push('report.pages = ' + ((report.pages || []).length));
+          diagLines.push('report.allPass = ' + report.allPass);
+          diag.textContent = diagLines.join('\n');
+          if (report && report.viewports) { renderReport(report); return; }
+          fail('QA returned no viewports');
+          return;
+        } else {
+          fail('__OD_RUN_BROWSER_QA not exposed in iframe');
+          diag.textContent = diagLines.join('\n');
+          return;
+        }
+      } else {
+        fail('iframe.contentWindow is null');
+        diag.textContent = diagLines.join('\n');
+        return;
+      }
+    } catch (e) {
+      fail('runQaNow threw: ' + (e && e.message || e));
+      diag.textContent = diagLines.join('\n') + '\nERROR: ' + (e && e.message || e);
       return;
     }
-    var report;
-    try { report = w.__OD_RUN_BROWSER_QA(); } catch (e) { fail('QA threw: ' + (e && e.message || e)); return; }
-    if (!report || !report.viewports) { fail('QA returned no report'); return; }
-    renderReport(report);
   }
   /* Run synchronously on window.load (after iframe + inner scripts have completed).
      OD export waits for load + 2 rAFs after fonts/images settle, so the QA must
      be done by the time load fires. */
-  window.addEventListener('load', function(){
+  function runQaAndSchedule(){
     runQaNow();
+    /* Also try after a couple rAFs in case iframe wasn't fully ready at load */
+    var tries = 0;
+    function retry(){
+      tries++;
+      if (window.__BQA_ALLPASS !== true && tries < 5) {
+        try { host.contentWindow.requestAnimationFrame(retry); } catch (_) { setTimeout(retry, 30); }
+      } else if (window.__BQA_ALLPASS !== true && tries < 30) {
+        setTimeout(retry, 30);
+      }
+    }
+    retry();
+  }
+  window.addEventListener('load', runQaAndSchedule);
+  document.addEventListener('DOMContentLoaded', function(){
+    document.getElementById('__bqa_diag').textContent = 'DIAG: DOMContentLoaded; readyState=' + document.readyState;
   });
 })();
 </script>
