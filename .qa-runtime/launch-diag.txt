@@ -1,0 +1,4 @@
+﻿chrome=C:\Users\Admin\AppData\Local\ms-playwright\chromium-1234\chrome-win64\chrome.exe
+LAUNCH_EXIT=-36863
+unsigned=-36863
+date=2026-08-28T20:19:39.9418538+08:00
