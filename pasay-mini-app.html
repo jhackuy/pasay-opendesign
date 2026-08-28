@@ -13324,6 +13324,25 @@ function runGateFinalProductFreezeV1() {
     const opRFB = state.operations.find(o => o.kind === 'repair' && o.domain && o.domain.repair_id === 'REP-FB');
     A(!!opRFA && !!opRFB, '[J-F4d-pre] A.8 · 两 Repair 均自动生成 Operation（无 fallback · 缺一即 fail）');
     A(!!opRFA && opRFA.domain && opRFA.domain.property_id === pf1.prop.id && !!opRFB && opRFB.domain && opRFB.domain.property_id === pf2.prop.id, '[J-F4d] Same-unit 1608：Repair Operation 经 property_id 关联真实 PRP（A→PRP-A · B→PRP-B · A.5 自动 copy · A.9 无手动注入）');
+    /* A.1/A.2 · Repair create REJECT path — no property_id / unknown / non-PRP / zero mutation */
+    const repCountBefore = state.repairs.length;
+    const opCountBefore = state.operations.length;
+    const rejectA1a = doCreateRepairFromPayload({ property_id: '', issue: 'should reject' });
+    const rejectA1b = doCreateRepairFromPayload({ property_id: undefined, issue: 'should reject' });
+    const rejectA2a = doCreateRepairFromPayload({ property_id: 'PRP-DOES-NOT-EXIST', issue: 'should reject' });
+    const rejectA2b = doCreateRepairFromPayload({ property_id: '1608', issue: 'should reject (not PRP)' });
+    A(rejectA1a && rejectA1a.ok === false && /property_id/.test(rejectA1a.reason || '') && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.1] doCreateRepairFromPayload 无 property_id → REJECT · zero mutation（repairs/operations 不变）');
+    A(rejectA1b && rejectA1b.ok === false && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.1b] property_id undefined → REJECT · zero mutation');
+    A(rejectA2a && rejectA2a.ok === false && /unknown/i.test(rejectA2a.reason || '') && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.2] 未知 PRP → REJECT · zero mutation（不靠 unit fallback 猜）');
+    A(rejectA2b && rejectA2b.ok === false && /PRP/.test(rejectA2b.reason || '') && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.2b] 非 PRP-xxxx 格式 → REJECT · zero mutation');
+    /* A.7 · Property Detail / Repair Detail / Operation all stay isolated by PRP after auto-Operation */
+    const propDetailA = viewProperty(pf1.prop.id, 'overview');
+    const propDetailB = viewProperty(pf2.prop.id, 'overview');
+    const opDetailA = viewOp(opRFA.id);
+    const opDetailB = viewOp(opRFB.id);
+    A(propDetailA.indexOf('REP-FA') !== -1 && propDetailA.indexOf('REP-FB') === -1 && propDetailB.indexOf('REP-FB') !== -1 && propDetailB.indexOf('REP-FA') === -1, '[A.7-prop] Property Detail 各自只含对应 PRP 的 Repair（不串房）');
+    A(viewRepA.indexOf(pf1.prop.id) !== -1 && viewRepB.indexOf(pf2.prop.id) !== -1 && viewRepA.indexOf(pf2.prop.id) === -1 && viewRepB.indexOf(pf1.prop.id) === -1, '[A.7-rep] Repair Detail 各自解析到正确 PRP');
+    A(!!opDetailA && !!opDetailB && opDetailA.indexOf(pf1.prop.id) !== -1 && opDetailA.indexOf(pf2.prop.id) === -1 && opDetailB.indexOf(pf2.prop.id) !== -1 && opDetailB.indexOf(pf1.prop.id) === -1, '[A.7-op] Operation Detail 各自只含对应 PRP（property_id 不串）');
     /* F2e · related Expense relation 携带正确 property_id（REP-FA→EXP-FA1 挂 PRP-A · REP-FB→EXP-FB1 挂 PRP-B） */
     state.expenses.push({ id: 'EXP-FA1', unit: '1608', property_id: pf1.prop.id, category: 'Repair', purpose: 'A repair', amount: 500, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-03', receipt: null, relatedRepair: 'REP-FA', tl: [] });
     state.expenses.push({ id: 'EXP-FB1', unit: '1608', property_id: pf2.prop.id, category: 'Repair', purpose: 'B repair', amount: 700, by: 'Secretary', at: '2026-09-02', status: 'paid', paidVia: 'Cash', paid_at: '2026-09-04', receipt: null, relatedRepair: 'REP-FB', tl: [] });
