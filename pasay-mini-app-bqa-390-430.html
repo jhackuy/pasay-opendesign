@@ -5,7 +5,7 @@
 <title>PASAY · Real Browser QA 390/430 · Self-Contained Harness</title>
 <style>
   body { margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background: #f6f7f9; color: #0b1220; }
-  #__bqa_panel { position: fixed; inset: 0; z-index: 99999; background: #f6f7f9; overflow: auto; padding: 22px 26px; box-sizing: border-box; }
+  #__bqa_panel { position: fixed; inset: 0; z-index: 99999; background: rgba(246,247,249,0.96); overflow: auto; padding: 22px 26px; box-sizing: border-box; }
   #__bqa_panel h1 { font-family: Georgia, serif; font-size: 20px; margin: 0 0 4px; }
   #__bqa_panel .meta { color: #5b6472; font-size: 13px; margin: 0 0 14px; }
   #__bqa_panel .sum { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; font-weight: 700; padding: 12px 16px; border: 1px solid #e4e7ec; border-radius: 10px; background: #fff; margin-bottom: 16px; }
@@ -18,12 +18,13 @@
   #__bqa_panel .err { color: #c0392b; }
   #__bqa_panel .verdict-pass { color: #0a7d43; }
   #__bqa_panel .verdict-fail { color: #c0392b; }
+  pre { display: none; }
 </style>
 </head>
 <body>
 <div id="__bqa_panel">
   <h1>PASAY · Real Browser QA 390 / 430 · Self-Contained Harness</h1>
-  <p class="meta">pasay-mini-app.html loaded in same-origin iframe · <code>window.__OD_RUN_BROWSER_QA()</code> executed on real DOM after iframe load · metrics from <code>scrollWidth</code> / <code>getBoundingClientRect</code> / <code>documentElement.clientWidth</code> · verdict pending</p>
+  <p class="meta">pasay-mini-app.html loaded in same-origin iframe · <code>window.__OD_RUN_BROWSER_QA()</code> executed on real DOM · measurements via <code>scrollWidth</code> / <code>getBoundingClientRect</code> / <code>documentElement.clientWidth</code></p>
   <div id="__bqa_sum" class="sum">running…</div>
   <table id="__bqa_tbl">
     <thead><tr>
@@ -41,28 +42,23 @@
     <tbody id="__bqa_tb"></tbody>
   </table>
 </div>
-<iframe id="__bqa_host" src="pasay-mini-app.html" style="position:fixed;left:-99999px;top:-99999px;width:430px;height:1000px;border:0;visibility:hidden"></iframe>
+<iframe id="__bqa_host" src="pasay-mini-app.html" style="position:fixed;left:0;top:0;width:430px;height:800px;border:1px solid #ddd;z-index:0"></iframe>
+<pre id="__bqa_report_blob"></pre>
+<pre id="__bqa_diag" style="display:block;background:#fff7e6;border:1px solid #e4c89b;padding:8px;margin:8px 0;font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap"></pre>
 <script>
 (function(){
   function fail(msg){
     document.getElementById('__bqa_sum').textContent = msg;
     document.getElementById('__bqa_sum').classList.add('err');
+    document.getElementById('__bqa_diag').textContent = 'DIAG: ' + msg + '\niframe.contentWindow=' + (typeof window.__bqa_iframe_window) + '\n__OD_RUN_BROWSER_QA=' + (window.__bqa_iframe_window ? typeof window.__bqa_iframe_window.__OD_RUN_BROWSER_QA : 'n/a');
     window.__BQA_ALLPASS = false;
   }
-  var host = document.getElementById('__bqa_host');
-  if (!host) { fail('host iframe missing'); return; }
-  function runQa(){
-    var w;
-    try { w = host.contentWindow; } catch (e) { fail('iframe not same-origin: ' + e.message); return; }
-    if (!w || typeof w.__OD_RUN_BROWSER_QA !== 'function') { fail('__OD_RUN_BROWSER_QA not exposed in iframe'); return; }
-    var report;
-    try { report = w.__OD_RUN_BROWSER_QA(); } catch (e) { fail('QA threw: ' + (e && e.message || e)); return; }
-    if (!report || !report.viewports) { fail('QA returned no report: ' + JSON.stringify(report).slice(0,200)); return; }
+  function renderReport(report){
     var tb = document.getElementById('__bqa_tb');
     var sum = document.getElementById('__bqa_sum');
     var total = 0, pass = 0;
     [390, 430].forEach(function(vw){
-      var entries = report.viewports[String(vw)] || [];
+      var entries = (report && report.viewports && report.viewports[String(vw)]) || [];
       entries.forEach(function(e){
         total++;
         if (e.ok) pass++;
@@ -90,40 +86,31 @@
     window.__BQA_REPORT = report;
     window.__BQA_TOTAL = total;
     window.__BQA_PASS = pass;
-    /* Persist report for downstream tooling */
     try {
-      var data = 'BQA_REPORT_BEGIN\n' + JSON.stringify(report, null, 2) + '\nBQA_REPORT_END';
-      var pre = document.createElement('pre');
-      pre.id = '__bqa_report_blob';
-      pre.style.display = 'none';
-      pre.textContent = data;
-      document.body.appendChild(pre);
+      document.getElementById('__bqa_report_blob').textContent = 'BQA_REPORT_BEGIN\n' + JSON.stringify(report, null, 2) + '\nBQA_REPORT_END';
     } catch (_) {}
   }
-  function booted(){
-    try {
-      var w = host.contentWindow;
-      var app = w && w.document && w.document.getElementById('app');
-      return !!(app && app.querySelector('nav.nav .nav-i') && typeof w.__OD_RUN_BROWSER_QA === 'function');
-    } catch (e) { return false; }
+  function runQaNow(){
+    var host = document.getElementById('__bqa_host');
+    var w;
+    try { w = host.contentWindow; window.__bqa_iframe_window = w; } catch (e) { fail('iframe not same-origin: ' + e.message); return; }
+    if (!w) { fail('iframe.contentWindow is null'); return; }
+    document.getElementById('__bqa_diag').textContent = 'DIAG: iframe loaded; contentWindow=' + (w ? 'present' : 'null') + '; __OD_RUN_BROWSER_QA=' + (w && typeof w.__OD_RUN_BROWSER_QA) + '\niframe.location=' + (w && w.location && w.location.href) + '\niframe.readyState=' + (w && w.document && w.document.readyState);
+    if (!w || typeof w.__OD_RUN_BROWSER_QA !== 'function') {
+      fail('__OD_RUN_BROWSER_QA not exposed (app may not have booted)');
+      return;
+    }
+    var report;
+    try { report = w.__OD_RUN_BROWSER_QA(); } catch (e) { fail('QA threw: ' + (e && e.message || e)); return; }
+    if (!report || !report.viewports) { fail('QA returned no report'); return; }
+    renderReport(report);
   }
-  function schedule(){
-    var tries = 0;
-    (function tick(){
-      tries++;
-      if (booted()) { try { runQa(); } catch (e) { fail('runQa threw: ' + (e && e.message || e)); } return; }
-      if (tries > 240) { fail('iframe app never booted (tries=' + tries + ')'); return; }
-      try { host.contentWindow.requestAnimationFrame(tick); } catch (_) { setTimeout(tick, 16); }
-    }());
-  }
-  host.addEventListener('load', function(){
-    /* give the inner app a brief moment to finish its own rAF chain */
-    setTimeout(schedule, 50);
+  /* Run synchronously on window.load (after iframe + inner scripts have completed).
+     OD export waits for load + 2 rAFs after fonts/images settle, so the QA must
+     be done by the time load fires. */
+  window.addEventListener('load', function(){
+    runQaNow();
   });
-  /* Also try immediately in case iframe already loaded */
-  if (host.contentDocument && host.contentDocument.readyState === 'complete') {
-    setTimeout(schedule, 50);
-  }
 })();
 </script>
 </body>
