@@ -894,7 +894,7 @@ let state;
 try { state = JSON.parse(localStorage.getItem(LS_KEY)) || seed(); } catch (e) { state = seed(); }
 var __isFreshSeed = false;
 if (!state.props) { state = seed(); __isFreshSeed = true; }
-else if (!localStorage.getItem(LS_KEY)) { __isFreshSeed = true; }
+else { try { if (!localStorage.getItem(LS_KEY)) __isFreshSeed = true; } catch (e) { __isFreshSeed = true; } }
 ensureWorkspaceState();   /* 007A — 旧持久化状态补齐 workspace/team 结构（幂等） */
 /* note: 若先前无持久化则本次即首次 seed，__isFreshSeed=true；否则为 reload，不做 seed 绑定 */
 /* ── migrate：字段兜底（不引用下方 TDZ 的 const，Lease 迁移延后至 init） ── */
@@ -13606,10 +13606,10 @@ function runGateBrowserQA390430() {
     A(typeof window.__OD_RUN_BROWSER_QA === 'function', '[BQA-1] __OD_RUN_BROWSER_QA 暴露（OpenDesign Preview / 真实浏览器执行 390/430 全部核心页面）');
     const bqaSrc = window.__OD_RUN_BROWSER_QA.toString();
     /* 覆盖 Issue#20 列出的核心页面 */
-    ['home','props','prop-detail','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].forEach(p => {
+    ['home','props','prop-detail','prop-fin','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].forEach(p => {
       if (bqaSrc.indexOf("'" + p + "'") === -1) A(false, '[BQA-1b] browser QA 缺页: ' + p);
     });
-    A(['home','props','prop-detail','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].every(p => bqaSrc.indexOf("'" + p + "'") !== -1), '[BQA-1b] browser QA 覆盖 Issue#20 全部核心页面（16 页）');
+    A(['home','props','prop-detail','prop-fin','prop-repair','ops','finance','rent-detail','repair-detail','expense-detail','more','archive','team','tenant','setup','switch','settings'].every(p => bqaSrc.indexOf("'" + p + "'") !== -1), '[BQA-1b] browser QA 覆盖全部核心页面（17 页，含 prop-fin 财务标签页）');
     A(bqaSrc.indexOf('scrollWidth') !== -1 && bqaSrc.indexOf('getBoundingClientRect') !== -1 && bqaSrc.indexOf('height < 44') !== -1 && bqaSrc.indexOf('bottomNavUsable') !== -1 && bqaSrc.indexOf('report.summary') !== -1, '[BQA-2] browser QA 采集 0 horizontal overflow / 0 clipped primary / 0 overlap / leak / Bottom Nav / touch>=44px 全量可审计指标');
     /* Node 结构性布局 QA：核心面在 390/430 无固定宽度溢出 / 无 DOM 泄漏 / Bottom Nav 5 / touch-safe */
     [390, 430].forEach(function(vw) {
@@ -13718,7 +13718,7 @@ window.__OD_RUN_GATES = function() {
   keys.forEach(kk => console.log('═══ Gate ' + kk + ' ═══', { A:a,B:b,C:c,D:d,E:e,F:f,G:g,H:h,I:i,J:j,K:k }[kk]));
   return { A: a, B: b, C: c, D: d, E: e, F: f, G: g, H: h, I: i, J: j, K: k, allPass: a.pass && b.pass && c.pass && d.pass && e.pass && f.pass && g.pass && h.pass && i.pass && j.pass && k.pass };
 };</script>
-<div id="__bqa_panel" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#fff;overflow:auto;padding:22px 26px;box-sizing:border-box;font-family:-apple-system,Segoe UI,system-ui,sans-serif;color:#0b1220"><h1 style="font-family:Georgia,serif;font-size:20px;margin:0 0 4px">PASAY · Real Browser QA 390 / 430</h1><p style="margin:0 0 14px;color:#5b6472;font-size:13px">pasay-mini-app.html inlined · <code>window.__OD_RUN_BROWSER_QA()</code> · real Chromium DOM measurements</p><div id="__bqa_sum" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;font-weight:700;padding:12px 16px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;margin-bottom:16px">running…</div><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e4e7ec;border-radius:12px;overflow:hidden;font-size:12.5px"><thead><tr><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Page</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Viewport</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">docOverflow</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">appOverflow</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">clip</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">overlap</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">BottomNav(5)</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Primary</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">leak</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Verdict</th></tr></thead><tbody id="__bqa_tb"></tbody></table></div><pre id="__bqa_report_blob" style="display:none"></pre><script id="__bqa_runner">(function(){
+<div id="__bqa_panel" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#fff;overflow:auto;padding:22px 26px;box-sizing:border-box;font-family:-apple-system,Segoe UI,system-ui,sans-serif;color:#0b1220"><h1 style="font-family:Georgia,serif;font-size:20px;margin:0 0 4px">PASAY · Real Browser QA 390 / 430</h1><p style="margin:0 0 14px;color:#5b6472;font-size:13px">pasay-mini-app.html inlined · <code>window.__OD_RUN_BROWSER_QA()</code> · real Chromium DOM measurements</p><div id="__bqa_sum" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;font-weight:700;padding:12px 16px;border:1px solid #e4e7ec;border-radius:10px;background:#fff;margin-bottom:16px">running…</div><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e4e7ec;border-radius:12px;overflow:hidden;font-size:12.5px"><thead><tr><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Page</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Viewport</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">docOverflow</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">appOverflow</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">clip</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">overlap</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">BottomNav(5)</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Primary</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">leak</th><th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Verdict</th></tr></thead><tbody id="__bqa_tb"></tbody></table></div><pre id="__bqa_report_blob" style="display:none"></pre><pre id="__bqa_verify_blob" style="display:none"></pre><script id="__bqa_runner">(function(){
 var CELL_STYLE="padding:8px 11px;border-bottom:1px solid #e4e7ec;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700";
 var ROW_STYLE="padding:8px 11px;border-bottom:1px solid #e4e7ec";
 var MONO_STYLE="padding:8px 11px;border-bottom:1px solid #e4e7ec;font-family:ui-monospace,Menlo,Consolas,monospace";
@@ -13745,8 +13745,11 @@ function renderReport(report){
     var entries=(report&&report.viewports&&report.viewports[String(vw)])||[];
     entries.forEach(function(e){total++;if(e.ok)pass++;tb.insertAdjacentHTML("beforeend",row(null,vw,e));});
   });
+  var pageCount=(report&&report.pages&&report.pages.length)||0;
+  var expectedTotal=pageCount*2;
   var allPass=total>0&&pass===total;
-  sum.textContent="REAL-BROWSER QA \u00b7 Microsoft Edge headless via OpenDesign export \u00b7 inlined \u00b7 viewports=390/430 \u00b7 pages="+total+" pass="+pass+" allPass="+allPass;
+  var hardAssert=(typeof window.__OD_RUN_BROWSER_QA==="function")&&total===expectedTotal&&pass===total&&allPass;
+  sum.textContent="REAL-BROWSER QA \u00b7 pages="+pageCount+" \u00d7 2 viewports (390/430) \u00b7 entries="+total+" pass="+pass+" allPass="+allPass;
   sum.style.color=allPass?"#0a7d43":"#c0392b";
   sum.style.background=allPass?"#e6f7ec":"#fbe6e6";
   sum.style.borderColor=allPass?"#0a7d43":"#c0392b";
@@ -13754,7 +13757,13 @@ function renderReport(report){
   window.__BQA_REPORT=report;
   window.__BQA_TOTAL=total;
   window.__BQA_PASS=pass;
+  window.__BQA_PAGE_COUNT=pageCount;
+  window.__BQA_HARD_ASSERT=hardAssert;
+  var ua=(typeof navigator!=="undefined")?navigator.userAgent:"";
+  var verify={browser:ua, href:(typeof location!=="undefined")?location.href:"", hardAssert:hardAssert, allPass:allPass, total:total, pass:pass, pageCount:pageCount, expectedTotal:expectedTotal, viewport390Count:(report&&report.viewports&&report.viewports["390"]||[]).length, viewport430Count:(report&&report.viewports&&report.viewports["430"]||[]).length, timestamp:new Date().toISOString()};
+  window.__BQA_VERIFY=verify;
   try{document.getElementById("__bqa_report_blob").textContent="BQA_REPORT_BEGIN\n"+JSON.stringify(report,null,2)+"\nBQA_REPORT_END";}catch(_){}
+  try{document.getElementById("__bqa_verify_blob").textContent="BQA_VERIFY_BEGIN\n"+JSON.stringify(verify,null,2)+"\nBQA_VERIFY_END";}catch(_){}
 }
 function fail(msg){
   if(sum){sum.textContent=msg;sum.style.color="#c0392b";sum.style.background="#fbe6e6";}
@@ -13768,7 +13777,7 @@ function runNow(){
   renderReport(report);
   return true;
 }
-if(sum){var ee=window.__BQA_EARLY_ERRORS||[];var tail=ee.length?"\n\nERRORS:\n"+ee.join("\n"):"";sum.textContent="QA runner started; typeof __OD_RUN_BROWSER_QA="+typeof window.__OD_RUN_BROWSER_QA+"; typeof render="+typeof render+"; typeof app="+(document.getElementById("app")?"present":"null")+tail;}
+if(sum){var ee=window.__BQA_EARLY_ERRORS||[];var tail=ee.length?"\n\nERRORS:\n"+ee.join("\n"):"";sum.textContent="QA runner started; typeof __OD_RUN_BROWSER_QA="+typeof window.__OD_RUN_BROWSER_QA+"; app="+(document.getElementById("app")?"present":"null")+tail;}
 if(runNow())return;
 var tries=0;
 (function tick(){tries++;if(runNow())return;if(tries>240){fail("app never booted");return;}try{requestAnimationFrame(tick);}catch(_){setTimeout(tick,16);}})();

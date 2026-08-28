@@ -98,7 +98,8 @@ const PANEL_HTML = '<div id="__bqa_panel" style="position:fixed;top:0;left:0;rig
   + '<th style="text-align:left;padding:8px 11px;border-bottom:1px solid #e4e7ec;font-size:10.5px;text-transform:uppercase;color:#5b6472;background:#fafbfc">Verdict</th>'
   + '</tr></thead><tbody id="__bqa_tb"></tbody></table>'
   + '</div>'
-  + '<pre id="__bqa_report_blob" style="display:none"></pre>';
+  + '<pre id="__bqa_report_blob" style="display:none"></pre>'
+  + '<pre id="__bqa_verify_blob" style="display:none"></pre>';
 
 const RUNNER_BLOCK = '<script id="__bqa_runner">' + SCRIPT + '</script>';
 
