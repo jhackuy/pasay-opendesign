@@ -98,7 +98,7 @@ const QA_RUNNER = `
   }
   /* Diagnostic: paint something immediately so OD export sees we ran */
   var sum0 = document.getElementById('__bqa_sum');
-  if (sum0) sum0.textContent = 'QA runner started; typeof __OD_RUN_BROWSER_QA=' + typeof window.__OD_RUN_BROWSER_QA;
+  if (sum0) sum0.textContent = 'QA runner started; typeof __OD_RUN_BROWSER_QA=' + typeof window.__OD_RUN_BROWSER_QA + '; typeof render=' + typeof render + '; typeof app=' + (document.getElementById('app') ? 'present' : 'null') + '; doc.readyState=' + document.readyState + '; scriptCount=' + document.scripts.length;
   if (runNow()) return;
   /* Retry on rAF in case app isn't booted yet */
   var tries = 0;
