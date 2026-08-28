@@ -132,8 +132,8 @@ async function main() {
   log('Launching Chrome headless on port ' + port);
   const errFile = path.join(OUT_DIR, 'real-browser-stderr.log');
   fs.rmSync(errFile, { force: true });
-  const cmdLine = '\"\"' + path.join(OUT_DIR, 'launch-chrome-cdp.cmd') + '\" about:blank \"' + path.join(OUT_DIR, 'real-browser-prof') + '\" ' + port + ' 430 900\"';
-  const r = spawnSync('cmd', ['/d', '/s', '/c', cmdLine], { encoding: 'utf8' });
+  const r = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(OUT_DIR, 'launch-chrome-cdp.ps1'), '-Port', String(port), '-Profile', path.join(OUT_DIR, 'real-browser-prof'), '-Width', '430', '-Height', '900'], { encoding: 'utf8' });
+  log('launch exit=' + r.status + ' stdout=' + r.stdout.trim() + ' stderr=' + r.stderr.trim());
   log('launch cmd exit=' + r.status + ' stdout=' + r.stdout.trim() + ' stderr=' + r.stderr.trim());
 
   const ver = await pollDebugPort(port, 15000);
