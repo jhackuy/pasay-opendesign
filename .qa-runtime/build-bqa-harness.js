@@ -62,7 +62,7 @@ const SCRIPT = [
   '  renderReport(report);',
   '  return true;',
   '}',
-  'if(sum)sum.textContent="QA runner started; typeof __OD_RUN_BROWSER_QA="+typeof window.__OD_RUN_BROWSER_QA+"; typeof render="+typeof render+"; typeof app="+(document.getElementById("app")?"present":"null");',
+  'if(sum){var ee=window.__BQA_EARLY_ERRORS||[];var tail=ee.length?"\\n\\nERRORS:\\n"+ee.join("\\n"):"";sum.textContent="QA runner started; typeof __OD_RUN_BROWSER_QA="+typeof window.__OD_RUN_BROWSER_QA+"; typeof render="+typeof render+"; typeof app="+(document.getElementById("app")?"present":"null")+tail;}',
   'if(runNow())return;',
   'var tries=0;',
   '(function tick(){tries++;if(runNow())return;if(tries>240){fail("app never booted");return;}try{requestAnimationFrame(tick);}catch(_){setTimeout(tick,16);}})();',
@@ -90,11 +90,20 @@ const PANEL_HTML = '<div id="__bqa_panel" style="position:fixed;top:0;left:0;rig
 
 const RUNNER_BLOCK = '<script id="__bqa_runner">' + SCRIPT + '</script>';
 
+/* Early error capture that runs BEFORE the mini-app's <script>.
+   Captures errors during mini-app IIFE init() so we can diagnose. */
+const EARLY_ERROR_CAPTURE = '<script>(function(){window.__BQA_EARLY_ERRORS=[];window.addEventListener("error",function(e){window.__BQA_EARLY_ERRORS.push((e.message||e)+" @ "+(e.filename||"?")+":"+(e.lineno||"?")+":"+(e.colno||"?"));},true);})();</script>';
+
 function main() {
   const src = fs.readFileSync(SRC, 'utf8');
+  /* Insert early error capture immediately after <body> */
+  const bodyOpenRe = /<body[^>]*>/i;
+  if (!bodyOpenRe.test(src)) throw new Error('No <body> tag in source');
+  const srcWithEarly = src.replace(bodyOpenRe, function (m) { return m + '\n' + EARLY_ERROR_CAPTURE; });
+  /* Append QA panel + runner right before </body> */
   const bodyCloseRe = /<\/body>/i;
-  if (!bodyCloseRe.test(src)) throw new Error('No </body> tag in source');
-  const out = src.replace(bodyCloseRe, PANEL_HTML + RUNNER_BLOCK + '\n</body>');
+  if (!bodyCloseRe.test(srcWithEarly)) throw new Error('No </body> tag in source');
+  const out = srcWithEarly.replace(bodyCloseRe, PANEL_HTML + RUNNER_BLOCK + '\n</body>');
   fs.writeFileSync(OUT, out);
   console.log('[build-bqa] wrote ' + OUT + ' (' + out.length + ' bytes; src was ' + src.length + ')');
 }

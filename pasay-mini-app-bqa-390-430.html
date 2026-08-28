@@ -293,6 +293,7 @@ p, h1, h2, h3, h4, h5 { margin: 0; text-wrap: pretty; }
 </style>
 </head>
 <body>
+<script>(function(){window.__BQA_EARLY_ERRORS=[];window.addEventListener("error",function(e){window.__BQA_EARLY_ERRORS.push((e.message||e)+" @ "+(e.filename||"?")+":"+(e.lineno||"?")+":"+(e.colno||"?"));},true);})();</script>
 <div class="app" id="app"></div>
 <script>
 'use strict';
@@ -8727,7 +8728,8 @@ if (_themeMq) {
 applyTheme();
 window.addEventListener('hashchange', render);
 (function init() {
-  const last = localStorage.getItem('pasay_last_route');
+  let last = null;
+  try { last = localStorage.getItem('pasay_last_route'); } catch (e) { /* data: URLs / sandboxed contexts disable localStorage; fall back to default hash */ }
   if ((!location.hash || location.hash === '#/' || location.hash === '#/home') && last && last.startsWith('#/')) location.hash = last;
   render();
 })();
@@ -13763,7 +13765,7 @@ function runNow(){
   renderReport(report);
   return true;
 }
-if(sum)sum.textContent="QA runner started; typeof __OD_RUN_BROWSER_QA="+typeof window.__OD_RUN_BROWSER_QA+"; typeof render="+typeof render+"; typeof app="+(document.getElementById("app")?"present":"null");
+if(sum){var ee=window.__BQA_EARLY_ERRORS||[];var tail=ee.length?"\n\nERRORS:\n"+ee.join("\n"):"";sum.textContent="QA runner started; typeof __OD_RUN_BROWSER_QA="+typeof window.__OD_RUN_BROWSER_QA+"; typeof render="+typeof render+"; typeof app="+(document.getElementById("app")?"present":"null")+tail;}
 if(runNow())return;
 var tries=0;
 (function tick(){tries++;if(runNow())return;if(tries>240){fail("app never booted");return;}try{requestAnimationFrame(tick);}catch(_){setTimeout(tick,16);}})();

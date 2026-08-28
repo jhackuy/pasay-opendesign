@@ -8727,7 +8727,8 @@ if (_themeMq) {
 applyTheme();
 window.addEventListener('hashchange', render);
 (function init() {
-  const last = localStorage.getItem('pasay_last_route');
+  let last = null;
+  try { last = localStorage.getItem('pasay_last_route'); } catch (e) { /* data: URLs / sandboxed contexts disable localStorage; fall back to default hash */ }
   if ((!location.hash || location.hash === '#/' || location.hash === '#/home') && last && last.startsWith('#/')) location.hash = last;
   render();
 })();
