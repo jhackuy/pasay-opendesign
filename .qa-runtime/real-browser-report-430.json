@@ -6,10 +6,12 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -21,16 +23,16 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:fchip on",
-          "short-aux:fchip",
-          "short-aux:fchip on",
-          "short-aux:fchip",
-          "short-aux:fchip",
-          "short-aux:fchip"
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip",
+          "clipped:fchip",
+          "short:fchip",
+          "clipped:fchip"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -42,20 +44,23 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-g sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:btn btn-s sm",
+          "short:btn btn-g sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -67,18 +72,21 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -90,18 +98,21 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -113,11 +124,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -129,13 +138,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:fchip",
-          "short-aux:fchip",
-          "short-aux:fchip"
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip",
+          "short:fchip",
+          "short:fchip"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -147,10 +154,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -162,11 +170,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-g sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-g sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -178,11 +186,12 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-p sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm",
+          "short:attach"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -194,16 +203,14 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -215,25 +222,24 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -245,10 +251,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -260,11 +265,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-p sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -276,10 +281,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -291,10 +295,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -306,14 +309,13 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -327,319 +329,317 @@
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "props",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:fchip on",
-          "short-aux:fchip",
-          "short-aux:fchip on",
-          "short-aux:fchip",
-          "short-aux:fchip",
-          "short-aux:fchip"
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip",
+          "short:fchip",
+          "clipped:fchip"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "prop-detail",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-g sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:btn btn-s sm",
+          "short:btn btn-g sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "prop-fin",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "prop-repair",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "ops",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "finance",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:fchip",
-          "short-aux:fchip",
-          "short-aux:fchip"
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip",
+          "short:fchip",
+          "short:fchip"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "rent-detail",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "repair-detail",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-g sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-g sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "expense-detail",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-p sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm",
+          "short:attach"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "more",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "archive",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "team",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "tenant",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-p sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "setup",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "switch",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       },
       {
         "page": "settings",
         "leaks": [],
         "docOverflow": false,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
         "overlap": 0,
-        "ok": true
+        "ok": false
       }
     ]
   },
@@ -664,17 +664,19 @@
   ],
   "summary": {
     "total": 34,
-    "pass": 17,
+    "pass": 0,
     "fail": [
       {
         "page": "home",
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -686,16 +688,16 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:fchip on",
-          "short-aux:fchip",
-          "short-aux:fchip on",
-          "short-aux:fchip",
-          "short-aux:fchip",
-          "short-aux:fchip"
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip",
+          "clipped:fchip",
+          "short:fchip",
+          "clipped:fchip"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -707,20 +709,23 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-g sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:btn btn-s sm",
+          "short:btn btn-g sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -732,18 +737,21 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -755,18 +763,21 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab on",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab",
-          "short-aux:tab"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -778,11 +789,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -794,13 +803,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:fchip",
-          "short-aux:fchip",
-          "short-aux:fchip"
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip",
+          "short:fchip",
+          "short:fchip"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -812,10 +819,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -827,11 +835,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-g sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-g sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -843,11 +851,12 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-p sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm",
+          "short:attach"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -859,16 +868,14 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -880,25 +887,24 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -910,10 +916,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -925,11 +930,11 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-p sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": true,
@@ -941,10 +946,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -956,10 +960,9 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,
@@ -971,14 +974,330 @@
         "leaks": [],
         "docOverflow": true,
         "appOverflow": false,
-        "rectIssues": [],
-        "auxMetrics": [
-          "short-aux:tb-back",
-          "short-aux:iconb",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm",
-          "short-aux:btn btn-s sm"
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "home",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON",
+          "short:BUTTON"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "props",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip on",
+          "short:fchip",
+          "short:fchip",
+          "short:fchip",
+          "clipped:fchip"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "prop-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:btn btn-s sm",
+          "short:btn btn-g sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "prop-fin",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "prop-repair",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:tab",
+          "short:tab",
+          "short:tab",
+          "short:tab on",
+          "short:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab",
+          "short:tab",
+          "clipped:tab"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "ops",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "finance",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:iconb",
+          "short:fchip",
+          "short:fchip",
+          "short:fchip"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "rent-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:BUTTON"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "repair-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-g sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "expense-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm",
+          "short:attach"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "more",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "archive",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb",
+          "short:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "team",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "tenant",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:BUTTON",
+          "short:btn btn-p sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "setup",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "switch",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": false
+      },
+      {
+        "page": "settings",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [
+          "short:tb-back",
+          "short:iconb",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm",
+          "short:btn btn-s sm"
         ],
         "bottomNavUsable": true,
         "primaryAction": false,

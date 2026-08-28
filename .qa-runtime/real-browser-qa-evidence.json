@@ -1,107 +1,82 @@
 {
-  "browser": "Chrome/151.0.7922.34",
-  "version": "",
-  "protocol": "1.3",
+  "browser": "Google Chrome 151 (channel=chrome, real launch via playwright-core)",
+  "playwright": "playwright-core 1.63.0-alpha-2026-08-05",
   "origin": "http://127.0.0.1:8790",
   "target": "pasay-mini-app-bqa-390-430.html",
   "viewports": {
     "390": {
-      "status": {
-        "hasRunner": true,
-        "sum": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=34 allPass=true",
-        "allpass": true,
-        "total": 34,
-        "pass": 34,
-        "hardAssert": true,
-        "pageCount": 17,
-        "verify": {
-          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
-          "href": "http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html#/settings",
-          "hardAssert": true,
-          "allPass": true,
-          "total": 34,
-          "pass": 34,
-          "pageCount": 17,
-          "expectedTotal": 34,
-          "viewport390Count": 17,
-          "viewport430Count": 17,
-          "timestamp": "2026-08-28T11:41:33.662Z"
-        }
-      },
-      "reportTotal": 34,
-      "reportPass": 34,
-      "allPass": true,
-      "hardAssertAllpass": true,
-      "hardAssertTotal": 34,
-      "hardAssertPass": 34,
-      "hardAssertPageCount": 17,
-      "hardAssertVerify": {
-        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
-        "href": "http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html#/settings",
-        "hardAssert": true,
-        "allPass": true,
-        "total": 34,
-        "pass": 34,
-        "pageCount": 17,
-        "expectedTotal": 34,
-        "viewport390Count": 17,
-        "viewport430Count": 17,
-        "timestamp": "2026-08-28T11:41:33.662Z"
-      },
-      "consoleErrors": [],
-      "pageExceptions": [],
-      "ok": true
-    },
-    "430": {
-      "status": {
-        "hasRunner": true,
-        "sum": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=17 allPass=false",
-        "allpass": false,
-        "total": 34,
-        "pass": 17,
-        "hardAssert": false,
-        "pageCount": 17,
-        "verify": {
-          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
-          "href": "http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html#/settings",
-          "hardAssert": false,
-          "allPass": false,
-          "total": 34,
-          "pass": 17,
-          "pageCount": 17,
-          "expectedTotal": 34,
-          "viewport390Count": 17,
-          "viewport430Count": 17,
-          "timestamp": "2026-08-28T11:41:45.726Z"
-        }
-      },
-      "reportTotal": 34,
-      "reportPass": 17,
-      "allPass": false,
-      "hardAssertAllpass": false,
-      "hardAssertTotal": 34,
-      "hardAssertPass": 17,
-      "hardAssertPageCount": 17,
-      "hardAssertVerify": {
+      "httpStatus": 200,
+      "viewport": 390,
+      "height": 900,
+      "typeofRunner": null,
+      "hasRunner": true,
+      "BQA_ALLPASS": false,
+      "BQA_TOTAL": 34,
+      "BQA_PASS": 0,
+      "BQA_HARD_ASSERT": false,
+      "BQA_PAGE_COUNT": 17,
+      "BQA_VERIFY": {
         "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
         "href": "http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html#/settings",
         "hardAssert": false,
         "allPass": false,
         "total": 34,
-        "pass": 17,
+        "pass": 0,
         "pageCount": 17,
         "expectedTotal": 34,
         "viewport390Count": 17,
         "viewport430Count": 17,
-        "timestamp": "2026-08-28T11:41:45.726Z"
+        "timestamp": "2026-08-28T13:33:26.633Z"
       },
-      "consoleErrors": [],
+      "sumLine": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=0 allPass=false",
+      "reportTotal": 34,
+      "reportPass": 0,
+      "reportAllPass": false,
+      "consoleErrors": [
+        "[console.error] Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "pageExceptions": [],
+      "ok": false
+    },
+    "430": {
+      "httpStatus": 200,
+      "viewport": 430,
+      "height": 900,
+      "typeofRunner": null,
+      "hasRunner": true,
+      "BQA_ALLPASS": false,
+      "BQA_TOTAL": 34,
+      "BQA_PASS": 0,
+      "BQA_HARD_ASSERT": false,
+      "BQA_PAGE_COUNT": 17,
+      "BQA_VERIFY": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "href": "http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html#/settings",
+        "hardAssert": false,
+        "allPass": false,
+        "total": 34,
+        "pass": 0,
+        "pageCount": 17,
+        "expectedTotal": 34,
+        "viewport390Count": 17,
+        "viewport430Count": 17,
+        "timestamp": "2026-08-28T13:33:28.185Z"
+      },
+      "sumLine": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=0 allPass=false",
+      "reportTotal": 34,
+      "reportPass": 0,
+      "reportAllPass": false,
+      "consoleErrors": [
+        "[console.error] Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
       "pageExceptions": [],
       "ok": false
     }
   },
   "allPass": false,
-  "timestamp": "2026-08-28T11:41:33.340Z",
+  "timestamp": "2026-08-28T13:33:26.069Z",
   "rows390": 34,
-  "rows430": 34
+  "rows430": 34,
+  "expectedRows": 34,
+  "expectedPass": 34
 }
