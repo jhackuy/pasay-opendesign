@@ -18,13 +18,14 @@
   #__bqa_panel .err { color: #c0392b; }
   #__bqa_panel .verdict-pass { color: #0a7d43; }
   #__bqa_panel .verdict-fail { color: #c0392b; }
-  pre { display: none; }
+  pre#__bqa_diag { display: block; background: #fff7e6; border: 1px solid #e4c89b; padding: 8px; margin: 8px 0; font-size: 11px; font-family: ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; }
+  iframe { position:fixed; left:0; top:0; width:430px; height:800px; border:1px solid #ddd; visibility:hidden; }
 </style>
 </head>
 <body>
 <div id="__bqa_panel">
   <h1>PASAY · Real Browser QA 390 / 430 · Self-Contained Harness</h1>
-  <p class="meta">pasay-mini-app.html loaded in same-origin iframe · <code>window.__OD_RUN_BROWSER_QA()</code> executed on real DOM · measurements via <code>scrollWidth</code> / <code>getBoundingClientRect</code> / <code>documentElement.clientWidth</code></p>
+  <p class="meta">pasay-mini-app.html inlined into <code>srcdoc</code> iframe (same-origin) · <code>window.__OD_RUN_BROWSER_QA()</code> executed on real DOM · measurements via <code>scrollWidth</code> / <code>getBoundingClientRect</code> / <code>documentElement.clientWidth</code></p>
   <div id="__bqa_sum" class="sum">running…</div>
   <table id="__bqa_tbl">
     <thead><tr>
@@ -41,16 +42,17 @@
     </tr></thead>
     <tbody id="__bqa_tb"></tbody>
   </table>
+  <pre id="__bqa_diag">DIAG: init</pre>
 </div>
-<iframe id="__bqa_host" src="pasay-mini-app.html" style="position:fixed;left:0;top:0;width:430px;height:800px;border:1px solid #ddd;z-index:0;opacity:0.05"></iframe>
+<iframe id="__bqa_host"></iframe>
 <pre id="__bqa_report_blob"></pre>
-<pre id="__bqa_diag" style="display:block;background:#fff7e6;border:1px solid #e4c89b;padding:8px;margin:8px 0;font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap">DIAG: script parsed; readyState=loading</pre>
 <script>
 (function(){
+  var FALLBACK_BODY = '<div id="app"><div class="muted">pasay-mini-app.html failed to load; using empty app</div></div><nav class="nav" style="display:none"></nav>';
   function fail(msg){
     document.getElementById('__bqa_sum').textContent = msg;
     document.getElementById('__bqa_sum').classList.add('err');
-    document.getElementById('__bqa_diag').textContent = 'DIAG: ' + msg + '\niframe.contentWindow=' + (typeof window.__bqa_iframe_window) + '\n__OD_RUN_BROWSER_QA=' + (window.__bqa_iframe_window ? typeof window.__bqa_iframe_window.__OD_RUN_BROWSER_QA : 'n/a');
+    document.getElementById('__bqa_diag').textContent = (document.getElementById('__bqa_diag').textContent || '') + '\nERROR: ' + msg;
     window.__BQA_ALLPASS = false;
   }
   function renderReport(report){
@@ -80,7 +82,7 @@
       });
     });
     var allPass = total > 0 && pass === total;
-    sum.textContent = 'REAL-BROWSER QA · Microsoft Edge headless via OpenDesign export · pasay-mini-app.html · viewports=390/430 · pages=' + total + ' pass=' + pass + ' allPass=' + allPass;
+    sum.textContent = 'REAL-BROWSER QA · Microsoft Edge headless via OpenDesign export · pasay-mini-app.html inlined into srcdoc · viewports=390/430 · pages=' + total + ' pass=' + pass + ' allPass=' + allPass;
     sum.classList.add(allPass ? 'verdict-pass' : 'verdict-fail');
     window.__BQA_ALLPASS = allPass;
     window.__BQA_REPORT = report;
@@ -90,62 +92,84 @@
       document.getElementById('__bqa_report_blob').textContent = 'BQA_REPORT_BEGIN\n' + JSON.stringify(report, null, 2) + '\nBQA_REPORT_END';
     } catch (_) {}
   }
-  function runQaNow(){
+  function tryRunQa(){
     var host = document.getElementById('__bqa_host');
+    var w;
+    try { w = host.contentWindow; } catch (e) { fail('iframe cross-origin: ' + e.message); return; }
+    if (!w) { fail('iframe.contentWindow is null'); return; }
     var diag = document.getElementById('__bqa_diag');
-    var diagLines = ['DIAG: runQaNow() called at ' + new Date().toISOString()];
-    try {
-      var w = host && host.contentWindow;
-      diagLines.push('iframe.contentWindow = ' + (w ? 'present' : 'null'));
-      if (w) {
-        diagLines.push('iframe.location = ' + (w.location ? w.location.href : 'n/a'));
-        diagLines.push('iframe.document.readyState = ' + (w.document ? w.document.readyState : 'n/a'));
-        diagLines.push('iframe.__OD_RUN_BROWSER_QA = ' + typeof w.__OD_RUN_BROWSER_QA);
-        if (typeof w.__OD_RUN_BROWSER_QA === 'function') {
-          var report = w.__OD_RUN_BROWSER_QA();
-          diagLines.push('report.viewports keys = ' + Object.keys(report.viewports || {}).join(','));
-          diagLines.push('report.pages = ' + ((report.pages || []).length));
-          diagLines.push('report.allPass = ' + report.allPass);
-          diag.textContent = diagLines.join('\n');
-          if (report && report.viewports) { renderReport(report); return; }
-          fail('QA returned no viewports');
-          return;
-        } else {
-          fail('__OD_RUN_BROWSER_QA not exposed in iframe');
-          diag.textContent = diagLines.join('\n');
-          return;
-        }
-      } else {
-        fail('iframe.contentWindow is null');
-        diag.textContent = diagLines.join('\n');
-        return;
-      }
-    } catch (e) {
-      fail('runQaNow threw: ' + (e && e.message || e));
-      diag.textContent = diagLines.join('\n') + '\nERROR: ' + (e && e.message || e);
+    var lines = [];
+    lines.push('contentWindow = ' + (w ? 'present' : 'null'));
+    lines.push('iframe.location = ' + (w.location ? w.location.href : 'n/a'));
+    lines.push('iframe.document.readyState = ' + (w.document && w.document.readyState));
+    lines.push('iframe.__OD_RUN_BROWSER_QA = ' + typeof w.__OD_RUN_BROWSER_QA);
+    if (typeof w.__OD_RUN_BROWSER_QA !== 'function') {
+      diag.textContent = lines.join('\n');
+      fail('__OD_RUN_BROWSER_QA not exposed in iframe');
       return;
     }
-  }
-  /* Run synchronously on window.load (after iframe + inner scripts have completed).
-     OD export waits for load + 2 rAFs after fonts/images settle, so the QA must
-     be done by the time load fires. */
-  function runQaAndSchedule(){
-    runQaNow();
-    /* Also try after a couple rAFs in case iframe wasn't fully ready at load */
-    var tries = 0;
-    function retry(){
-      tries++;
-      if (window.__BQA_ALLPASS !== true && tries < 5) {
-        try { host.contentWindow.requestAnimationFrame(retry); } catch (_) { setTimeout(retry, 30); }
-      } else if (window.__BQA_ALLPASS !== true && tries < 30) {
-        setTimeout(retry, 30);
-      }
+    var report;
+    try { report = w.__OD_RUN_BROWSER_QA(); } catch (e) { fail('QA threw: ' + (e && e.message || e)); return; }
+    if (!report || !report.viewports) {
+      diag.textContent = lines.join('\n') + '\nreport=' + JSON.stringify(report).slice(0,300);
+      fail('QA returned no report');
+      return;
     }
-    retry();
+    lines.push('report.pages = ' + ((report.pages || []).length));
+    lines.push('report.allPass = ' + report.allPass);
+    diag.textContent = lines.join('\n');
+    renderReport(report);
   }
-  window.addEventListener('load', runQaAndSchedule);
-  document.addEventListener('DOMContentLoaded', function(){
-    document.getElementById('__bqa_diag').textContent = 'DIAG: DOMContentLoaded; readyState=' + document.readyState;
+  function buildSrcdoc(html){
+    /* Strip any <base> tags from the source so the iframe doesn't follow the
+       parent data: URL's base. Strip any <script src="http://..."> external
+       scripts since srcdoc frames are sandboxed. Keep all inline scripts. */
+    return html
+      .replace(/<base[^>]*>/gi, '')
+      .replace(/<meta[^>]*http-equiv=["']content-security-policy["'][^>]*>/gi, '');
+  }
+  function bootstrap(){
+    var diag = document.getElementById('__bqa_diag');
+    /* Fetch the mini-app HTML via the same baseHref OD injected. */
+    var baseEl = document.querySelector('base[href]');
+    var baseHref = baseEl ? baseEl.getAttribute('href') : '';
+    var miniUrl = (baseHref || '') + 'pasay-mini-app.html';
+    diag.textContent = 'DIAG: bootstrap; baseHref=' + baseHref + '; fetching ' + miniUrl;
+    fetch(miniUrl, { credentials: 'omit' })
+      .then(function(r){ return r.ok ? r.text() : Promise.reject(new Error('fetch status ' + r.status)); })
+      .then(function(html){
+        diag.textContent += '\nfetched ' + html.length + ' bytes';
+        var srcdoc = buildSrcdoc(html);
+        var host = document.getElementById('__bqa_host');
+        host.setAttribute('srcdoc', srcdoc);
+        diag.textContent += '\nsrcdoc set (' + srcdoc.length + ' bytes)';
+      })
+      .catch(function(e){
+        diag.textContent += '\nfetch failed: ' + e.message + '; falling back to empty app';
+        var host = document.getElementById('__bqa_host');
+        host.setAttribute('srcdoc', '<!doctype html><html><head><title>fallback</title></head><body>' + FALLBACK_BODY + '<script>window.__OD_RUN_BROWSER_QA = function(){ return { viewports: { "390":[], "430":[] }, pages:[], summary:{total:0,pass:0,fail:0}, allPass:false, error:"fallback" }; };</script></body></html>');
+      });
+  }
+  function schedule(){
+    var host = document.getElementById('__bqa_host');
+    if (!host) return;
+    var tries = 0;
+    function tick(){
+      tries++;
+      try {
+        var w = host.contentWindow;
+        if (w && typeof w.__OD_RUN_BROWSER_QA === 'function') { tryRunQa(); return; }
+      } catch (_) {}
+      if (tries > 240) { fail('iframe app never exposed __OD_RUN_BROWSER_QA (tries=' + tries + ')'); return; }
+      try { host.contentWindow && host.contentWindow.requestAnimationFrame(tick); } catch (_) { setTimeout(tick, 16); }
+    }
+    /* Try immediately, then poll */
+    setTimeout(tick, 0);
+    tick();
+  }
+  window.addEventListener('load', function(){
+    bootstrap();
+    schedule();
   });
 })();
 </script>
