@@ -6776,12 +6776,32 @@ function sheetQuickExpense() {
     field('qe-vendor', zh ? '收款方 / 商家' : 'Vendor / payee', '<input id="qe-vendor" class="input" placeholder="'+(zh?'本地五金店…':'local hardware store…')+'"/>') +
     '<button class="btn btn-p block" data-a="submit-expense-quick">' + (zh ? '记录并标记已付' : 'Record & mark paid') + '</button>');
 }
-function sheetReportRepair(unitSel) {  openSheet(sheetHead(state.lang==='zh'?'报修':'Report repair', state.lang==='zh'?'运营事件 — 与支出分开管理':'operational event — kept separate from expenses') +
-    field('rr-unit', state.lang==='zh'?'物业':'Property', '<select id="rr-unit" class="select">' + unitOptions(unitSel) + '</select>') +
-    field('rr-issue', state.lang==='zh'?'问题':'Issue', '<input id="rr-issue" class="input" placeholder="Aircon leaking water"/>') +
-    field('rr-desc', state.lang==='zh'?'描述':'Description', '<textarea id="rr-desc" class="textarea" placeholder="'+(state.lang==='zh'?'检查后确认需更换压缩机…':'e.g. confirmed needs new compressor…')+'"></textarea>') +
-    field('rr-pri', state.lang==='zh'?'优先级':'Priority', '<div class="seg">' + [['high', state.lang==='zh'?'高':'High'], ['medium', state.lang==='zh'?'中':'Medium'], ['low', state.lang==='zh'?'低':'Low']].map(p => '<button type="button" class="' + (p[0] === 'medium' ? 'on' : '') + '" data-a="pri-seg" data-p="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>') +
-    '<button class="btn btn-p block" data-a="submit-repair">' + (state.lang==='zh'?'提交报修':'Submit repair') + '</button>');
+/* PASAY-TASK-013 · DESIGN-013 FREEZE BLOCKER · Repair create authority = Property.id (PRP-xxxx).
+   Sheet must require explicit PRP selection; same-unit ambiguous units cannot be selected from a single
+   unit dropdown. The selector lists state.props by PRP id; legacy ambiguous entries (same unit, multiple
+   PRP) appear with full property_id in the label so the operator can disambiguate. */
+function propertyOptionsByPid(sel) { return state.props.map(p => {
+  const pid = p.id || '';
+  const tower = p.t || p.tower || '';
+  const unit = p.unit || '';
+  const label = (state.lang==='zh'?'物业 ':'Property ') + (pid ? pid : unit) + ' · ' + unit + (tower ? (' · ' + tower) : '');
+  return '<option value="' + pid + '"' + (pid === sel ? ' selected' : '') + '>' + label + '</option>';
+}).join(''); }
+function sheetReportRepair(unitSel) {
+  const zh = state.lang === 'zh';
+  /* Derive default PRP from unitSel when it maps unambiguously to one Property.
+     If multiple Properties share that unit, the operator MUST explicitly pick a PRP. */
+  let defaultPid = '';
+  if (unitSel) {
+    const matches = state.props.filter(p => p.unit === unitSel);
+    if (matches.length === 1) defaultPid = matches[0].id || '';
+  }
+  openSheet(sheetHead(zh?'报修':'Report repair', zh?'运营事件 — 与支出分开管理 · 物业按 PRP-xxxx 标识':'operational event — kept separate from expenses · property identified by PRP-xxxx') +
+    field('rr-prop', zh?'物业（必选 · PRP-xxxx）':'Property (required · PRP-xxxx)', '<select id="rr-prop" class="select" data-a="rr-prop-select">' + propertyOptionsByPid(defaultPid) + '</select>') +
+    field('rr-issue', zh?'问题':'Issue', '<input id="rr-issue" class="input" placeholder="Aircon leaking water"/>') +
+    field('rr-desc', zh?'描述':'Description', '<textarea id="rr-desc" class="textarea" placeholder="'+(zh?'检查后确认需更换压缩机…':'e.g. confirmed needs new compressor…')+'"></textarea>') +
+    field('rr-pri', zh?'优先级':'Priority', '<div class="seg">' + [['high', zh?'高':'High'], ['medium', zh?'中':'Medium'], ['low', zh?'低':'Low']].map(p => '<button type="button" class="' + (p[0] === 'medium' ? 'on' : '') + '" data-a="pri-seg" data-p="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>') +
+    '<button class="btn btn-p block" data-a="submit-repair">' + (zh?'提交报修':'Submit repair') + '</button>');
 }
 /* PASAY-TASK-009 · Secretary · 登记报价业务入口（真实业务，非 demo 模拟师傅报价） */
 function sheetRepairAddQuote(opId) {
@@ -7679,16 +7699,39 @@ const __odClickHandler = function(e) {
     return;
   }
   if (a === 'submit-repair') {
-    const unit = $('#rr-unit').value || null; const issue = $('#rr-issue').value.trim(); const desc = $('#rr-desc').value.trim(); const pri = document.querySelector('[data-a="pri-seg"].on') ? document.querySelector('[data-a="pri-seg"].on').dataset.p : 'medium';
+    const propSelect = $('#rr-prop'); const pid = propSelect ? (propSelect.value || '').trim() : '';
+    const issue = $('#rr-issue').value.trim(); const desc = $('#rr-desc').value.trim(); const pri = document.querySelector('[data-a="pri-seg"].on') ? document.querySelector('[data-a="pri-seg"].on').dataset.p : 'medium';
     if (!issue) { toast((state.lang==='zh'?'请填写问题描述':'issue required')); return; }
+    /* PASAY-TASK-013 · DESIGN-013 FREEZE BLOCKER · Repair create authority = Property.id.
+       1. No explicit PRP id → REJECT + zero mutation.
+       2. PRP id not registered → REJECT (resolve only by PRP id, never by unit fallback). */
+    if (!pid) { toast((state.lang==='zh'?'请选择物业（PRP-xxxx）后才能提交报修':'Select a property (PRP-xxxx) to submit a repair')); return; }
+    const _rrProp = propById(pid);
+    if (!_rrProp || !_rrProp.id) { toast((state.lang==='zh'?'无效的物业编号：':'Invalid property id: ') + pid); return; }
+    if (!/^PRP-/.test(_rrProp.id)) { toast((state.lang==='zh'?'物业编号必须是 PRP-xxxx 格式':'Property id must be PRP-xxxx')); return; }
+    const unit = _rrProp.unit || null;
     const id = 'REP-' + fmtId4(uid('rep'));
-    const _rrProp = (function(){ const mp = state.props.filter(p => p.unit === unit); return mp.length === 1 ? mp[0] : (mp.find(p => p.id === (el.dataset && el.dataset.propertyId)) || null); })();
-    state.repairs.unshift({ id, unit, property_id: _rrProp ? _rrProp.id : null, issue, desc, priority: pri, status: 'reported', assignee: null, photos: null, by: 'Secretary', at: TODAY, relatedExpenses: [], nextAction: '', tl: [{ code: 'REPAIR_REPORTED', actor: 'secretary', entity_type: 'repair', entity_id: id, metadata: { ref: id }, at: TODAY }] });
+    state.repairs.unshift({ id, unit, property_id: _rrProp.id, issue, desc, priority: pri, status: 'reported', assignee: null, photos: null, by: 'Secretary', at: TODAY, relatedExpenses: [], nextAction: '', tl: [{ code: 'REPAIR_REPORTED', actor: 'secretary', entity_type: 'repair', entity_id: id, metadata: { ref: id }, at: TODAY }] });
+    /* A.5 · Repair → Operation production path auto-copies repair.property_id → operation.domain.property_id.
+       Operation id deterministic ('OP-REP-' + repair.id) so re-entry is idempotent and tests can look it up. */
+    const opId = 'OP-REP-' + id;
+    createChildOperation({
+      id: opId, kind: 'repair',
+      objective: state.lang==='zh' ? ('处理报修 ' + id + ' · ' + _rrProp.unit + ' · ' + issue) : ('Resolve repair ' + id + ' · ' + _rrProp.unit + ' · ' + issue),
+      domain: { repair_id: id, unit: unit, property_id: _rrProp.id },
+      esc: 'WAITING_HUMAN', next_actor: 'secretary', next_action_code: 'confirm_repair_info',
+      expected_result: state.lang==='zh' ? ('确认 ' + _rrProp.unit + ' 报修信息（' + issue + '）') : ('Confirm ' + _rrProp.unit + ' repair info (' + issue + ')'),
+      demoStage: 'confirm_info',
+      initial_tl: [
+        { at: TODAY, t: state.lang==='zh' ? ('报修创建 · 自动生成维修事项 ' + opId) : ('Repair reported · auto-opened operation ' + opId) },
+        { at: TODAY, t: state.lang==='zh' ? ('property_id=' + _rrProp.id + ' · 等待 Secretary 确认') : ('property_id=' + _rrProp.id + ' · awaiting Secretary confirmation') }
+      ]
+    });
     const tid = 'T-' + uid('task');
     state.tasks.unshift({ id: tid, type: 'arrange_repair', subject: '', object: { kind: 'repair', id }, assignee: 'secretary', status: 'todo', priority: pri, due: TODAY, nextAction: '', source: 'system', related: id, tl: [], reminder: { state: 'active', snoozeUntil: null, lastAt: null } });
     addEvent('REPAIR_REPORTED', roleIs('owner') ? 'owner' : 'secretary', 'repair', id, { ref: id });
     if (earn('first_repair')) earnToast(BADGES.find(b => b.id === 'first_repair'));
-    save(); closeSheet(); render(); toast((state.lang==='zh'?'已报修 ':'Reported ') + id + ' · ' + (state.lang==='zh'?'等待指派':'waiting assignment'));
+    save(); closeSheet(); render(); toast((state.lang==='zh'?'已报修 ':'Reported ') + id + ' · ' + _rrProp.id + ' · ' + (state.lang==='zh'?'等待指派':'waiting assignment'));
     return;
   }
   /* PASAY-TASK-009 · Secretary · 登记报价 / 小维修快速收尾（业务入口，非 demo 模拟） */
