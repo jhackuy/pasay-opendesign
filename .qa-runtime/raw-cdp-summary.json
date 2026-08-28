@@ -1,10 +1,10 @@
 {
   "viewports": {
     "390": {
-      "error": "Chromium debug port did not come up on 9222"
+      "error": "Chromium debug port did not come up on 9300"
     },
     "430": {
-      "error": "Chromium debug port did not come up on 9222"
+      "error": "Chromium debug port did not come up on 9301"
     }
   },
   "allPass": false

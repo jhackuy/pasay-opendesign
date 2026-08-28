@@ -30,7 +30,7 @@ async function tryFetch(url, tries = 30) {
 async function runForViewport(vw) {
   const exe = await pickExe();
   if (!exe) throw new Error('No Chrome/Edge found');
-  const port = 9222;
+  const port = 9300 + (vw === 430 ? 1 : 0); // distinct ports for 390 and 430
   const userDataDir = path.join(__dirname, 'cdp-prof-' + vw);
   fs.rmSync(userDataDir, { recursive: true, force: true });
   fs.mkdirSync(userDataDir, { recursive: true });
@@ -49,8 +49,12 @@ async function runForViewport(vw) {
     '--disable-component-update',
     '--disable-default-apps',
     '--disable-breakpad',
-    '--single-process',
-    '--no-zygote',
+    '--disable-crash-reporter',
+    '--disable-features=Crashpad,MojoIpcz',
+    '--no-crashpad',
+    '--disable-crashpad',
+    '--disable-dev-shm-usage',
+    '--in-process-gpu',
     '--user-data-dir=' + userDataDir,
     '--window-size=' + vw + ',800',
     '--remote-debugging-port=' + port
