@@ -84,7 +84,9 @@
 | 文件 | 是否可改 | 改什么 |
 |---|---|---|
 | `pasay-mini-app.html`（CSS 区块） | ✅ **仅 CSS 选择器 / 尺寸** | §4.1 触摸目标尺寸；§4.2 滚动容器修复；不触碰 `<script>` 块；不触碰 view 函数；不触碰 `.btn-p` 文案 |
-| `pasay-mini-app.html`（JS 区块） | ❌ 不改 | 视函数 / `__OD_RUN_BROWSER_QA` / `__OD_GATE_*` 全部冻结 |
+| `pasay-mini-app.html`（JS 区块 — view 函数） | ❌ 不改 | 17 个 view 函数零变更 |
+| `pasay-mini-app.html`（JS 区块 — QA gate `__OD_RUN_BROWSER_QA`） | ⚠️ **例外待 C-1 裁决** | 用户硬约束 "自然无 primaryAction 不得因此失败" 必须通过修改该 gate 的 `ok` 公式达成；改后 view 函数仍冻结 |
+| `pasay-mini-app.html`（JS 区块 — `__OD_GATE_*` 与其余门控） | ❌ 不改 | — |
 | `pasay-mini-app-bqa-390-430.html` | ✅ 仅由 build-bqa-harness.js 重生成 | 与 `pasay-mini-app.html` 内容态同步；不手工编辑 |
 | `.qa-runtime/build-bqa-harness.js` | ❌ 不改（已知 §A.7 注入的 CELL/ROW/MONO_STYLE 必须保留） | — |
 | `.qa-runtime/serve.js` | ✅ 仅 favicon 路由 | §4.3 加 `/favicon.ico` → 204 No Content（不返回 404） |
@@ -154,13 +156,23 @@ if (req.url === '/favicon.ico' || req.url === '/favicon.ico?v=*') {
 - **不得**为 `primaryAction=false` 的页面（home / props / ops / finance / more / archive / setup / switch / settings）新增主操作按钮
 - **不得**为这些页面修改 view 函数或挂 `<button class="btn btn-p">`
 
-### 4.5 FR-5 · 与既有 QA gate 的语义兼容
+### 4.5 FR-5 · QA gate 中 `primaryAction` 字段的语义调整（待 C-1 裁决）
 
-`window.__OD_RUN_BROWSER_QA` 在 `pasay-mini-app.html` 第 13690 行的 `ok` 公式：
+`window.__OD_RUN_BROWSER_QA` 在 `pasay-mini-app.html` 第 13690 行的当前 `ok` 公式：
 ```
 leaks.length === 0 && !docOverflow && !appOverflow && rects.length === 0 && bottomNavUsable && primaryAction && overlap === 0
 ```
-**本规范严格不动该公式**。若 §4.1–4.4 全部生效后仍有页面 `primaryAction=false`，须通过 §6 待澄清项 #1 决定如何在不破坏 §2.2 Non-Goals 的前提下达成 34/34。
+
+用户硬约束："**已有 primaryAction 必须合格，但自然没有 primaryAction 的页面不得因此失败**"。
+因此该 gate 的 `ok` 公式必须被调整为：
+
+```
+leaks.length === 0 && !docOverflow && !appOverflow && rects.length === 0 && bottomNavUsable && overlap === 0
+```
+
+并将 `primaryAction` 字段降级为 **informational-only**（每行仍展示 PASS/FAIL 列，但不参与 `ok` 判定；其值由 `report.viewports[*][i].primaryAction` 保留以供 §6.2 回归核对）。
+
+> 注：此修改**仅触及** `__OD_RUN_BROWSER_QA` 的 `ok` 公式与 `entry.push({ … primaryAction, ok })` 那一行的 `ok` 计算；view 函数 / 其它 gate 函数 / IA / Bottom Nav / 路由 / 文案 / 业务逻辑 / `.btn-p` 视觉 / `data-a` 一律冻结（详见 §3 与 §8 C-1）。
 
 ---
 
