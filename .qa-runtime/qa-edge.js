@@ -22,6 +22,7 @@
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const WebSocket = require('C:/Users/Admin/AppData/Roaming/Open Design/launcher/channels/stable/namespaces/release-stable-win/versions/0.21.0/payload/resources/app/node_modules/ws');
 
 const WORKSPACE = path.resolve(__dirname, '..');
@@ -32,19 +33,30 @@ const VIEWPORTS = [390, 430];
 
 function log(msg) { console.log('[edge-qa] ' + msg); }
 
-async function pollDebugPort(port, timeoutMs = 6000) {
-  const start = Date.now();
-  let attempts = 0;
-  while (Date.now() - start < timeoutMs) {
-    attempts++;
-    try {
-      const r = await fetch('http://127.0.0.1:' + port + '/json/version');
-      if (r.ok) { const j = await r.json(); log('Debug port ' + port + ' responded after ' + attempts + ' attempts (' + (Date.now()-start) + ' ms)'); return j; }
-    } catch (_) { /* not ready */ }
-    await new Promise(r => setTimeout(r, 50));
-  }
-  log('Debug port ' + port + ' did NOT respond after ' + attempts + ' attempts (' + timeoutMs + ' ms)');
-  return null;
+function pollDebugPort(port, timeoutMs = 10000) {
+  return new Promise(function (resolve) {
+    const start = Date.now();
+    let attempts = 0;
+    function attemptOnce() {
+      attempts++;
+      const req = http.get({
+        host: '127.0.0.1', port: port, path: '/json/version', timeout: 1000
+      }, function (res) {
+        let data = '';
+        res.on('data', function (c) { data += c; });
+        res.on('end', function () {
+          if (res.statusCode === 200) {
+            try { log('Debug port ' + port + ' responded after ' + attempts + ' attempts (' + (Date.now()-start) + ' ms)'); resolve(JSON.parse(data)); } catch (e) { attemptOnce(); }
+          } else { attemptOnce(); }
+        });
+      });
+      req.on('error', function () { attemptOnce(); });
+      req.on('timeout', function () { req.destroy(); });
+      if (Date.now() - start >= timeoutMs) { log('Debug port ' + port + ' did NOT respond after ' + attempts + ' attempts (' + timeoutMs + ' ms)'); resolve(null); return; }
+      if (attempts > 500) { resolve(null); return; }
+    }
+    attemptOnce();
+  });
 }
 
 async function runForViewport(vw) {
@@ -59,30 +71,30 @@ async function runForViewport(vw) {
     '--disable-gpu',
     '--disable-software-rasterizer',
     '--no-first-run',
-    '--no-default-browser-check',
-    '--mute-audio',
-    '--hide-scrollbars',
-    '--disable-dev-shm-usage',
-    '--disable-background-networking',
-    '--disable-extensions',
-    '--disable-component-update',
-    '--disable-default-apps',
-    '--disable-breakpad',
-    '--disable-crash-reporter',
-    '--disable-features=Crashpad,MojoIpcz,ImprovedGuestManagedIph',
     '--user-data-dir=' + userDataDir,
     '--window-size=' + vw + ',1000',
     '--remote-debugging-port=' + port,
-    '--remote-allow-origins=*'
+    '--remote-allow-origins=*',
+    '--enable-logging=stderr',
+    '--v=1'
   ];
   log('Launching Edge on port ' + port + ' (' + EDGE + ') ...');
   log('args: ' + args.join(' '));
-  const child = spawn(EDGE, args, { stdio: 'ignore', windowsHide: true });
+  const child = spawn(EDGE, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+  let stderrBuf = '';
+  child.stderr.on('data', function (c) {
+    const s = c.toString('utf8');
+    stderrBuf += s;
+    if (/DevTools listening|ERROR|FATAL/.test(s)) {
+      s.split(/\r?\n/).forEach(function (line) { if (line) log('  [stderr] ' + line); });
+    }
+  });
   child.on('error', function (e) { log('spawn error: ' + e.message); });
+  child.on('exit', function (code, signal) { log('child exited code=' + code + ' signal=' + signal); });
   log('Child PID: ' + child.pid);
 
   /* Poll for debug port */
-  const ver = await pollDebugPort(port, 6000);
+  const ver = await pollDebugPort(port, 12000);
   if (!ver) {
     try { spawnSync('taskkill', ['/pid', String(child.pid), '/f', '/t']); } catch (_) {}
     throw new Error('Edge debug port did not come up on ' + port);

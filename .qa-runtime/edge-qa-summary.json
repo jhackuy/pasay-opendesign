@@ -1,0 +1,15 @@
+{
+  "viewports": {
+    "390": {
+      "error": "spawn EPERM"
+    },
+    "430": {
+      "error": "spawn EPERM"
+    }
+  },
+  "allPass": false,
+  "targetFile": "C:\\Users\\Admin\\AppData\\Roaming\\Open Design\\namespaces\\release-stable-win\\data\\projects\\c5fb3a39-c6d0-4003-9cee-66deb7a626a1\\pasay-mini-app.html",
+  "browser": "Microsoft Edge",
+  "browserVersion": "153.0.4234.6",
+  "timestamp": "2026-08-28T09:51:56.162Z"
+}
