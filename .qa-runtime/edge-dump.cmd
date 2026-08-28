@@ -13,12 +13,18 @@ if exist "%PROF%" rmdir /s /q "%PROF%"
   --headless=new ^
   --no-sandbox ^
   --disable-gpu ^
+  --disable-software-rasterizer ^
   --no-first-run ^
+  --no-default-browser-check ^
   --mute-audio ^
   --hide-scrollbars ^
   --disable-dev-shm-usage ^
   --disable-background-networking ^
   --disable-extensions ^
+  --disable-component-update ^
+  --disable-default-apps ^
+  --disable-breakpad ^
+  --disable-features=Crashpad,MojoIpcz,VizDisplayCompositor,UseDnsHttpsSvcb ^
   --user-data-dir="%PROF%" ^
   --window-size=%WIDTH%,%HEIGHT% ^
   --virtual-time-budget=%VT% ^
