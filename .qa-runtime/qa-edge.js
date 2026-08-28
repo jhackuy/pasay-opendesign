@@ -2,21 +2,12 @@
  * DESIGN-013 · BROWSER-QA-UNBLOCK
  * Real Windows Edge headless Browser QA at 390px and 430px.
  *
- * Path: launch Microsoft Edge --headless --remote-debugging-port=<p>; poll
- * http://127.0.0.1:<p>/json/version at 50 ms intervals (the debug listener is up
- * for ~5 s before Mojo/crashpad-init failures terminate Edge); once responding,
- * open a CDP target, navigate to pasay-mini-app.html, call the production
+ * Path: spawn Microsoft Edge via PowerShell Start-Process (Start-Process with
+ * -RedirectStandardOutput/-RedirectStandardError works for Edge in this sandbox
+ * because it does not use Node child_process stdio:'pipe' which the sandbox
+ * blocks); poll http://127.0.0.1:<p>/json/version at 50 ms via Node http;
+ * once responding, open a CDP target, navigate to pasay-mini-app.html, call
  * window.__OD_RUN_BROWSER_QA() and persist the auditable report.
- *
- * Output:
- *   .qa-runtime/edge-qa-390.json
- *   .qa-runtime/edge-qa-430.json
- *   .qa-runtime/edge-qa-summary.json
- *
- * Exit code:
- *   0 = all pages PASS at both viewports
- *   1 = at least one page FAIL
- *   2 = setup / launch error
  */
 'use strict';
 const { spawn, spawnSync } = require('child_process');
@@ -33,39 +24,38 @@ const VIEWPORTS = [390, 430];
 
 function log(msg) { console.log('[edge-qa] ' + msg); }
 
-function pollDebugPort(port, timeoutMs = 10000) {
+function pollDebugPort(port, timeoutMs) {
   return new Promise(function (resolve) {
     const start = Date.now();
     let attempts = 0;
-    function attemptOnce() {
+    function attempt() {
       attempts++;
-      const req = http.get({
-        host: '127.0.0.1', port: port, path: '/json/version', timeout: 1000
-      }, function (res) {
+      const req = http.get({ host: '127.0.0.1', port: port, path: '/json/version', timeout: 800 }, function (res) {
         let data = '';
         res.on('data', function (c) { data += c; });
         res.on('end', function () {
-          if (res.statusCode === 200) {
-            try { log('Debug port ' + port + ' responded after ' + attempts + ' attempts (' + (Date.now()-start) + ' ms)'); resolve(JSON.parse(data)); } catch (e) { attemptOnce(); }
-          } else { attemptOnce(); }
+          if (res.statusCode === 200) { try { log('Debug port ' + port + ' responded after ' + attempts + ' attempts (' + (Date.now()-start) + ' ms)'); resolve(JSON.parse(data)); } catch (e) { attempt(); } }
+          else { attempt(); }
         });
       });
-      req.on('error', function () { attemptOnce(); });
+      req.on('error', function () { attempt(); });
       req.on('timeout', function () { req.destroy(); });
       if (Date.now() - start >= timeoutMs) { log('Debug port ' + port + ' did NOT respond after ' + attempts + ' attempts (' + timeoutMs + ' ms)'); resolve(null); return; }
-      if (attempts > 500) { resolve(null); return; }
+      if (attempts > 600) { resolve(null); return; }
     }
-    attemptOnce();
+    attempt();
   });
 }
 
 async function runForViewport(vw) {
   const port = 9500 + (vw === 430 ? 1 : 0);
   const userDataDir = path.join(OUT_DIR, 'edge-prof-' + vw);
+  const errFile = path.join(OUT_DIR, 'edge-stderr-' + vw + '.log');
   fs.rmSync(userDataDir, { recursive: true, force: true });
   fs.mkdirSync(userDataDir, { recursive: true });
+  fs.rmSync(errFile, { force: true });
 
-  const args = [
+  const argList = [
     '--headless',
     '--no-sandbox',
     '--disable-gpu',
@@ -74,29 +64,32 @@ async function runForViewport(vw) {
     '--user-data-dir=' + userDataDir,
     '--window-size=' + vw + ',1000',
     '--remote-debugging-port=' + port,
-    '--remote-allow-origins=*',
-    '--enable-logging=stderr',
-    '--v=1'
-  ];
-  log('Launching Edge on port ' + port + ' (' + EDGE + ') ...');
-  log('args: ' + args.join(' '));
-  const child = spawn(EDGE, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
-  let stderrBuf = '';
-  child.stderr.on('data', function (c) {
-    const s = c.toString('utf8');
-    stderrBuf += s;
-    if (/DevTools listening|ERROR|FATAL/.test(s)) {
-      s.split(/\r?\n/).forEach(function (line) { if (line) log('  [stderr] ' + line); });
-    }
-  });
-  child.on('error', function (e) { log('spawn error: ' + e.message); });
-  child.on('exit', function (code, signal) { log('child exited code=' + code + ' signal=' + signal); });
-  log('Child PID: ' + child.pid);
+    '--remote-allow-origins=*'
+  ].map(function (a) { return "'" + a.replace(/'/g, "''") + "'"; }).join(', ');
+
+  log('Launching Edge via PowerShell Start-Process on port ' + port + ' ...');
+  const psScript = `
+    $proc = Start-Process -FilePath '${EDGE.replace(/'/g, "''")}' -ArgumentList @(${argList}) -RedirectStandardError '${errFile.replace(/'/g, "''")}' -PassThru -WindowStyle Hidden
+    Write-Output ('CHILDPID=' + $proc.Id)
+  `;
+  const psOut = spawnSync('powershell', ['-NoProfile', '-Command', psScript], { encoding: 'utf8' });
+  if (psOut.status !== 0) {
+    log('PowerShell launch failed: stderr=' + psOut.stderr);
+    throw new Error('PowerShell launch failed: ' + psOut.stderr);
+  }
+  const childPidMatch = psOut.stdout.match(/CHILDPID=(\d+)/);
+  const childPid = childPidMatch ? childPidMatch[1] : null;
+  log('Child PID: ' + childPid);
 
   /* Poll for debug port */
   const ver = await pollDebugPort(port, 12000);
   if (!ver) {
-    try { spawnSync('taskkill', ['/pid', String(child.pid), '/f', '/t']); } catch (_) {}
+    /* Tail stderr for clues */
+    if (fs.existsSync(errFile)) {
+      const errTail = fs.readFileSync(errFile, 'utf8').split(/\r?\n/).slice(-15).join('\n');
+      log('Edge stderr tail: ' + errTail);
+    }
+    if (childPid) try { spawnSync('taskkill', ['/pid', childPid, '/f', '/t']); } catch (_) {}
     throw new Error('Edge debug port did not come up on ' + port);
   }
   const wsUrl = ver.webSocketDebuggerUrl;
@@ -113,16 +106,14 @@ async function runForViewport(vw) {
       const p = pending.get(msg.id); pending.delete(msg.id);
       if (msg.error) p.reject(new Error('CDP error: ' + JSON.stringify(msg.error)));
       else p.resolve(msg.result);
-    } else if (msg.method) {
-      events.push(msg);
-    }
+    } else if (msg.method) { events.push(msg); }
   });
   await new Promise(function (resolve, reject) {
     ws.once('open', resolve);
     ws.once('error', reject);
     setTimeout(function () { reject(new Error('WS open timeout')); }, 5000);
   });
-  log('WS connected. Events queued: ' + events.length);
+  log('WS connected.');
 
   function send(method, params) {
     const id = nextId++;
@@ -131,7 +122,6 @@ async function runForViewport(vw) {
     return p;
   }
 
-  /* Create new target */
   const t1 = Date.now();
   const tgt = await send('Target.createTarget', { url: 'about:blank' });
   const targetId = tgt.targetId;
@@ -153,16 +143,12 @@ async function runForViewport(vw) {
     width: vw, height: 1000, deviceScaleFactor: 1, mobile: false
   });
 
-  /* Navigate to file:// */
   const fileUri = 'file:///' + TARGET_HTML.replace(/\\/g, '/');
   log('Navigate to ' + fileUri);
   await sendS('Page.navigate', { url: fileUri });
-
-  /* Wait for load + rAF cycles */
   log('Wait 9s for page load + rAF + QA');
   await new Promise(function (r) { setTimeout(r, 9000); });
 
-  /* Execute the production QA */
   const evalR = await sendS('Runtime.evaluate', {
     expression: 'window.__OD_RUN_BROWSER_QA && window.__OD_RUN_BROWSER_QA()',
     returnByValue: true,
@@ -172,20 +158,12 @@ async function runForViewport(vw) {
   let report = null;
   if (evalR && evalR.result) {
     if (evalR.result.value) report = evalR.result.value;
-    else if (evalR.result.exceptionDetails) log('QA eval exception: ' + JSON.stringify(evalR.result.exceptionDetails));
-  }
-  if (!report) {
-    /* Fallback: stringify the global */
-    const str = await sendS('Runtime.evaluate', {
-      expression: 'JSON.stringify({hasQA: typeof window.__OD_RUN_BROWSER_QA, qaPanel: document.getElementById("__qa_sum") ? document.getElementById("__qa_sum").textContent : null, appHTMLLen: document.getElementById("app") ? document.getElementById("app").innerHTML.length : 0, scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, rows: document.querySelectorAll("#__qa_tb tr").length, allPass: window.__QA_ALLPASS, pass: window.__QA_PASS, total: window.__QA_TOTAL })',
-      returnByValue: true
-    });
-    log('QA not callable; fallback snapshot: ' + (str && str.result && str.result.value));
+    else if (evalR.result.exceptionDetails) log('QA eval exception: ' + JSON.stringify(evalR.result.exceptionDetails).substring(0, 500));
   }
 
   try { await send('Target.closeTarget', { targetId: targetId }); } catch (_) {}
   try { ws.close(); } catch (_) {}
-  try { spawnSync('taskkill', ['/pid', String(child.pid), '/f', '/t']); } catch (_) {}
+  if (childPid) try { spawnSync('taskkill', ['/pid', childPid, '/f', '/t']); } catch (_) {}
   log('Done vw=' + vw + ' in ' + (Date.now() - t1) + 'ms');
   return report;
 }
@@ -199,8 +177,18 @@ async function main() {
   for (const vw of VIEWPORTS) {
     let report;
     try { report = await runForViewport(vw); }
-    catch (e) { log('vw=' + vw + ' FAILED: ' + e.message); summary.viewports[vw] = { error: e.message }; summary.allPass = false; continue; }
-    if (!report) { summary.viewports[vw] = { error: 'no report' }; summary.allPass = false; continue; }
+    catch (e) {
+      log('vw=' + vw + ' FAILED: ' + e.message);
+      summary.viewports[vw] = { error: e.message };
+      summary.allPass = false;
+      continue;
+    }
+    if (!report) {
+      log('vw=' + vw + ' returned no report');
+      summary.viewports[vw] = { error: 'no report' };
+      summary.allPass = false;
+      continue;
+    }
     const file = path.join(OUT_DIR, 'edge-qa-' + vw + '.json');
     fs.writeFileSync(file, JSON.stringify(report, null, 2));
     log('Wrote ' + file);
