@@ -16,6 +16,9 @@ const MONO_STYLE = "padding:8px 11px;border-bottom:1px solid #e4e7ec;font-family
 
 const SCRIPT = [
   '(function(){',
+  'var CELL_STYLE="padding:8px 11px;border-bottom:1px solid #e4e7ec;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700";',
+  'var ROW_STYLE="padding:8px 11px;border-bottom:1px solid #e4e7ec";',
+  'var MONO_STYLE="padding:8px 11px;border-bottom:1px solid #e4e7ec;font-family:ui-monospace,Menlo,Consolas,monospace";',
   'window.addEventListener("error",function(e){',
   '  var sum=document.getElementById("__bqa_sum");',
   '  if(sum)sum.textContent="ERR: "+(e.message||e)+" @ "+(e.filename||"?")+":"+(e.lineno||"?")+":"+(e.colno||"?");',
