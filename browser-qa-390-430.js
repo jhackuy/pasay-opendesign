@@ -47,6 +47,7 @@ const pages = [
   ['home', () => vm.runInContext('viewHome()', ctx)],
   ['props', () => vm.runInContext('viewProps(new URLSearchParams())', ctx)],
   ['prop-detail', () => vm.runInContext('viewProperty("1608","overview")', ctx)],
+  ['prop-fin', () => vm.runInContext('viewProperty("1608","fin")', ctx)],
   ['prop-repair', () => vm.runInContext('viewProperty("1608","repair")', ctx)],
   ['ops', () => vm.runInContext('viewOps()', ctx)],
   ['finance', () => vm.runInContext('viewFinance(new URLSearchParams())', ctx)],
