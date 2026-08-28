@@ -21,7 +21,12 @@ async function pickExe() {
 
 async function tryFetch(url, tries = 200) {
   for (let i = 0; i < tries; i++) {
-    try { const r = await fetch(url); if (r.ok) return await r.json(); } catch (_) {}
+    try {
+      const r = await fetch(url);
+      if (r.ok) { console.log('[raw-cdp] Debug port responded on attempt ' + (i+1)); return await r.json(); }
+    } catch (e) {
+      if (i === 0 || i % 50 === 0) console.log('[raw-cdp] fetch attempt ' + (i+1) + ' err=' + (e.code || '?') + ' msg=' + e.message.substring(0, Math.min(80, e.message.length)));
+    }
     await new Promise(r => setTimeout(r, 100));
   }
   return null;
