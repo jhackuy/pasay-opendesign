@@ -26,7 +26,7 @@
         "expectedTotal": 34,
         "viewport390Count": 17,
         "viewport430Count": 17,
-        "timestamp": "2026-08-28T13:33:26.633Z"
+        "timestamp": "2026-08-28T13:41:47.022Z"
       },
       "sumLine": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=0 allPass=false",
       "reportTotal": 34,
@@ -60,7 +60,7 @@
         "expectedTotal": 34,
         "viewport390Count": 17,
         "viewport430Count": 17,
-        "timestamp": "2026-08-28T13:33:28.185Z"
+        "timestamp": "2026-08-28T13:41:48.428Z"
       },
       "sumLine": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=0 allPass=false",
       "reportTotal": 34,
@@ -74,7 +74,7 @@
     }
   },
   "allPass": false,
-  "timestamp": "2026-08-28T13:33:26.069Z",
+  "timestamp": "2026-08-28T13:41:46.511Z",
   "rows390": 34,
   "rows430": 34,
   "expectedRows": 34,
