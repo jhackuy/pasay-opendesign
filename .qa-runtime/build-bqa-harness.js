@@ -114,16 +114,12 @@ const QA_RUNNER = `
 
 function main() {
   const src = fs.readFileSync(SRC, 'utf8');
-  /* Insert QA panel right after <body ...> opening tag */
-  const bodyOpenRe = /<body[^>]*>/i;
-  if (!bodyOpenRe.test(src)) throw new Error('No <body> tag in source');
-  const out1 = src.replace(bodyOpenRe, function (m) { return m + '\n' + QA_PANEL; });
-  /* Append QA runner right before </body> */
+  /* Append QA runner right before </body> — DO NOT modify body content */
   const bodyCloseRe = /<\/body>/i;
-  if (!bodyCloseRe.test(out1)) throw new Error('No </body> tag in source');
-  const out2 = out1.replace(bodyCloseRe, QA_RUNNER + '\n</body>');
-  fs.writeFileSync(OUT, out2);
-  console.log('[build-bqa] wrote ' + OUT + ' (' + out2.length + ' bytes; src was ' + src.length + ')');
+  if (!bodyCloseRe.test(src)) throw new Error('No </body> tag in source');
+  const out = src.replace(bodyCloseRe, QA_RUNNER + '\n</body>');
+  fs.writeFileSync(OUT, out);
+  console.log('[build-bqa] wrote ' + OUT + ' (' + out.length + ' bytes; src was ' + src.length + ')');
 }
 
 main();
