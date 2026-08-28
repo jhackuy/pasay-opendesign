@@ -1,4 +1,4 @@
-﻿# OpenDesign runtime / internal metadata
+# OpenDesign runtime / internal metadata
 *.artifact.json
 .file-versions/
 .od-skills/
@@ -14,3 +14,23 @@ pasay-mini-app-preview.png
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# ── Real-browser QA runtime (never commit browser user dirs / caches / logs) ──
+# Browser user-data / profile directories (Chrome / Edge / Chromium), any name
+.qa-runtime/real-browser-prof*/
+.qa-runtime/*-prof*/
+.qa-runtime/*-profile-*/
+.qa-runtime/*profile*/
+# Any browser cache, within or outside profiles
+.qa-runtime/**/*Cache*/
+.qa-runtime/**/cache.db*
+# Browser runtime lock/log/session state (LOCK, LOG, Cookies, History, Login Data…)
+.qa-runtime/**/LOCK
+.qa-runtime/**/LOG
+.qa-runtime/**/History*
+.qa-runtime/**/Cookies*
+.qa-runtime/**/Login Data*
+.qa-runtime/**/*.log
+# Serve / dev runtime logs
+.qa-runtime/serve.log
+.qa-runtime/serve.err.log

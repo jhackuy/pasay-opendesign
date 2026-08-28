@@ -1,0 +1,671 @@
+{
+  "viewports": {
+    "390": [
+      {
+        "page": "home",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "props",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:fchip on",
+          "short-aux:fchip",
+          "short-aux:fchip on",
+          "short-aux:fchip",
+          "short-aux:fchip",
+          "short-aux:fchip"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "prop-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:tab on",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-g sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "prop-fin",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:tab",
+          "short-aux:tab on",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "prop-repair",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab on",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "ops",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "finance",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:fchip",
+          "short-aux:fchip",
+          "short-aux:fchip"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "rent-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "repair-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-g sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "expense-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-p sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "more",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "archive",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "team",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "tenant",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-p sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "setup",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "switch",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "settings",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-s sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      }
+    ],
+    "430": [
+      {
+        "page": "home",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "props",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:fchip on",
+          "short-aux:fchip",
+          "short-aux:fchip on",
+          "short-aux:fchip",
+          "short-aux:fchip",
+          "short-aux:fchip"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "prop-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:tab on",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-g sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "prop-fin",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:tab",
+          "short-aux:tab on",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "prop-repair",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab on",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab",
+          "short-aux:tab"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "ops",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "finance",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:fchip",
+          "short-aux:fchip",
+          "short-aux:fchip"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "rent-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "repair-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-g sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "expense-detail",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-p sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "more",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "archive",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "team",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "tenant",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-p sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": true,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "setup",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "switch",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      },
+      {
+        "page": "settings",
+        "leaks": [],
+        "docOverflow": false,
+        "appOverflow": false,
+        "rectIssues": [],
+        "auxMetrics": [
+          "short-aux:tb-back",
+          "short-aux:iconb",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-s sm",
+          "short-aux:btn btn-s sm"
+        ],
+        "bottomNavUsable": true,
+        "primaryAction": false,
+        "overlap": 0,
+        "ok": true
+      }
+    ]
+  },
+  "pages": [
+    "home",
+    "props",
+    "prop-detail",
+    "prop-fin",
+    "prop-repair",
+    "ops",
+    "finance",
+    "rent-detail",
+    "repair-detail",
+    "expense-detail",
+    "more",
+    "archive",
+    "team",
+    "tenant",
+    "setup",
+    "switch",
+    "settings"
+  ],
+  "summary": {
+    "total": 34,
+    "pass": 34,
+    "fail": []
+  },
+  "allPass": true
+}

@@ -20,7 +20,7 @@ $args = @(
   '--disable-component-update',
   '--disable-breakpad',
   '--disable-features=Crashpad,MojoIpcz,VizDisplayCompositor',
-  "--user-data-dir=$Profile",
+  "--user-data-dir=`"$Profile`"",
   "--window-size=$Width,$Height",
   "--remote-debugging-port=$Port",
   '--remote-allow-origins=*',
