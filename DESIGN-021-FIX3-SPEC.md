@@ -71,7 +71,7 @@
 - 不改 IA、不改 Bottom Nav 5 项、不改路由、不改文案、不改业务逻辑、不改 view 函数渲染输出
 - 不新增 CTA、不修改 `.btn-p` 的现有语义
 - 不修改 Node 侧的 `gates-runner.js` 与 `browser-qa-390-430.js` 的判定逻辑（仅允许维护 / 重生成其依赖的 harness 产物）
-- 不修改 `__OD_RUN_BROWSER_QA` 内部对 **rect 几何 / overflow / bottomNavUsable** 的判定公式
+- 不修改 `__OD_RUN_BROWSER_QA` 内部对 **rect 几何 / overflow / bottomNavUsable / overlap / leaks** 的判定公式（**仅 `primaryAction` 字段按 §4.5 FR-5 移除**）
 - 不重启 / 不重构 `.qa-runtime/serve.js` 之外的运行时
 - **不声明 FINAL PASS** 除非 §6 Acceptance 全绿 + 在真实 Chrome 151 双视口实测产生新证据
 
@@ -79,7 +79,7 @@
 
 ## 3. Scope of Change
 
-按用户授权："不得修改产品、Harness、QA 脚本" 解读如下（与 §6 待澄清项关联）：
+按用户授权："不得修改产品、Harness、QA 脚本" 解读如下（与 §8 待澄清项关联）：
 
 | 文件 | 是否可改 | 改什么 |
 |---|---|---|
@@ -125,7 +125,7 @@ QA 中 "clipped:tab / clipped:fchip" 表示 `right > vw + 1`。根因：`.tabs` 
 1. **`.tabs` 容器**：确保 `display: flex; flex-wrap: nowrap; min-width: 0;` 并允许自身占满父级宽度（`width: 100%`）；其 `padding: 8px 16px` 不变；最后一项 `padding-right` 由容器内边距承担
 2. **`.tab` 单项**：保持 `flex-shrink: 0`，宽度随内容；不再触发 `right > vw`（因容器不再被挤压）
 3. **`.filters` 容器**：同上；`overflow-x: auto` 保留以支持横向滑动
-4. **校验**：当 `.tab` / `.fchip` 容器宽度足够放下全部项目时，`overflow-x` 自然为 none，所有项 `right ≤ vw`；当容器宽度不足时，QA 需在脚本侧说明（见 §6 待澄清项 #2）
+4. **校验**：当 `.tab` / `.fchip` 容器宽度足够放下全部项目时，`overflow-x` 自然为 none，所有项 `right ≤ vw`；当容器宽度不足时，QA 需在脚本侧说明（见 §8 待澄清项 C-2）
 
 > 注：prop-detail / prop-fin / prop-repair 的 tabs 数量为 4–6，390 视口实际可放下，问题是父级宽度被挤压；本规范要求通过 CSS 修复该挤压，不得通过缩减 tab 文案或数量达成。
 
@@ -221,15 +221,16 @@ leaks.length === 0 && !docOverflow && !appOverflow && rects.length === 0 && bott
 > 本阶段不执行下列步骤；列出仅为下游 implement 阶段约束。
 
 1. 修复 `pasay-mini-app.html` CSS（§4.1, §4.2）
-2. 修改 `.qa-runtime/serve.js`（§4.3）
-3. `node .qa-runtime/build-bqa-harness.js` 重生成 `pasay-mini-app-bqa-390-430.html`
-4. `node .qa-runtime/serve.js` 启动 8790 端口
-5. 真实 Chrome 151 + playwright-core 经 `http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html` 加载
-6. `window.__OD_RUN_BROWSER_QA()` 在两视口运行
-7. 读取 `window.__BQA_ALLPASS / __BQA_TOTAL / __BQA_PASS / __BQA_PAGE_COUNT` 与 `window.__BQA_VERIFY`
-8. 采集 CDP `console.error` 与 `Runtime.exceptionThrown`
-9. 写入新证据至 `.qa-runtime/real-browser-qa-evidence.json`、`.qa-runtime/real-browser-report-{390,430}.json`、`.qa-runtime/real-browser-qa-{390,430}.png`
-10. 全部 AC 满足 → 写 `DESIGN-021-FIX3-FINAL.md`（非本阶段产出）
+2. 按 §4.5 FR-5 修改 `pasay-mini-app.html` 中 `__OD_RUN_BROWSER_QA` 的 `ok` 公式（仅移除 `primaryAction` 子句）
+3. 修改 `.qa-runtime/serve.js`（§4.3）
+4. `node .qa-runtime/build-bqa-harness.js` 重生成 `pasay-mini-app-bqa-390-430.html`
+5. `node .qa-runtime/serve.js` 启动 8790 端口
+6. 真实 Chrome 151 + playwright-core 经 `http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html` 加载
+7. `window.__OD_RUN_BROWSER_QA()` 在两视口运行
+8. 读取 `window.__BQA_ALLPASS / __BQA_TOTAL / __BQA_PASS / __BQA_PAGE_COUNT` 与 `window.__BQA_VERIFY`
+9. 采集 CDP `console.error` 与 `Runtime.exceptionThrown`
+10. 写入新证据至 `.qa-runtime/real-browser-qa-evidence.json`、`.qa-runtime/real-browser-report-{390,430}.json`、`.qa-runtime/real-browser-qa-{390,430}.png`
+11. 全部 AC 满足 → 写 `DESIGN-021-FIX3-FINAL.md`（非本阶段产出）
 
 ---
 
@@ -239,8 +240,8 @@ leaks.length === 0 && !docOverflow && !appOverflow && rects.length === 0 && bott
 
 | # | 问题 | 选项 | 默认建议 |
 |---|---|---|---|
-| **C-1** | "不得修改产品"是否包含 `pasay-mini-app.html` 中 `window.__OD_RUN_BROWSER_QA` 这段嵌入的 QA gate JS？该 gate 在 line 13690 把 `primaryAction` 计入 `ok`。若 §4 严格执行后仍剩 9 页缺主操作（home/props/ops/finance/more/archive/setup/switch/settings），34/34 在不修改该 gate 的前提下无法达成 | (a) 视 `__OD_RUN_BROWSER_QA` 为产品一部分，**禁止修改**——则规范需配套给出可选策略如：① 让 build-bqa-harness.js 在 sum 计算时忽略 `primaryAction` 但保留每行 `Primary` 列；② 接受 §2.2 中"自然无 primaryAction 不得因此失败"= 在 harness 侧定义 allPass 公式时不计 primaryAction；(b) 视 `__OD_RUN_BROWSER_QA` 为 QA 基础设施，**允许**修改 `ok` 公式使其将 `primaryAction` 视为 informational-only | **(a-①)**：保持产品 JS 零变更；harness sum 公式去掉 primaryAction 列的 allPass 权重（仍展示列）。这是最不侵入产品的方案 |
-| **C-2** | QA gate 的 `rects` 数组对 `overflow-x: auto` 容器内末端项的 "未滚动位置" 触发 `right > vw`，被视为裁切。若 `.tabs` / `.filters` 因视口宽度实际放不下全部 tab/fchip，CSS 修复是否要求 (a) 把容器宽度撑到能放下全部项（可能挤压 `.topbar` 标题区），还是 (b) 接受 `overflow-x: auto` 即合规，QA 应改判定 | (a) 容器始终能放下全部项；(b) `overflow-x: auto` 容器内末端项不算裁切（仅当 `scrollLeft` 可滚到该位置） | **(b)**：当前 17 页 tabs 数量在 390 视口实际可放下，根因是父级宽度挤压，不是滚动条本身——本规范 §4.2 已通过修复挤压消除裁切。若用户坚持 (b)，需授权 QA 改 `rects` 判定 |
+| **C-1**（**阻塞**） | "不得修改产品"是否包含 `pasay-mini-app.html` 中 `window.__OD_RUN_BROWSER_QA` 这段嵌入的 QA gate JS？该 gate 在 line 13690 把 `primaryAction` 计入 `ok`，但用户硬约束 "自然没有 primaryAction 的页面不得因此失败" 直接要求把 `primaryAction` 从 `ok` 公式中移除。此处与 §3 "JS 区块 — view 函数 ❌ 不改" 不冲突（修改对象是 QA gate，不是 view 函数） | (a) 允许将 `primaryAction` 从 `ok` 公式移除并降级为 informational（§4.5 已给出修改后的公式）——**满足用户硬约束**；(b) 保留原 `ok` 公式但要求 implement 阶段必须为 9 个无 primaryAction 的页面补造 `.btn-p`（**违反** "不得新增虚假 CTA"） | **(a)**：用户硬约束强制要求移除；§4.5 FR-5 已给出修改后的公式与边界（仅触动 `ok` 公式 1 行；view 函数 / IA / Bottom Nav / 路由 / 文案 / `.btn-p` 视觉 / `data-a` 全部冻结） |
+| **C-2** | QA gate 的 `rects` 数组对 `overflow-x: auto` 容器内末端项的 "未滚动位置" 触发 `right > vw`，被视为裁切。若 `.tabs` / `.filters` 因视口宽度实际放不下全部 tab/fchip，CSS 修复是否要求 (a) 把容器宽度撑到能放下全部项（可能挤压 `.topbar` 标题区），还是 (b) 接受 `overflow-x: auto` 即合规，QA 应改判定 | (a) 容器始终能放下全部项；(b) `overflow-x: auto` 容器内末端项不算裁切（仅当 `scrollLeft` 可滚到该位置） | **(a)**：当前 17 页 tabs 数量在 390 视口实际可放下，根因是父级宽度挤压，不是滚动条本身——本规范 §4.2 通过修复挤压消除裁切。**`__OD_RUN_BROWSER_QA` 的 `rects` 判定公式不动**，符合 §2.2 "不修改 rect 几何判定" |
 | **C-3** | `.btn.sm` 提升到 `min-height: 44px` 后，在 `.appr-bar`（批准/拒绝双按钮并列）等横向布局中，按钮视觉密度明显变高（高度从 34→44 ≈ +29%）。该变更是否会被视觉评审视为"破坏 UI 节奏" | (a) 接受视觉变化；(b) 改用 `min-height: 44px` + 保持原 `font-size` / `padding` 不变但允许按钮变高 | **(b)** 已写在 §4.1：仅 `min-height` 与 `padding: 0 14px` 变化，不改 `font-size: 13px` 与 `border-radius: 9px` |
 | **C-4** | `pasay-mini-app.html` 与 `pasay-mini-app-bqa-390-430.html` 是否需要由 build 工具确保 byte-level 同步（harness 内嵌 mini-app 副本） | (a) 仅 CSS 修改后两者人工同步；(b) 继续由 build-bqa-harness.js 在 §4.1 修复后重生成 | **(b)**：与既有 §A.7 注入修复一致 |
 | **C-5** | 沙箱内 Chrome 是否在 implement 阶段可启动（DESIGN-013 §5、DESIGN-021-FIX1 §二均记 EPERM） | 若沙箱仍无法启动真实 Chrome，本规范的 §6 Acceptance 无法在本机落地，需由具备浏览器权限的环境执行 | 列出，不在本规范决断 |
