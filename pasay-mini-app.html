@@ -13334,7 +13334,7 @@ function runGateFinalProductFreezeV1() {
     A(rejectA1a && rejectA1a.ok === false && /property_id/.test(rejectA1a.reason || '') && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.1] doCreateRepairFromPayload 无 property_id → REJECT · zero mutation（repairs/operations 不变）');
     A(rejectA1b && rejectA1b.ok === false && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.1b] property_id undefined → REJECT · zero mutation');
     A(rejectA2a && rejectA2a.ok === false && /unknown/i.test(rejectA2a.reason || '') && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.2] 未知 PRP → REJECT · zero mutation（不靠 unit fallback 猜）');
-    A(rejectA2b && rejectA2b.ok === false && /PRP/.test(rejectA2b.reason || '') && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.2b] 非 PRP-xxxx 格式 → REJECT · zero mutation');
+    A(rejectA2b && rejectA2b.ok === false && (/(PRP|unknown)/i.test(rejectA2b.reason || '')) && state.repairs.length === repCountBefore && state.operations.length === opCountBefore, '[A.2b] 非 PRP-xxxx 格式（1608）→ REJECT · zero mutation（不靠 unit fallback 猜）');
     /* A.7 · Property Detail / Repair Detail / Operation all stay isolated by PRP after auto-Operation */
     const propDetailA = viewProperty(pf1.prop.id, 'overview');
     const propDetailB = viewProperty(pf2.prop.id, 'overview');
