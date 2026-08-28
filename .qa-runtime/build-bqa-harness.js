@@ -78,7 +78,7 @@ const QA_RUNNER = `
     window.__BQA_TOTAL = total;
     window.__BQA_PASS = pass;
     try {
-      document.getElementById('__bqa_report_blob').textContent = 'BQA_REPORT_BEGIN\n' + JSON.stringify(report, null, 2) + '\nBQA_REPORT_END';
+      document.getElementById('__bqa_report_blob').textContent = 'BQA_REPORT_BEGIN\\n' + JSON.stringify(report, null, 2) + '\\nBQA_REPORT_END';
     } catch (_) {}
   }
   function fail(msg){
