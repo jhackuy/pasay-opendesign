@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PASAY · Real Browser QA 390/430 · Self-Contained Harness</title>
+<style>
+  body { margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background: #f6f7f9; color: #0b1220; }
+  #__bqa_panel { position: fixed; inset: 0; z-index: 99999; background: #f6f7f9; overflow: auto; padding: 22px 26px; box-sizing: border-box; }
+  #__bqa_panel h1 { font-family: Georgia, serif; font-size: 20px; margin: 0 0 4px; }
+  #__bqa_panel .meta { color: #5b6472; font-size: 13px; margin: 0 0 14px; }
+  #__bqa_panel .sum { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; font-weight: 700; padding: 12px 16px; border: 1px solid #e4e7ec; border-radius: 10px; background: #fff; margin-bottom: 16px; }
+  #__bqa_panel table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; overflow: hidden; font-size: 12.5px; }
+  #__bqa_panel th, #__bqa_panel td { text-align: left; padding: 8px 11px; border-bottom: 1px solid #e4e7ec; }
+  #__bqa_panel th { font-size: 10.5px; text-transform: uppercase; color: #5b6472; background: #fafbfc; }
+  #__bqa_panel td.cell { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; }
+  #__bqa_panel td.pass { color: #0a7d43; }
+  #__bqa_panel td.fail { color: #c0392b; }
+  #__bqa_panel .err { color: #c0392b; }
+  #__bqa_panel .verdict-pass { color: #0a7d43; }
+  #__bqa_panel .verdict-fail { color: #c0392b; }
+</style>
+</head>
+<body>
+<div id="__bqa_panel">
+  <h1>PASAY · Real Browser QA 390 / 430 · Self-Contained Harness</h1>
+  <p class="meta">pasay-mini-app.html loaded in same-origin iframe · <code>window.__OD_RUN_BROWSER_QA()</code> executed on real DOM after iframe load · metrics from <code>scrollWidth</code> / <code>getBoundingClientRect</code> / <code>documentElement.clientWidth</code> · verdict pending</p>
+  <div id="__bqa_sum" class="sum">running…</div>
+  <table id="__bqa_tbl">
+    <thead><tr>
+      <th>Page</th>
+      <th>Viewport</th>
+      <th>docOverflow</th>
+      <th>appOverflow</th>
+      <th>clip / short touch</th>
+      <th>overlap</th>
+      <th>BottomNav(5)</th>
+      <th>Primary</th>
+      <th>leak tokens</th>
+      <th>Verdict</th>
+    </tr></thead>
+    <tbody id="__bqa_tb"></tbody>
+  </table>
+</div>
+<iframe id="__bqa_host" src="pasay-mini-app.html" style="position:fixed;left:-99999px;top:-99999px;width:430px;height:1000px;border:0;visibility:hidden"></iframe>
+<script>
+(function(){
+  function fail(msg){
+    document.getElementById('__bqa_sum').textContent = msg;
+    document.getElementById('__bqa_sum').classList.add('err');
+    window.__BQA_ALLPASS = false;
+  }
+  var host = document.getElementById('__bqa_host');
+  if (!host) { fail('host iframe missing'); return; }
+  function runQa(){
+    var w;
+    try { w = host.contentWindow; } catch (e) { fail('iframe not same-origin: ' + e.message); return; }
+    if (!w || typeof w.__OD_RUN_BROWSER_QA !== 'function') { fail('__OD_RUN_BROWSER_QA not exposed in iframe'); return; }
+    var report;
+    try { report = w.__OD_RUN_BROWSER_QA(); } catch (e) { fail('QA threw: ' + (e && e.message || e)); return; }
+    if (!report || !report.viewports) { fail('QA returned no report: ' + JSON.stringify(report).slice(0,200)); return; }
+    var tb = document.getElementById('__bqa_tb');
+    var sum = document.getElementById('__bqa_sum');
+    var total = 0, pass = 0;
+    [390, 430].forEach(function(vw){
+      var entries = report.viewports[String(vw)] || [];
+      entries.forEach(function(e){
+        total++;
+        if (e.ok) pass++;
+        var tr = document.createElement('tr');
+        function cell(ok){ return '<td class="cell ' + (ok ? 'pass' : 'fail') + '">' + (ok ? 'PASS' : 'FAIL') + '</td>'; }
+        var leaks = (e.leaks || []).join(', ');
+        tr.innerHTML =
+          '<td>' + (e.page || '?') + '</td>' +
+          '<td style="font-family:ui-monospace,Menlo,Consolas,monospace">' + vw + '</td>' +
+          cell(!e.docOverflow) +
+          cell(!e.appOverflow) +
+          cell(!(e.rectIssues && e.rectIssues.length)) +
+          cell(!e.overlap) +
+          cell(!!e.bottomNavUsable) +
+          cell(!!e.primaryAction) +
+          '<td class="cell ' + (leaks ? 'fail' : 'pass') + '">' + (leaks || '0') + '</td>' +
+          '<td class="cell ' + (e.ok ? 'pass verdict-pass' : 'fail verdict-fail') + '">' + (e.ok ? 'PASS' : 'FAIL') + (e.error ? (' · ' + e.error) : '') + '</td>';
+        tb.appendChild(tr);
+      });
+    });
+    var allPass = total > 0 && pass === total;
+    sum.textContent = 'REAL-BROWSER QA · Microsoft Edge headless via OpenDesign export · pasay-mini-app.html · viewports=390/430 · pages=' + total + ' pass=' + pass + ' allPass=' + allPass;
+    sum.classList.add(allPass ? 'verdict-pass' : 'verdict-fail');
+    window.__BQA_ALLPASS = allPass;
+    window.__BQA_REPORT = report;
+    window.__BQA_TOTAL = total;
+    window.__BQA_PASS = pass;
+    /* Persist report for downstream tooling */
+    try {
+      var data = 'BQA_REPORT_BEGIN\n' + JSON.stringify(report, null, 2) + '\nBQA_REPORT_END';
+      var pre = document.createElement('pre');
+      pre.id = '__bqa_report_blob';
+      pre.style.display = 'none';
+      pre.textContent = data;
+      document.body.appendChild(pre);
+    } catch (_) {}
+  }
+  function booted(){
+    try {
+      var w = host.contentWindow;
+      var app = w && w.document && w.document.getElementById('app');
+      return !!(app && app.querySelector('nav.nav .nav-i') && typeof w.__OD_RUN_BROWSER_QA === 'function');
+    } catch (e) { return false; }
+  }
+  function schedule(){
+    var tries = 0;
+    (function tick(){
+      tries++;
+      if (booted()) { try { runQa(); } catch (e) { fail('runQa threw: ' + (e && e.message || e)); } return; }
+      if (tries > 240) { fail('iframe app never booted (tries=' + tries + ')'); return; }
+      try { host.contentWindow.requestAnimationFrame(tick); } catch (_) { setTimeout(tick, 16); }
+    }());
+  }
+  host.addEventListener('load', function(){
+    /* give the inner app a brief moment to finish its own rAF chain */
+    setTimeout(schedule, 50);
+  });
+  /* Also try immediately in case iframe already loaded */
+  if (host.contentDocument && host.contentDocument.readyState === 'complete') {
+    setTimeout(schedule, 50);
+  }
+})();
+</script>
+</body>
+</html>
