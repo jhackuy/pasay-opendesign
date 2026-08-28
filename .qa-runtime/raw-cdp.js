@@ -19,10 +19,10 @@ async function pickExe() {
   return null;
 }
 
-async function tryFetch(url, tries = 30) {
+async function tryFetch(url, tries = 200) {
   for (let i = 0; i < tries; i++) {
     try { const r = await fetch(url); if (r.ok) return await r.json(); } catch (_) {}
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 100));
   }
   return null;
 }
@@ -51,13 +51,10 @@ async function runForViewport(vw) {
     '--disable-breakpad',
     '--disable-crash-reporter',
     '--disable-features=Crashpad,MojoIpcz',
-    '--no-crashpad',
-    '--disable-crashpad',
-    '--disable-dev-shm-usage',
-    '--in-process-gpu',
     '--user-data-dir=' + userDataDir,
     '--window-size=' + vw + ',800',
-    '--remote-debugging-port=' + port
+    '--remote-debugging-port=' + port,
+    '--remote-allow-origins=*'
   ];
   console.log('[raw-cdp] Launching ' + exe + ' on port ' + port + ' (stdio: ignore) ...');
   const child = spawn(exe, args, { stdio: 'ignore', windowsHide: true, detached: false });
@@ -69,7 +66,7 @@ async function runForViewport(vw) {
     throw new Error('Chromium debug port did not come up on ' + port);
   }
   const wsUrl = ver.webSocketDebuggerUrl;
-  console.log('[raw-cdp] WS URL: ' + wsUrl);
+  console.log('[raw-cdp] WS URL: ' + wsUrl + ' (browser=' + (ver.Browser || '?') + ')');
 
   const ws = new WebSocket(wsUrl, { perMessageDeflate: false, maxPayload: 256 * 1024 * 1024 });
   await new Promise((resolve, reject) => { ws.once('open', resolve); ws.once('error', reject); });
@@ -103,6 +100,7 @@ async function runForViewport(vw) {
   const targetId = target.targetId;
   const att = await send('Target.attachToTarget', { targetId: targetId, flatten: true });
   const sessionId = att.sessionId;
+  console.log('[raw-cdp] Attached to target ' + targetId + ' session=' + sessionId);
 
   function sendSession(method, params) {
     const id = nextId++;
@@ -119,7 +117,7 @@ async function runForViewport(vw) {
   });
   await sendSession('Page.navigate', { url: 'file:///' + path.join(__dirname, '..', 'pasay-mini-app.html').replace(/\\/g, '/') });
   /* Wait for load */
-  await new Promise(r => setTimeout(r, 6000));
+  await new Promise(r => setTimeout(r, 8000));
 
   /* Execute the QA function */
   const evalResult = await sendSession('Runtime.evaluate', {
