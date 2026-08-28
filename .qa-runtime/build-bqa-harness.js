@@ -16,6 +16,10 @@ const MONO_STYLE = "padding:8px 11px;border-bottom:1px solid #e4e7ec;font-family
 
 const SCRIPT = [
   '(function(){',
+  'window.addEventListener("error",function(e){',
+  '  var sum=document.getElementById("__bqa_sum");',
+  '  if(sum)sum.textContent="ERR: "+(e.message||e)+" @ "+(e.filename||"?")+":"+(e.lineno||"?")+":"+(e.colno||"?");',
+  '});',
   'var tb=document.getElementById("__bqa_tb");',
   'var sum=document.getElementById("__bqa_sum");',
   'function cell(ok){return "<td style=\\"" + CELL_STYLE + ";color:" + (ok?"#0a7d43":"#c0392b") + "\\">" + (ok?"PASS":"FAIL") + "</td>";}',
