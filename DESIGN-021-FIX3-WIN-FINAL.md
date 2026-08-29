@@ -13,9 +13,9 @@
 | 分支 | `main` |
 | **TESTED_SHA（待验提交，真实浏览器实际加载的源）** | `195efbd7fbf3ef232915d9e284ccac571a7c2a53` (`195efbd`) |
 | TESTED_SHA 内容来源证明 | 6 个产品/harness blob 与 `git ls-tree TESTED_SHA` 完全一致（见 §三）；working tree 在测试期间保持干净 |
-| **FINAL_EVIDENCE_SHA（auto-sync 后的新远程 main SHA）** | `4b0eed31b031039c87ea6e9aa3850f10ce6d1512` (`4b0eed31`) |
-| FINAL_EVIDENCE_SHA 含内容 | 三次 auto-sync：① `21d3162` 提交 5 个新浏览器证据文件；② `5711e525` 提交本报告初版；③ `4b0eed31` 提交本报告最终版（含 §三 表 2 中 FINAL_EVIDENCE_SHA 指向自身） |
-| 6 个产品/harness blob 在 195efbd ↔ 4b0eed31 之间 | **零差异**（见 §三 · 表 2） |
+| **FINAL_EVIDENCE_SHA（auto-sync 后的新远程 main SHA）** | `4cfa2b0ebd854881c0266f47030cda67e9faf0b5` (`4cfa2b0`) |
+| FINAL_EVIDENCE_SHA 含内容 | 四次 auto-sync：① `21d3162` 提交 5 个新浏览器证据文件；② `5711e525` 提交本报告初版；③ `4b0eed31` 提交本报告 v2；④ `4cfa2b0` 提交本报告 v3（本行当前指向此 SHA 的内容状态） |
+| 6 个产品/harness blob 在 195efbd ↔ 4cfa2b0 之间 | **零差异**（见 §三 · 表 2） |
 
 ---
 
@@ -228,16 +228,16 @@ $files = @('pasay-mini-app.html','pasay-mini-app-bqa-390-430.html','.qa-runtime/
 | 项 | 值 |
 |---|---|
 | **TESTED_SHA** | `195efbd7fbf3ef232915d9e284ccac571a7c2a53` |
-| **FINAL_EVIDENCE_SHA** | `4b0eed31b031039c87ea6e9aa3850f10ce6d1512` |
-| 6 个产品/harness blob 一致性 | ✅ 完全一致（195efbd ↔ 工作区 ↔ 4b0eed31） |
+| **FINAL_EVIDENCE_SHA** | `4cfa2b0ebd854881c0266f47030cda67e9faf0b5` |
+| 6 个产品/harness blob 一致性 | ✅ 完全一致（195efbd ↔ 工作区 ↔ 4cfa2b0） |
 | 390 结果 | pass=8/17 · allPass=false（runner exit=1） |
 | 430 结果 | pass=8/17 · allPass=false（runner exit=1） |
 | 5 个证据文件 | ✅ 全部存在且内容核验完毕 |
 | 截图实读结论 | ✅ 真实打开两张 PNG，与 JSON 数值一致 |
 | Node gates（gates-runner.js · browser-qa-390-430.js） | ✅ 两项均 exit 0 全绿（Node 结构性，与真实浏览器几何实测不一致） |
 | **frozen IA/domain changed** | **NO** |
-| **remote committed** | **YES**（FINAL_EVIDENCE_SHA = `4b0eed31`，含 5 个新浏览器证据文件 + 本报告 `DESIGN-021-FIX3-WIN-FINAL.md`） |
-| **PASAY_DESIGN_IMPLEMENTATION_SOT_SHA** | **`4b0eed31b031039c87ea6e9aa3850f10ce6d1512`**（= FINAL_EVIDENCE_SHA） |
+| **remote committed** | **YES**（FINAL_EVIDENCE_SHA = `4cfa2b0`，含 5 个新浏览器证据文件 + 本报告 `DESIGN-021-FIX3-WIN-FINAL.md`） |
+| **PASAY_DESIGN_IMPLEMENTATION_SOT_SHA** | **`4cfa2b0ebd854881c0266f47030cda67e9faf0b5`**（= FINAL_EVIDENCE_SHA） |
 | 终态 | **BLOCKED**（真实浏览器 BQA 16/34 ≠ 34/34；按宪制规则不声明 FINAL PASS） |
 
 ---
