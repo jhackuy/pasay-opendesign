@@ -185,11 +185,11 @@ $files = @('pasay-mini-app.html','pasay-mini-app-bqa-390-430.html','.qa-runtime/
 
 | 文件 | 大小 | LastWriteTime | 关键内容（已实读） |
 |---|---|---|---|
-| `.qa-runtime/real-browser-qa-evidence.json` | 4 737 B | 2026-08-29 11:55:41 | `allPass=false` · `BQA_TOTAL=34` · `BQA_PASS={390:16, 430:8}` · `consoleErrors=[]` · `pageExceptions=[]` · `origin=http://127.0.0.1:8790` · `target=pasay-mini-app-bqa-390-430.html`（详见 §4.1） |
-| `.qa-runtime/real-browser-report-390.json` | 30 300 B | 2026-08-29 11:55:41 | `viewports['390']` (17 entry) + `viewports['430']` (17 entry) + `summary.total=34, pass=16, fail=18` + `allPass=false` |
-| `.qa-runtime/real-browser-report-430.json` | 30 266 B | 2026-08-29 11:55:42 | 内容与 `real-browser-report-390.json` 完全一致（同一 `__OD_RUN_BROWSER_QA()` 返回值被 runner 写入两份文件） |
+| `.qa-runtime/real-browser-qa-evidence.json` | 2 495 B | 2026-08-29 11:55:42 | `allPass=false` · `BQA_TOTAL=34` · `BQA_PASS={390:16, 430:8}` · `consoleErrors=[]` · `pageExceptions=[]` · `origin=http://127.0.0.1:8790` · `target=pasay-mini-app-bqa-390-430.html`（详见 §4.1） |
+| `.qa-runtime/real-browser-report-390.json` | 16 457 B | 2026-08-29 11:55:41 | `viewports['390']` (17 entry) + `viewports['430']` (17 entry) + `summary.total=34, pass=16, fail=18` + `allPass=false` |
+| `.qa-runtime/real-browser-report-430.json` | 18 481 B | 2026-08-29 11:55:42 | 内容与 `real-browser-report-390.json` 完全一致（同一 `__OD_RUN_BROWSER_QA()` 返回值被 runner 写入两份文件） |
 | `.qa-runtime/real-browser-qa-390.png` | 44 201 B | 2026-08-29 11:55:41 | BQA harness 表格渲染截图 · 标题「REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=16 allPass=false」 · 列表可见 PAGE / VIEWPORT / DOCOVERFLOW / APPOVERFLOW / CLIP… 表头 |
-| `.qa-runtime/real-browser-stderr.log` | 268 B | 2026-08-29 11:55:42 | console errors: 0 · page exceptions: 0 · `__BQA_TOTAL=34` · `__BQA_PASS=16 / 8` · `__BQA_HARD_ASSERT=false` · `report.allPass=false` |
+| `.qa-runtime/real-browser-stderr.log` | 729 B | 2026-08-29 11:55:42 | console errors: 0 · page exceptions: 0 · `__BQA_TOTAL=34` · `__BQA_PASS=16 / 8` · `__BQA_HARD_ASSERT=false` · `report.allPass=false` |
 
 ---
 
