@@ -5,14 +5,74 @@
   "target": "pasay-mini-app-bqa-390-430.html",
   "viewports": {
     "390": {
-      "error": "browserType.launch: spawn EPERM\nCall log:\n\u001b[2m  - <launching> C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-gpu --disable-software-rasterizer --no-first-run --mute-audio --hide-scrollbars --disable-dev-shm-usage --disable-background-networking --disable-extensions --disable-component-update --disable-breakpad --no-default-browser-check --disable-features=Crashpad --user-data-dir=C:\\Users\\Admin\\AppData\\Local\\Temp\\dsh-nXjDtm\\playwright_chromiumdev_profile-oRZDgn --remote-debugging-pipe --no-startup-window\u001b[22m\n"
+      "httpStatus": 200,
+      "viewport": 390,
+      "height": 900,
+      "typeofRunner": null,
+      "hasRunner": true,
+      "BQA_ALLPASS": false,
+      "BQA_TOTAL": 34,
+      "BQA_PASS": 16,
+      "BQA_HARD_ASSERT": false,
+      "BQA_PAGE_COUNT": 17,
+      "BQA_VERIFY": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "href": "http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html#/settings",
+        "hardAssert": false,
+        "allPass": false,
+        "total": 34,
+        "pass": 16,
+        "pageCount": 17,
+        "expectedTotal": 34,
+        "viewport390Count": 17,
+        "viewport430Count": 17,
+        "timestamp": "2026-08-29T03:55:40.304Z"
+      },
+      "sumLine": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=16 allPass=false",
+      "reportTotal": 34,
+      "reportPass": 16,
+      "reportAllPass": false,
+      "consoleErrors": [],
+      "pageExceptions": [],
+      "ok": false
     },
     "430": {
-      "error": "browserType.launch: spawn EPERM\nCall log:\n\u001b[2m  - <launching> C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --disable-gpu --disable-software-rasterizer --no-first-run --mute-audio --hide-scrollbars --disable-dev-shm-usage --disable-background-networking --disable-extensions --disable-component-update --disable-breakpad --no-default-browser-check --disable-features=Crashpad --user-data-dir=C:\\Users\\Admin\\AppData\\Local\\Temp\\dsh-nXjDtm\\playwright_chromiumdev_profile-2PVUwV --remote-debugging-pipe --no-startup-window\u001b[22m\n"
+      "httpStatus": 200,
+      "viewport": 430,
+      "height": 900,
+      "typeofRunner": null,
+      "hasRunner": true,
+      "BQA_ALLPASS": false,
+      "BQA_TOTAL": 34,
+      "BQA_PASS": 8,
+      "BQA_HARD_ASSERT": false,
+      "BQA_PAGE_COUNT": 17,
+      "BQA_VERIFY": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "href": "http://127.0.0.1:8790/pasay-mini-app-bqa-390-430.html#/settings",
+        "hardAssert": false,
+        "allPass": false,
+        "total": 34,
+        "pass": 8,
+        "pageCount": 17,
+        "expectedTotal": 34,
+        "viewport390Count": 17,
+        "viewport430Count": 17,
+        "timestamp": "2026-08-29T03:55:41.712Z"
+      },
+      "sumLine": "REAL-BROWSER QA · pages=17 × 2 viewports (390/430) · entries=34 pass=8 allPass=false",
+      "reportTotal": 34,
+      "reportPass": 8,
+      "reportAllPass": false,
+      "consoleErrors": [],
+      "pageExceptions": [],
+      "ok": false
     }
   },
   "allPass": false,
-  "timestamp": "2026-08-29T02:53:39.960Z",
+  "timestamp": "2026-08-29T03:55:39.777Z",
+  "rows390": 34,
+  "rows430": 34,
   "expectedRows": 34,
   "expectedPass": 34
 }
