@@ -19,7 +19,16 @@ const MIME = {
 };
 
 const server = http.createServer(function (req, res) {
-  let p = decodeURIComponent((req.url || '/').split('?')[0].split('#')[0]);
+  const urlPath = (req.url || '/').split('?')[0].split('#')[0];
+  /* FR-006: swallow the browser-default /favicon.ico request with 204 so it
+     never 404s (a 404 would fall through to a browser `console.error`, which
+     violates the `consoleErrors === []` gate). */
+  if (urlPath === '/favicon.ico' || /^\/favicon\.ico\?v=/.test(req.url || '')) {
+    res.writeHead(204, { 'Content-Type': 'image/x-icon', 'Cache-Control': 'public, max-age=86400' });
+    res.end();
+    return;
+  }
+  let p = decodeURIComponent(urlPath);
   if (p === '/' || p === '') p = '/index.html';
   const fp = path.normalize(path.join(ROOT, p));
   if (!fp.startsWith(ROOT)) { res.writeHead(403); res.end('forbidden'); return; }
